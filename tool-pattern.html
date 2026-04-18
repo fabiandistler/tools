@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTML Tool Patterns — Simon Willison</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222535;
+      --border: #2e3248;
+      --accent: #6c8eff;
+      --accent2: #a78bfa;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --text: #e2e8f0;
+      --text-muted: #7c8499;
+      --code-bg: #141722;
+      --radius: 8px;
+      --font-mono: 'Fira Code', 'Cascadia Code', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 230px 1fr;
+      grid-template-rows: 56px 1fr;
+    }
+
+    /* ── HEADER ── */
+    header {
+      grid-column: 1 / -1;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 20px;
+    }
+    header h1 { font-size: 1rem; font-weight: 600; }
+    header span { color: var(--text-muted); font-size: .85rem; }
+    .badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: .7rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 99px;
+      letter-spacing: .03em;
+    }
+
+    /* ── SIDEBAR ── */
+    nav {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px 0;
+      overflow-y: auto;
+    }
+    nav .section-label {
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 10px 16px 4px;
+    }
+    nav button {
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: .85rem;
+      padding: 8px 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      transition: all .15s;
+      border-left: 2px solid transparent;
+    }
+    nav button:hover { color: var(--text); background: var(--surface2); }
+    nav button.active {
+      color: var(--accent);
+      background: rgba(108,142,255,.1);
+      border-left-color: var(--accent);
+    }
+    nav button .icon { font-size: 1rem; flex-shrink: 0; }
+    .pattern-num {
+      margin-left: auto;
+      font-size: .7rem;
+      background: var(--surface2);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+
+    /* ── MAIN ── */
+    main {
+      overflow-y: auto;
+      padding: 28px 32px;
+      max-width: 860px;
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── PATTERN HEADER ── */
+    .pattern-header {
+      margin-bottom: 20px;
+    }
+    .pattern-header h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .pattern-header p {
+      color: var(--text-muted);
+      margin-top: 6px;
+      line-height: 1.6;
+      font-size: .9rem;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card h3 {
+      font-size: .85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    /* ── CONTROLS ── */
+    textarea, input[type=text], input[type=url], input[type=password], select {
+      width: 100%;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: .82rem;
+      padding: 10px 12px;
+      resize: vertical;
+      outline: none;
+      transition: border-color .15s;
+    }
+    textarea:focus, input:focus { border-color: var(--accent); }
+    textarea { min-height: 100px; }
+
+    button.btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 8px 16px;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    button.btn:hover { opacity: .85; }
+    button.btn.secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    button.btn.success { background: var(--success); color: #000; }
+    button.btn.danger  { background: var(--danger); color: #fff; }
+
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+    /* ── CODE BLOCK ── */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: .8rem;
+      line-height: 1.6;
+      color: #a8b4d8;
+      margin-top: 12px;
+    }
+    pre .kw  { color: var(--accent2); }
+    pre .fn  { color: var(--accent); }
+    pre .str { color: var(--success); }
+    pre .cmt { color: var(--text-muted); font-style: italic; }
+    pre .num { color: var(--warning); }
+
+    /* ── OUTPUT ── */
+    .output {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: .82rem;
+      min-height: 60px;
+      margin-top: 10px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--success);
+    }
+    .output.empty { color: var(--text-muted); font-style: italic; }
+
+    /* ── STATUS ── */
+    .status {
+      font-size: .8rem;
+      padding: 6px 10px;
+      border-radius: 5px;
+      margin-top: 8px;
+    }
+    .status.ok  { background: rgba(52,211,153,.15); color: var(--success); border: 1px solid rgba(52,211,153,.3); }
+    .status.err { background: rgba(248,113,113,.15); color: var(--danger);  border: 1px solid rgba(248,113,113,.3); }
+    .status.info{ background: rgba(108,142,255,.15); color: var(--accent);  border: 1px solid rgba(108,142,255,.3); }
+
+    /* ── TABS WITHIN CARD ── */
+    .tab-btns { display: flex; gap: 2px; margin-bottom: 12px; }
+    .tab-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text-muted);
+      font-size: .78rem;
+      padding: 5px 12px;
+      cursor: pointer;
+    }
+    .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* ── URL STATE DEMO ── */
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .field-row label { font-size: .8rem; color: var(--text-muted); display: block; margin-bottom: 4px; }
+
+    /* ── LOCALSTORAGE ── */
+    .ls-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .78rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); }
+    .dot.saved { background: var(--success); }
+    .dot.saving { background: var(--warning); }
+
+    /* ── FILE INPUT ── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+      color: var(--text-muted);
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(108,142,255,.05);
+      color: var(--text);
+    }
+    .drop-zone .big-icon { font-size: 2rem; margin-bottom: 8px; }
+    .drop-zone p { font-size: .85rem; }
+
+    /* ── CORS ── */
+    .result-item {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: .82rem;
+    }
+    .result-item:last-child { border-bottom: none; }
+    .result-item strong { color: var(--accent); }
+    .result-item span   { color: var(--text-muted); font-size: .75rem; }
+
+    /* ── CLIPBOARD FORMATS ── */
+    .format-tag {
+      display: inline-block;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: .75rem;
+      font-family: var(--font-mono);
+      margin: 3px;
+      color: var(--accent2);
+    }
+
+    /* ── LLM ── */
+    .chat-bubble {
+      background: var(--surface2);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-size: .85rem;
+      line-height: 1.6;
+      margin-top: 10px;
+      border-left: 3px solid var(--accent);
+    }
+
+    /* ── HOME ── */
+    .pattern-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .pattern-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .pattern-card:hover {
+      border-color: var(--accent);
+      background: rgba(108,142,255,.07);
+      transform: translateY(-1px);
+    }
+    .pattern-card .icon { font-size: 1.5rem; margin-bottom: 8px; }
+    .pattern-card h4 { font-size: .85rem; font-weight: 600; margin-bottom: 4px; }
+    .pattern-card p  { font-size: .75rem; color: var(--text-muted); line-height: 1.5; }
+
+    /* ── LOADING SPINNER ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    /* autosave pulse */
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .pulsing { animation: pulse .8s ease infinite; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>🛠️</div>
+  <h1>HTML Tool Patterns</h1>
+  <span>— Interactive reference from Simon Willison's article</span>
+  <span class="badge">LIVE DEMOS</span>
+</header>
+
+<nav id="sidebar">
+  <div class="section-label">Overview</div>
+  <button class="active" data-panel="home" onclick="showPanel('home')">
+    <span class="icon">🏠</span> Introduction
+  </button>
+
+  <div class="section-label">Core Patterns</div>
+  <button data-panel="anatomy" onclick="showPanel('anatomy')">
+    <span class="icon">🧬</span> Anatomy <span class="pattern-num">P1</span>
+  </button>
+  <button data-panel="clipboard" onclick="showPanel('clipboard')">
+    <span class="icon">📋</span> Copy & Paste <span class="pattern-num">P2</span>
+  </button>
+  <button data-panel="url-state" onclick="showPanel('url-state')">
+    <span class="icon">🔗</span> URL State <span class="pattern-num">P3</span>
+  </button>
+  <button data-panel="localstorage" onclick="showPanel('localstorage')">
+    <span class="icon">💾</span> localStorage <span class="pattern-num">P4</span>
+  </button>
+
+  <div class="section-label">I/O Patterns</div>
+  <button data-panel="file-input" onclick="showPanel('file-input')">
+    <span class="icon">📂</span> File Input <span class="pattern-num">P5</span>
+  </button>
+  <button data-panel="file-download" onclick="showPanel('file-download')">
+    <span class="icon">⬇️</span> File Download <span class="pattern-num">P6</span>
+  </button>
+  <button data-panel="cors" onclick="showPanel('cors')">
+    <span class="icon">🌐</span> CORS APIs <span class="pattern-num">P7</span>
+  </button>
+  <button data-panel="llm" onclick="showPanel('llm')">
+    <span class="icon">🤖</span> LLM via CORS <span class="pattern-num">P8</span>
+  </button>
+
+  <div class="section-label">Advanced</div>
+  <button data-panel="cdn" onclick="showPanel('cdn')">
+    <span class="icon">📦</span> CDN Dependencies <span class="pattern-num">P9</span>
+  </button>
+  <button data-panel="debug" onclick="showPanel('debug')">
+    <span class="icon">🔍</span> Debug Tools <span class="pattern-num">P10</span>
+  </button>
+</nav>
+
+<main>
+
+  <!-- ══════════════════ HOME ══════════════════ -->
+  <div id="panel-home" class="panel active">
+    <div class="pattern-header">
+      <h2>🛠️ Simon Willison's HTML Tool Patterns</h2>
+      <p>
+        An interactive demo of every pattern from
+        <a href="https://simonwillison.net/2025/Dec/10/html-tools/" target="_blank" style="color:var(--accent)">
+          Useful patterns for building HTML tools
+        </a>.
+        Each section explains the pattern and provides a live, working demonstration.<br><br>
+        This file itself is a single <code style="color:var(--accent2)">.html</code> with all CSS and JS inline — demonstrating <strong>Pattern 1</strong> by its very existence.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>The 4 Core Anatomy Rules</h3>
+      <div style="display:grid;gap:10px">
+        <div style="display:flex;gap:10px;align-items:start">
+          <span style="font-size:1.2rem">📄</span>
+          <div><strong>Single File</strong> — all CSS + JS inline, zero setup, paste-able from LLM response</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:start">
+          <span style="font-size:1.2rem">🚫</span>
+          <div><strong>No React / No Build Step</strong> — vanilla JS + DOM APIs, always "No React" in your prompts</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:start">
+          <span style="font-size:1.2rem">📦</span>
+          <div><strong>CDN Dependencies</strong> — cdnjs, jsDelivr, or unpkg when needed; avoid npm/build pipelines</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:start">
+          <span style="font-size:1.2rem">📏</span>
+          <div><strong>Keep It Small</strong> — a few hundred lines; any LLM can read, understand, and rewrite it</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pattern-grid" id="pattern-grid">
+      <div class="pattern-card" onclick="showPanel('clipboard')">
+        <div class="icon">📋</div><h4>Copy & Paste</h4>
+        <p>Read clipboard formats, paste into tools, one-touch copy-out</p>
+      </div>
+      <div class="pattern-card" onclick="showPanel('url-state')">
+        <div class="icon">🔗</div><h4>URL State</h4>
+        <p>Persist and share tool state via URL hash — no server needed</p>
+      </div>
+      <div class="pattern-card" onclick="showPanel('localstorage')">
+        <div class="icon">💾</div><h4>localStorage</h4>
+        <p>Auto-save drafts & secrets locally, never expose to servers</p>
+      </div>
+      <div class="pattern-card" onclick="showPanel('file-input')">
+        <div class="icon">📂</div><h4>File Input</h4>
+        <p>Open & process files client-side — no upload needed</p>
+      </div>
+      <div class="pattern-card" onclick="showPanel('file-download')">
+        <div class="icon">⬇️</div><h4>File Download</h4>
+        <p>Generate & download files without any server involvement</p>
+      </div>
+      <div class="pattern-card" onclick="showPanel('cors')">
+        <div class="icon">🌐</div><h4>CORS APIs</h4>
+        <p>PyPI, GitHub, iNaturalist, Bluesky — goldmine of open data</p>
+      </div>
+      <div class="pattern-card" onclick="showPanel('llm')">
+        <div class="icon">🤖</div><h4>LLM via CORS</h4>
+        <p>Call Claude / OpenAI / Gemini directly — API key in localStorage</p>
+      </div>
+      <div class="pattern-card" onclick="showPanel('debug')">
+        <div class="icon">🔍</div><h4>Debug Tools</h4>
+        <p>Build clipboard viewers, keyboard debuggers, CORS checkers</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ ANATOMY ══════════════════ -->
+  <div id="panel-anatomy" class="panel">
+    <div class="pattern-header">
+      <h2>🧬 The Anatomy of an HTML Tool</h2>
+      <p>Every HTML tool follows a four-rule structure. This panel shows the canonical skeleton and explains each rule.</p>
+    </div>
+    <div class="card">
+      <h3>Canonical File Structure</h3>
+      <pre><span class="cmt">&lt;!-- Single .html file — copy/paste from LLM or GitHub --&gt;</span>
+<span class="kw">&lt;!DOCTYPE html&gt;</span>
+<span class="kw">&lt;html</span> lang=<span class="str">"en"</span><span class="kw">&gt;</span>
+<span class="kw">&lt;head&gt;</span>
+  <span class="kw">&lt;meta</span> charset=<span class="str">"UTF-8"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;meta</span> name=<span class="str">"viewport"</span> content=<span class="str">"width=device-width, initial-scale=1.0"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;title&gt;</span>My Tool<span class="kw">&lt;/title&gt;</span>
+
+  <span class="cmt">&lt;!-- CDN deps here (if truly needed) --&gt;</span>
+  <span class="kw">&lt;script</span> src=<span class="str">"https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"</span><span class="kw">&gt;&lt;/script&gt;</span>
+
+  <span class="kw">&lt;style&gt;</span>
+    <span class="cmt">/* All CSS inline — clean, modern, mobile-friendly */</span>
+    <span class="fn">:root</span> { <span class="kw">--accent:</span> <span class="str">#6c8eff</span>; }
+  <span class="kw">&lt;/style&gt;</span>
+<span class="kw">&lt;/head&gt;</span>
+<span class="kw">&lt;body&gt;</span>
+  <span class="cmt">&lt;!-- Minimal, functional UI: input → action → output --&gt;</span>
+
+  <span class="kw">&lt;script&gt;</span>
+    <span class="cmt">// Vanilla JS only. No React. No JSX. No TypeScript.</span>
+    <span class="cmt">// State via plain objects or localStorage.</span>
+    <span class="cmt">// Errors shown in-UI, never via alert().</span>
+  <span class="kw">&lt;/script&gt;</span>
+<span class="kw">&lt;/body&gt;</span>
+<span class="kw">&lt;/html&gt;</span></pre>
+    </div>
+    <div class="card">
+      <h3>Why "No React"?</h3>
+      <div style="color:var(--text-muted);font-size:.85rem;line-height:1.7">
+        JSX requires a build step → you can't copy-paste the output directly. React tools from LLMs have more crashing bugs. Build-step tools are harder to self-host.<br><br>
+        Simon's rule: always include <strong style="color:var(--accent)">"No React"</strong> in your LLM prompt. That single phrase avoids a whole rabbit hole.
+      </div>
+    </div>
+    <div class="card">
+      <h3>Why Single File?</h3>
+      <div style="color:var(--text-muted);font-size:.85rem;line-height:1.7">
+        • Copy-paste from LLM response directly to GitHub<br>
+        • Host on GitHub Pages in seconds — no build pipeline<br>
+        • LLM can rewrite the entire tool from scratch in minutes<br>
+        • No dependency hell — the file IS the deployable artifact
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ CLIPBOARD ══════════════════ -->
+  <div id="panel-clipboard" class="panel">
+    <div class="pattern-header">
+      <h2>📋 Copy & Paste Pattern</h2>
+      <p>
+        Clipboard is the most powerful I/O mechanism for HTML tools. Tools can read multiple clipboard formats (text/plain, text/html, images, files) and write back via navigator.clipboard. One-touch copy buttons are essential for mobile.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Demo: Paste Anywhere → Inspect Formats</h3>
+      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px">Press Ctrl/Cmd+V anywhere on this panel to inspect what's on your clipboard:</p>
+      <div id="clip-formats" class="output empty">Waiting for paste event…</div>
+      <div id="clip-content" class="output empty" style="margin-top:8px;min-height:120px">Paste content will appear here…</div>
+    </div>
+
+    <div class="card">
+      <h3>Demo: Transform Text → Copy Out</h3>
+      <textarea id="transform-input" placeholder="Paste or type text here…" style="min-height:80px"></textarea>
+      <div class="btn-row">
+        <button class="btn" onclick="transformText('upper')">UPPERCASE</button>
+        <button class="btn secondary" onclick="transformText('lower')">lowercase</button>
+        <button class="btn secondary" onclick="transformText('slug')">slug-ify</button>
+        <button class="btn secondary" onclick="transformText('reverse')">esreveR</button>
+      </div>
+      <div id="transform-output" class="output empty" style="margin-top:10px">Output appears here…</div>
+      <div class="btn-row">
+        <button class="btn success" onclick="copyOutput()">📋 Copy to Clipboard</button>
+        <span id="copy-status" style="font-size:.8rem;color:var(--success);align-self:center"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Key Code</h3>
+      <pre><span class="cmt">// Read clipboard on paste event (all formats)</span>
+<span class="fn">document</span>.<span class="fn">addEventListener</span>(<span class="str">'paste'</span>, <span class="kw">async</span> (e) => {
+  <span class="kw">const</span> items = e.clipboardData.items;
+  <span class="kw">for</span> (<span class="kw">const</span> item <span class="kw">of</span> items) {
+    console.log(item.type); <span class="cmt">// text/plain, text/html, image/png…</span>
+    <span class="kw">if</span> (item.type === <span class="str">'text/plain'</span>) {
+      item.<span class="fn">getAsString</span>(text => console.log(text));
+    }
+  }
+});
+
+<span class="cmt">// Write to clipboard</span>
+<span class="kw">await</span> navigator.clipboard.<span class="fn">writeText</span>(outputText);
+
+<span class="cmt">// Rich copy (HTML + plain text simultaneously)</span>
+<span class="kw">const</span> blob = <span class="kw">new</span> <span class="fn">Blob</span>([htmlString], { type: <span class="str">'text/html'</span> });
+<span class="kw">await</span> navigator.clipboard.<span class="fn">write</span>([
+  <span class="kw">new</span> <span class="fn">ClipboardItem</span>({ <span class="str">'text/html'</span>: blob })
+]);</pre>
+    </div>
+  </div>
+
+  <!-- ══════════════════ URL STATE ══════════════════ -->
+  <div id="panel-url-state" class="panel">
+    <div class="pattern-header">
+      <h2>🔗 Persist State in the URL</h2>
+      <p>
+        Store tool state in the URL hash — no server required. The state survives page refresh, can be bookmarked, and shared with others. Good for settings that aren't secrets.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Demo: Form State Persists in URL Hash</h3>
+      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px">Edit the fields below — the URL updates automatically. Refresh the page and the values are restored.</p>
+      <div class="field-row">
+        <div>
+          <label>Name</label>
+          <input type="text" id="url-name" placeholder="Fabian" oninput="syncToURL()">
+        </div>
+        <div>
+          <label>Color</label>
+          <input type="text" id="url-color" placeholder="#6c8eff" oninput="syncToURL()">
+        </div>
+      </div>
+      <div>
+        <label style="font-size:.8rem;color:var(--text-muted);display:block;margin-bottom:4px">Message</label>
+        <textarea id="url-msg" style="min-height:60px" placeholder="Hello from the URL…" oninput="syncToURL()"></textarea>
+      </div>
+      <div id="url-preview" class="output" style="margin-top:10px;color:var(--accent2);word-break:break-all"></div>
+    </div>
+
+    <div class="card">
+      <h3>Key Code</h3>
+      <pre><span class="cmt">// Write state to URL hash</span>
+<span class="kw">function</span> <span class="fn">syncToURL</span>() {
+  <span class="kw">const</span> state = {
+    name:  <span class="fn">document.getElementById</span>(<span class="str">'name'</span>).value,
+    color: <span class="fn">document.getElementById</span>(<span class="str">'color'</span>).value,
+  };
+  <span class="fn">location.hash</span> = <span class="fn">encodeURIComponent</span>(<span class="fn">JSON.stringify</span>(state));
+}
+
+<span class="cmt">// Restore state from URL on load</span>
+<span class="kw">window</span>.<span class="fn">addEventListener</span>(<span class="str">'DOMContentLoaded'</span>, () => {
+  <span class="kw">if</span> (location.hash) {
+    <span class="kw">const</span> state = <span class="fn">JSON.parse</span>(<span class="fn">decodeURIComponent</span>(location.hash.slice(<span class="num">1</span>)));
+    <span class="fn">document.getElementById</span>(<span class="str">'name'</span>).value = state.name || <span class="str">''</span>;
+  }
+});</pre>
+    </div>
+
+    <div class="card">
+      <h3>When to use URL vs localStorage?</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:.82rem">
+        <div>
+          <div style="color:var(--accent);font-weight:600;margin-bottom:6px">URL Hash ✓</div>
+          <div style="color:var(--text-muted);line-height:1.7">Bookmarkable results<br>Shareable state<br>Small configuration<br>Non-sensitive data</div>
+        </div>
+        <div>
+          <div style="color:var(--accent2);font-weight:600;margin-bottom:6px">localStorage ✓</div>
+          <div style="color:var(--text-muted);line-height:1.7">API keys & secrets<br>Large content (drafts)<br>Private per-device data<br>Long-lived state</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ LOCALSTORAGE ══════════════════ -->
+  <div id="panel-localstorage" class="panel">
+    <div class="pattern-header">
+      <h2>💾 localStorage Pattern</h2>
+      <p>
+        Browser localStorage stores data persistently on the user's device without exposing it to any server. Use it for API keys (never hardcode them!), large drafts, and state that shouldn't live in the URL.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Demo: Auto-Saving Draft Editor</h3>
+      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px">Everything you type is auto-saved to localStorage. Close the tab and come back — it'll still be here.</p>
+      <textarea id="ls-editor" style="min-height:140px" placeholder="Start writing… your draft is auto-saved."></textarea>
+      <div class="ls-indicator">
+        <div class="dot" id="ls-dot"></div>
+        <span id="ls-status">Not saved yet</span>
+        <span style="margin-left:auto;font-size:.75rem;color:var(--text-muted)" id="ls-wordcount">0 words</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn danger" onclick="clearDraft()">🗑️ Clear Draft</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Demo: API Key Storage (No Hardcoding!)</h3>
+      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px">API keys are stored in localStorage, never in the HTML source. Use <code>prompt()</code> to collect them.</p>
+      <div id="key-display" style="font-size:.85rem;padding:10px;background:var(--code-bg);border-radius:6px;border:1px solid var(--border)">
+        Key status: <span id="key-status" style="color:var(--text-muted)">Not stored</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="promptForKey()">🔑 Set Demo API Key</button>
+        <button class="btn danger" onclick="clearKey()">Remove Key</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Key Code</h3>
+      <pre><span class="cmt">// Auto-save with debounce</span>
+<span class="kw">let</span> saveTimer;
+editor.<span class="fn">addEventListener</span>(<span class="str">'input'</span>, () => {
+  <span class="fn">clearTimeout</span>(saveTimer);
+  saveTimer = <span class="fn">setTimeout</span>(() => {
+    <span class="fn">localStorage.setItem</span>(<span class="str">'draft'</span>, editor.value);
+  }, <span class="num">800</span>); <span class="cmt">// save 800ms after last keystroke</span>
+});
+
+<span class="cmt">// Restore on load</span>
+editor.value = <span class="fn">localStorage.getItem</span>(<span class="str">'draft'</span>) || <span class="str">''</span>;
+
+<span class="cmt">// API key pattern — prompt() + localStorage</span>
+<span class="kw">let</span> apiKey = <span class="fn">localStorage.getItem</span>(<span class="str">'api_key'</span>);
+<span class="kw">if</span> (!apiKey) {
+  apiKey = <span class="fn">prompt</span>(<span class="str">'Enter your API key:'</span>);
+  <span class="kw">if</span> (apiKey) <span class="fn">localStorage.setItem</span>(<span class="str">'api_key'</span>, apiKey);
+}</pre>
+    </div>
+  </div>
+
+  <!-- ══════════════════ FILE INPUT ══════════════════ -->
+  <div id="panel-file-input" class="panel">
+    <div class="pattern-header">
+      <h2>📂 File Input Pattern</h2>
+      <p>
+        JavaScript can read files directly from <code>&lt;input type="file"&gt;</code> without uploading to any server. This opens up OCR, image processing, CSV parsing, video previewing, and much more — all client-side.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Demo: Drop or Select Any Text/Image File</h3>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input-el').click()">
+        <div class="big-icon">📁</div>
+        <p>Drag & drop a file here, or <strong>click to browse</strong></p>
+        <p style="font-size:.75rem;margin-top:4px">Supports text, JSON, CSV, images</p>
+      </div>
+      <input type="file" id="file-input-el" style="display:none" onchange="handleFile(this.files[0])">
+      <div id="file-output" class="output empty" style="margin-top:10px;min-height:80px">File content will appear here…</div>
+    </div>
+
+    <div class="card">
+      <h3>Key Code</h3>
+      <pre><span class="cmt">// Read text file</span>
+<span class="kw">async function</span> <span class="fn">handleFile</span>(file) {
+  <span class="kw">const</span> text = <span class="kw">await</span> file.<span class="fn">text</span>();       <span class="cmt">// or file.arrayBuffer() for binary</span>
+  console.log(file.name, file.size, file.type);
+}
+
+<span class="cmt">// Read as data URL (for images)</span>
+<span class="kw">function</span> <span class="fn">readAsDataURL</span>(file) {
+  <span class="kw">return new</span> <span class="fn">Promise</span>(resolve => {
+    <span class="kw">const</span> reader = <span class="kw">new</span> <span class="fn">FileReader</span>();
+    reader.<span class="fn">onload</span> = e => <span class="fn">resolve</span>(e.target.result);
+    reader.<span class="fn">readAsDataURL</span>(file);
+  });
+}
+
+<span class="cmt">// Drag & drop setup</span>
+dropZone.<span class="fn">addEventListener</span>(<span class="str">'dragover'</span>, e => e.<span class="fn">preventDefault</span>());
+dropZone.<span class="fn">addEventListener</span>(<span class="str">'drop'</span>, e => {
+  e.<span class="fn">preventDefault</span>();
+  <span class="fn">handleFile</span>(e.dataTransfer.files[<span class="num">0</span>]);
+});</pre>
+    </div>
+  </div>
+
+  <!-- ══════════════════ FILE DOWNLOAD ══════════════════ -->
+  <div id="panel-file-download" class="panel">
+    <div class="pattern-header">
+      <h2>⬇️ File Download Pattern</h2>
+      <p>
+        HTML tools can generate and trigger downloads for any file type — CSV, JSON, SVG, PNG, ICS, plain text — entirely in the browser, no server required.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Demo: Generate & Download Various File Types</h3>
+      <div class="field-row">
+        <div>
+          <label style="font-size:.8rem;color:var(--text-muted);display:block;margin-bottom:4px">CSV Content</label>
+          <textarea id="csv-input" style="min-height:80px;font-family:var(--font-mono)">name,age,city
+Fabian,30,Niederkassel
+Simon,40,San Francisco
+Alice,25,Berlin</textarea>
+        </div>
+        <div>
+          <label style="font-size:.8rem;color:var(--text-muted);display:block;margin-bottom:4px">JSON Object</label>
+          <textarea id="json-input" style="min-height:80px;font-family:var(--font-mono)">{"tool": "html-patterns", "version": "1.0", "patterns": 10}</textarea>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="downloadFile(document.getElementById('csv-input').value, 'data.csv', 'text/csv')">⬇️ Download CSV</button>
+        <button class="btn secondary" onclick="downloadJSON()">⬇️ Download JSON</button>
+        <button class="btn secondary" onclick="downloadSVG()">⬇️ Download SVG</button>
+        <button class="btn secondary" onclick="downloadICS()">⬇️ Download ICS</button>
+      </div>
+      <div id="dl-status" style="margin-top:8px;font-size:.8rem;color:var(--success)"></div>
+    </div>
+
+    <div class="card">
+      <h3>Key Code</h3>
+      <pre><span class="cmt">// Universal download helper</span>
+<span class="kw">function</span> <span class="fn">downloadFile</span>(content, filename, mimeType) {
+  <span class="kw">const</span> blob = <span class="kw">new</span> <span class="fn">Blob</span>([content], { type: mimeType });
+  <span class="kw">const</span> url  = <span class="fn">URL.createObjectURL</span>(blob);
+  <span class="kw">const</span> a = <span class="fn">document.createElement</span>(<span class="str">'a'</span>);
+  a.href = url;
+  a.download = filename;
+  a.<span class="fn">click</span>();
+  <span class="fn">URL.revokeObjectURL</span>(url); <span class="cmt">// free memory</span>
+}
+
+<span class="cmt">// Examples</span>
+<span class="fn">downloadFile</span>(csvString, <span class="str">'export.csv'</span>, <span class="str">'text/csv'</span>);
+<span class="fn">downloadFile</span>(svgMarkup,  <span class="str">'icon.svg'</span>,   <span class="str">'image/svg+xml'</span>);
+<span class="fn">downloadFile</span>(jsonString, <span class="str">'data.json'</span>,  <span class="str">'application/json'</span>);
+<span class="fn">downloadFile</span>(icsContent, <span class="str">'event.ics'</span>,  <span class="str">'text/calendar'</span>);</pre>
+    </div>
+  </div>
+
+  <!-- ══════════════════ CORS ══════════════════ -->
+  <div id="panel-cors" class="panel">
+    <div class="pattern-header">
+      <h2>🌐 CORS-Enabled APIs</h2>
+      <p>
+        APIs with open CORS headers are a goldmine for HTML tools — they let your client-side JavaScript fetch live data from external services. Key CORS-friendly sources: PyPI, GitHub (public repos), iNaturalist, Bluesky, Mastodon.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Demo: Fetch Package Info from PyPI</h3>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="pypi-pkg" value="requests" style="flex:1" placeholder="Package name…">
+        <button class="btn" onclick="fetchPyPI()" style="white-space:nowrap">Fetch ↗</button>
+      </div>
+      <div id="pypi-output" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <h3>Demo: Check if a URL has CORS Headers</h3>
+      <div style="display:flex;gap:8px">
+        <input type="url" id="cors-url" value="https://pypi.org/pypi/requests/json" style="flex:1" placeholder="https://…">
+        <button class="btn" onclick="checkCORS()" style="white-space:nowrap">Check ↗</button>
+      </div>
+      <div id="cors-result" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <h3>Golden CORS APIs to Collect</h3>
+      <div style="font-size:.82rem;color:var(--text-muted);line-height:2">
+        🐍 <strong style="color:var(--text)">PyPI</strong> — <code>https://pypi.org/pypi/{package}/json</code><br>
+        🐙 <strong style="color:var(--text)">GitHub raw</strong> — <code>https://raw.githubusercontent.com/…</code><br>
+        🦋 <strong style="color:var(--text)">Bluesky</strong> — <code>https://public.api.bsky.app/…</code><br>
+        🦁 <strong style="color:var(--text)">iNaturalist</strong> — <code>https://api.inaturalist.org/v1/…</code><br>
+        🐘 <strong style="color:var(--text)">Mastodon</strong> — generous CORS policies across instances<br>
+        📝 <strong style="color:var(--text)">GitHub Gists</strong> — persist state to a permanent shareable URL
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ LLM ══════════════════ -->
+  <div id="panel-llm" class="panel">
+    <div class="pattern-header">
+      <h2>🤖 LLM via CORS</h2>
+      <p>
+        OpenAI, Anthropic, and Gemini all expose JSON APIs accessible via CORS from browser JavaScript. Never hardcode API keys — use the <code>prompt()</code> + localStorage pattern to collect and store them securely on-device.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Demo: Call Claude Directly from the Browser</h3>
+      <div id="llm-key-section">
+        <div id="llm-key-status" class="status info">No Anthropic API key stored. Click "Set Key" to add one.</div>
+        <div class="btn-row">
+          <button class="btn" onclick="setLLMKey()">🔑 Set API Key</button>
+          <button class="btn danger" onclick="clearLLMKey()">Remove Key</button>
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <textarea id="llm-prompt" style="min-height:70px" placeholder="Ask Claude something… (requires your Anthropic API key)">Write a one-sentence summary of what HTML tools are.</textarea>
+        <div class="btn-row">
+          <button class="btn" onclick="callClaude()">🤖 Ask Claude</button>
+          <span id="llm-loading" style="display:none"><span class="spinner"></span><span style="font-size:.8rem;color:var(--text-muted)">Thinking…</span></span>
+        </div>
+        <div id="llm-output" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Key Code</h3>
+      <pre><span class="cmt">// Anthropic Claude via CORS</span>
+<span class="kw">async function</span> <span class="fn">callClaude</span>(prompt, apiKey) {
+  <span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://api.anthropic.com/v1/messages'</span>, {
+    method: <span class="str">'POST'</span>,
+    headers: {
+      <span class="str">'x-api-key'</span>: apiKey,
+      <span class="str">'anthropic-version'</span>: <span class="str">'2023-06-01'</span>,
+      <span class="str">'content-type'</span>: <span class="str">'application/json'</span>,
+      <span class="str">'anthropic-dangerous-direct-browser-access'</span>: <span class="str">'true'</span>
+    },
+    body: <span class="fn">JSON.stringify</span>({
+      model: <span class="str">'claude-haiku-4-5-20251001'</span>,
+      max_tokens: <span class="num">1024</span>,
+      messages: [{ role: <span class="str">'user'</span>, content: prompt }]
+    })
+  });
+  <span class="kw">const</span> data = <span class="kw">await</span> res.<span class="fn">json</span>();
+  <span class="kw">return</span> data.content[<span class="num">0</span>].text;
+}
+
+<span class="cmt">// OpenAI equivalent</span>
+headers: { <span class="str">'Authorization'</span>: <span class="str">`Bearer ${apiKey}`</span> }
+<span class="cmt">// Gemini: ?key={apiKey} query param</span></pre>
+    </div>
+  </div>
+
+  <!-- ══════════════════ CDN ══════════════════ -->
+  <div id="panel-cdn" class="panel">
+    <div class="pattern-header">
+      <h2>📦 CDN Dependencies</h2>
+      <p>
+        Load third-party libraries from trusted CDNs like cdnjs.cloudflare.com or jsDelivr. Always pin to a specific version for stability. Avoid npm/build pipelines — they kill the "paste and run" workflow.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Recommended Libraries by Use Case</h3>
+      <div style="font-size:.82rem;line-height:2">
+        <div><strong style="color:var(--accent)">Markdown rendering</strong> — <code>marked.js</code> from cdnjs</div>
+        <div><strong style="color:var(--accent)">PDF processing</strong> — <code>PDF.js</code> from cdnjs</div>
+        <div><strong style="color:var(--accent)">OCR in browser</strong> — <code>Tesseract.js</code> from cdnjs</div>
+        <div><strong style="color:var(--accent)">Code diffs</strong> — <code>diff2html</code> or <code>jsdiff</code></div>
+        <div><strong style="color:var(--accent)">CSV parsing</strong> — <code>Papa Parse</code> from cdnjs</div>
+        <div><strong style="color:var(--accent)">Charts</strong> — <code>Chart.js</code> from cdnjs</div>
+        <div><strong style="color:var(--accent)">Syntax highlighting</strong> — <code>highlight.js</code> from cdnjs</div>
+        <div><strong style="color:var(--accent)">Python in browser</strong> — <code>Pyodide</code> + <code>micropip</code></div>
+        <div><strong style="color:var(--accent)">YAML</strong> — <code>js-yaml</code> from cdnjs</div>
+        <div><strong style="color:var(--accent)">QR codes</strong> — <code>qrcode.js</code> from cdnjs</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>CDN URL Pattern</h3>
+      <pre><span class="cmt">&lt;!-- Pin to a specific version for reproducibility --&gt;</span>
+<span class="kw">&lt;script</span> src=<span class="str">"https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"</span><span class="kw">&gt;&lt;/script&gt;</span>
+<span class="kw">&lt;script</span> src=<span class="str">"https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"</span><span class="kw">&gt;&lt;/script&gt;</span>
+
+<span class="cmt">&lt;!-- Pyodide — run Python in browser (via WebAssembly) --&gt;</span>
+<span class="kw">&lt;script</span> src=<span class="str">"https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"</span><span class="kw">&gt;&lt;/script&gt;</span>
+<span class="kw">&lt;script&gt;</span>
+  <span class="kw">async function</span> <span class="fn">init</span>() {
+    <span class="kw">const</span> pyodide = <span class="kw">await</span> <span class="fn">loadPyodide</span>();
+    <span class="kw">await</span> pyodide.loadPackage(<span class="str">'pandas'</span>);
+    pyodide.<span class="fn">runPython</span>(<span class="str">`import pandas as pd; print("Hello!")`</span>);
+  }
+<span class="kw">&lt;/script&gt;</span></pre>
+    </div>
+
+    <div class="card">
+      <h3>vs npm + Build Step</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:.82rem">
+        <div>
+          <div style="color:var(--success);font-weight:600;margin-bottom:6px">CDN ✓ (recommended)</div>
+          <div style="color:var(--text-muted);line-height:1.7">Paste HTML → open in browser<br>Host on GitHub Pages instantly<br>No Node.js, no <code>npm install</code><br>LLM can rewrite entire file<br>Works offline if cached</div>
+        </div>
+        <div>
+          <div style="color:var(--danger);font-weight:600;margin-bottom:6px">npm + build ✗</div>
+          <div style="color:var(--text-muted);line-height:1.7">Requires build step every deploy<br>Can't paste from LLM directly<br>Harder to self-host<br>More likely to have crashing bugs<br>LLMs produce more errors</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ DEBUG ══════════════════ -->
+  <div id="panel-debug" class="panel">
+    <div class="pattern-header">
+      <h2>🔍 Debug Tools Pattern</h2>
+      <p>
+        Building custom debugging tools is how Simon discovers what's possible. A clipboard viewer revealed hidden data formats that enabled a dozen other tools. Keyboard, CORS, and EXIF debuggers all follow the same idea.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Demo: Keyboard Debug — Keys Currently Held Down</h3>
+      <div id="key-display-area" style="background:var(--code-bg);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;min-height:60px;font-family:var(--font-mono)">
+        <span style="color:var(--text-muted)">Click here then press keys…</span>
+      </div>
+      <div id="key-log" style="font-size:.75rem;color:var(--text-muted);margin-top:8px;font-family:var(--font-mono)">Key log: (waiting)</div>
+    </div>
+
+    <div class="card">
+      <h3>Demo: Screen Metrics Inspector</h3>
+      <div id="screen-info" class="output" style="color:var(--accent2)">Click "Inspect" to see screen metrics</div>
+      <div class="btn-row">
+        <button class="btn" onclick="inspectScreen()">🔍 Inspect Screen</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Simon's Debug Tool Collection</h3>
+      <div style="font-size:.82rem;line-height:2;color:var(--text-muted)">
+        🗂 <strong style="color:var(--text)">clipboard-viewer</strong> — inspect every clipboard format on paste<br>
+        ⌨️ <strong style="color:var(--text)">keyboard-debug</strong> — show active key codes in real-time<br>
+        🌐 <strong style="color:var(--text)">cors-fetch</strong> — test if a URL is accessible via CORS<br>
+        📷 <strong style="color:var(--text)">exif</strong> — display EXIF metadata from a photo<br><br>
+        <span style="color:var(--accent)">Pattern:</span> Build a debugger first → understand what's possible → build the real tool using what you learned.
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Clipboard Viewer Code (Simon's Most Useful Debug Tool)</h3>
+      <pre><span class="fn">document</span>.<span class="fn">addEventListener</span>(<span class="str">'paste'</span>, <span class="kw">async</span> e => {
+  e.<span class="fn">preventDefault</span>();
+  <span class="fn">console.log</span>(<span class="str">'Clipboard items:'</span>, e.clipboardData.items.length);
+  <span class="fn">console.log</span>(<span class="str">'Clipboard files:'</span>, e.clipboardData.files.length);
+
+  <span class="kw">for</span> (<span class="kw">const</span> item <span class="kw">of</span> e.clipboardData.items) {
+    <span class="fn">console.log</span>(<span class="str">'Type:'</span>, item.type, <span class="str">'Kind:'</span>, item.kind);
+    <span class="kw">if</span> (item.kind === <span class="str">'string'</span>) {
+      item.<span class="fn">getAsString</span>(s => <span class="fn">console.log</span>(<span class="str">'Content:'</span>, s.substring(<span class="num">0</span>, <span class="num">200</span>)));
+    }
+    <span class="kw">if</span> (item.kind === <span class="str">'file'</span>) {
+      <span class="kw">const</span> f = item.<span class="fn">getAsFile</span>();
+      <span class="fn">console.log</span>(<span class="str">'File:'</span>, f.name, f.size, f.type);
+    }
+  }
+});</pre>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── NAVIGATION ──────────────────────────────────────────────────
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  document.querySelector(`nav button[data-panel="${id}"]`).classList.add('active');
+}
+
+// ── CLIPBOARD ──────────────────────────────────────────────────
+document.addEventListener('paste', (e) => {
+  const panel = document.getElementById('panel-clipboard');
+  if (!panel.classList.contains('active')) return;
+
+  e.preventDefault();
+  const items = e.clipboardData.items;
+  const files = e.clipboardData.files;
+
+  // Show formats
+  const fmtsEl = document.getElementById('clip-formats');
+  const fmts = Array.from(items).map(i => i.type);
+  fmtsEl.classList.remove('empty');
+  fmtsEl.innerHTML = `<strong>Formats (${items.length} items, ${files.length} files):</strong>\n` +
+    fmts.map(f => `<span class="format-tag">${f}</span>`).join('');
+
+  // Show content
+  const contentEl = document.getElementById('clip-content');
+  contentEl.classList.remove('empty');
+  let shown = false;
+  for (const item of items) {
+    if (item.type === 'text/plain') {
+      item.getAsString(s => {
+        contentEl.textContent = s.substring(0, 600) + (s.length > 600 ? '\n…(truncated)' : '');
+      });
+      shown = true; break;
+    }
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      const url = URL.createObjectURL(file);
+      contentEl.innerHTML = `<img src="${url}" style="max-width:100%;max-height:200px;border-radius:4px">`;
+      shown = true; break;
+    }
+  }
+  if (!shown) contentEl.textContent = '(Binary or unknown format — check the format tags above)';
+});
+
+function transformText(mode) {
+  const input = document.getElementById('transform-input').value;
+  const outEl = document.getElementById('transform-output');
+  if (!input.trim()) { outEl.classList.add('empty'); outEl.textContent = 'Type something first…'; return; }
+  let out;
+  if (mode === 'upper')   out = input.toUpperCase();
+  if (mode === 'lower')   out = input.toLowerCase();
+  if (mode === 'slug')    out = input.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  if (mode === 'reverse') out = input.split('').reverse().join('');
+  outEl.classList.remove('empty');
+  outEl.textContent = out;
+}
+
+async function copyOutput() {
+  const text = document.getElementById('transform-output').textContent;
+  if (!text || document.getElementById('transform-output').classList.contains('empty')) return;
+  await navigator.clipboard.writeText(text);
+  const s = document.getElementById('copy-status');
+  s.textContent = '✓ Copied!';
+  setTimeout(() => s.textContent = '', 2000);
+}
+
+// ── URL STATE ──────────────────────────────────────────────────
+function syncToURL() {
+  const state = {
+    name:  document.getElementById('url-name').value,
+    color: document.getElementById('url-color').value,
+    msg:   document.getElementById('url-msg').value,
+  };
+  const encoded = encodeURIComponent(JSON.stringify(state));
+  history.replaceState(null, '', '#url-state:' + encoded);
+  document.getElementById('url-preview').textContent = location.href.substring(0, 120) + (location.href.length > 120 ? '…' : '');
+}
+
+(function restoreURLState() {
+  const hash = location.hash;
+  if (!hash.startsWith('#url-state:')) return;
+  try {
+    const state = JSON.parse(decodeURIComponent(hash.slice('#url-state:'.length)));
+    if (state.name)  document.getElementById('url-name').value  = state.name;
+    if (state.color) document.getElementById('url-color').value = state.color;
+    if (state.msg)   document.getElementById('url-msg').value   = state.msg;
+    document.getElementById('url-preview').textContent = location.href.substring(0, 120);
+  } catch(e) {}
+})();
+
+// ── LOCALSTORAGE ──────────────────────────────────────────────
+const LS_DRAFT_KEY = 'html-patterns-demo-draft';
+const editor = document.getElementById('ls-editor');
+const lsDot = document.getElementById('ls-dot');
+const lsStatus = document.getElementById('ls-status');
+let saveTimer;
+
+// Restore
+editor.value = localStorage.getItem(LS_DRAFT_KEY) || '';
+updateWordCount();
+if (editor.value) { lsDot.classList.add('saved'); lsStatus.textContent = 'Restored from localStorage'; }
+
+editor.addEventListener('input', () => {
+  lsDot.classList.remove('saved');
+  lsDot.classList.add('saving', 'pulsing');
+  lsStatus.textContent = 'Saving…';
+  updateWordCount();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    localStorage.setItem(LS_DRAFT_KEY, editor.value);
+    lsDot.classList.remove('saving', 'pulsing');
+    lsDot.classList.add('saved');
+    lsStatus.textContent = 'Auto-saved ✓ ' + new Date().toLocaleTimeString();
+  }, 800);
+});
+
+function updateWordCount() {
+  const words = editor.value.trim() ? editor.value.trim().split(/\s+/).length : 0;
+  document.getElementById('ls-wordcount').textContent = words + ' word' + (words !== 1 ? 's' : '');
+}
+
+function clearDraft() {
+  if (!confirm('Clear draft from localStorage?')) return;
+  localStorage.removeItem(LS_DRAFT_KEY);
+  editor.value = '';
+  lsDot.classList.remove('saved', 'saving', 'pulsing');
+  lsStatus.textContent = 'Cleared';
+  updateWordCount();
+}
+
+const LS_KEY_KEY = 'html-patterns-demo-apikey';
+function updateKeyDisplay() {
+  const key = localStorage.getItem(LS_KEY_KEY);
+  const el = document.getElementById('key-status');
+  if (key) { el.style.color = 'var(--success)'; el.textContent = '✓ Stored: ' + key.substring(0, 8) + '…' + key.slice(-4); }
+  else     { el.style.color = 'var(--text-muted)'; el.textContent = 'Not stored'; }
+}
+updateKeyDisplay();
+
+function promptForKey() {
+  const key = prompt('Enter a demo API key (anything works for this demo):');
+  if (key) { localStorage.setItem(LS_KEY_KEY, key); updateKeyDisplay(); }
+}
+function clearKey() { localStorage.removeItem(LS_KEY_KEY); updateKeyDisplay(); }
+
+// ── FILE INPUT ──────────────────────────────────────────────────
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  handleFile(e.dataTransfer.files[0]);
+});
+
+async function handleFile(file) {
+  if (!file) return;
+  const outEl = document.getElementById('file-output');
+  outEl.classList.remove('empty');
+
+  if (file.type.startsWith('image/')) {
+    const url = URL.createObjectURL(file);
+    outEl.innerHTML = `<div style="color:var(--text-muted);margin-bottom:8px">📷 ${file.name} (${(file.size/1024).toFixed(1)} KB, ${file.type})</div><img src="${url}" style="max-width:100%;max-height:250px;border-radius:6px">`;
+  } else {
+    try {
+      const text = await file.text();
+      outEl.textContent = `📄 ${file.name} (${(file.size/1024).toFixed(1)} KB)\n\n${text.substring(0, 1000)}${text.length > 1000 ? '\n…(truncated)' : ''}`;
+    } catch {
+      outEl.textContent = `⚠ Could not read ${file.name} as text`;
+    }
+  }
+}
+
+// ── FILE DOWNLOAD ──────────────────────────────────────────────
+function downloadFile(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+  const s = document.getElementById('dl-status');
+  s.textContent = `✓ Downloaded "${filename}"`;
+  setTimeout(() => s.textContent = '', 3000);
+}
+
+function downloadJSON() {
+  try {
+    const obj = JSON.parse(document.getElementById('json-input').value);
+    downloadFile(JSON.stringify(obj, null, 2), 'data.json', 'application/json');
+  } catch { document.getElementById('dl-status').textContent = '⚠ Invalid JSON'; }
+}
+
+function downloadSVG() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="40" fill="#6c8eff" opacity="0.8"/>
+  <text x="50" y="55" text-anchor="middle" font-family="sans-serif" font-size="14" fill="white">HTML Tool</text>
+</svg>`;
+  downloadFile(svg, 'icon.svg', 'image/svg+xml');
+}
+
+function downloadICS() {
+  const now = new Date();
+  const dtstart = now.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
+  const dtend = new Date(now.getTime() + 3600000).toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
+  const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nSUMMARY:HTML Tool Patterns Study\nDTSTART:${dtstart}\nDTEND:${dtend}\nDESCRIPTION:Study Simon Willison's 10 HTML tool patterns\nEND:VEVENT\nEND:VCALENDAR`;
+  downloadFile(ics, 'event.ics', 'text/calendar');
+}
+
+// ── CORS APIs ──────────────────────────────────────────────────
+async function fetchPyPI() {
+  const pkg = document.getElementById('pypi-pkg').value.trim();
+  const outEl = document.getElementById('pypi-output');
+  if (!pkg) return;
+  outEl.innerHTML = '<span class="spinner"></span> Fetching from PyPI…';
+  try {
+    const res = await fetch(`https://pypi.org/pypi/${pkg}/json`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const info = data.info;
+    outEl.innerHTML = `
+      <div class="result-item"><strong>${info.name}</strong> v${info.version} <span>by ${info.author || 'unknown'}</span></div>
+      <div class="result-item">${info.summary || 'No summary'}</div>
+      <div class="result-item"><span>License:</span> ${info.license || 'Unknown'} &nbsp;|&nbsp; <span>Requires Python:</span> ${info.requires_python || 'any'}</div>
+      <div class="result-item"><span>Releases available:</span> ${Object.keys(data.releases).length}</div>
+    `;
+  } catch(e) {
+    outEl.innerHTML = `<div class="status err">Error: ${e.message}</div>`;
+  }
+}
+
+async function checkCORS() {
+  const url = document.getElementById('cors-url').value.trim();
+  const outEl = document.getElementById('cors-result');
+  if (!url) return;
+  outEl.innerHTML = '<span class="spinner"></span> Checking…';
+  try {
+    const res = await fetch(url, { method: 'HEAD' });
+    const cors = res.headers.get('access-control-allow-origin');
+    if (cors) {
+      outEl.innerHTML = `<div class="status ok">✓ CORS enabled! <code>Access-Control-Allow-Origin: ${cors}</code></div>`;
+    } else {
+      outEl.innerHTML = `<div class="status info">ℹ️ Request succeeded (HTTP ${res.status}) but no explicit CORS header found</div>`;
+    }
+  } catch(e) {
+    outEl.innerHTML = `<div class="status err">✗ CORS blocked or network error: ${e.message}</div>`;
+  }
+}
+
+// ── LLM VIA CORS ──────────────────────────────────────────────
+const LLM_KEY_LS = 'html-patterns-demo-llmkey';
+
+function updateLLMKeyStatus() {
+  const key = localStorage.getItem(LLM_KEY_LS);
+  const el = document.getElementById('llm-key-status');
+  if (key) {
+    el.className = 'status ok';
+    el.textContent = '✓ Anthropic API key stored: ' + key.substring(0, 8) + '…';
+  } else {
+    el.className = 'status info';
+    el.textContent = 'No Anthropic API key stored. Click "Set Key" to add one.';
+  }
+}
+updateLLMKeyStatus();
+
+function setLLMKey() {
+  const key = prompt('Enter your Anthropic API key (starts with sk-ant-…):');
+  if (key) { localStorage.setItem(LLM_KEY_LS, key); updateLLMKeyStatus(); }
+}
+function clearLLMKey() { localStorage.removeItem(LLM_KEY_LS); updateLLMKeyStatus(); }
+
+async function callClaude() {
+  const key = localStorage.getItem(LLM_KEY_LS);
+  if (!key) { alert('Please set your Anthropic API key first.'); return; }
+
+  const prompt = document.getElementById('llm-prompt').value.trim();
+  if (!prompt) return;
+
+  const outEl = document.getElementById('llm-output');
+  const loadEl = document.getElementById('llm-loading');
+  outEl.innerHTML = '';
+  loadEl.style.display = 'inline-flex';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    outEl.innerHTML = `<div class="chat-bubble">🤖 ${data.content[0].text}</div>`;
+  } catch(e) {
+    outEl.innerHTML = `<div class="status err">Error: ${e.message}</div>`;
+  } finally {
+    loadEl.style.display = 'none';
+  }
+}
+
+// ── DEBUG TOOLS ──────────────────────────────────────────────
+const keyArea = document.getElementById('key-display-area');
+const keyLog = document.getElementById('key-log');
+const activeKeys = new Set();
+const keyHistory = [];
+
+keyArea.addEventListener('keydown', e => {
+  activeKeys.add(e.key);
+  keyHistory.unshift({ key: e.key, code: e.code, ts: Date.now() });
+  if (keyHistory.length > 5) keyHistory.pop();
+  renderKeys();
+});
+keyArea.addEventListener('keyup', e => {
+  activeKeys.delete(e.key);
+  renderKeys();
+});
+keyArea.tabIndex = 0;
+
+function renderKeys() {
+  if (activeKeys.size === 0) {
+    keyArea.innerHTML = '<span style="color:var(--text-muted)">Click here then press keys…</span>';
+  } else {
+    keyArea.innerHTML = Array.from(activeKeys).map(k =>
+      `<span style="display:inline-block;background:var(--accent);color:#fff;border-radius:6px;padding:6px 14px;margin:4px;font-size:.9rem;font-weight:700">${k}</span>`
+    ).join('');
+  }
+  keyLog.textContent = 'Recent: ' + keyHistory.map(h => `${h.key}(${h.code})`).join(' → ');
+}
+
+function inspectScreen() {
+  const info = {
+    'window.innerWidth': window.innerWidth,
+    'window.innerHeight': window.innerHeight,
+    'screen.width': screen.width,
+    'screen.height': screen.height,
+    'devicePixelRatio': window.devicePixelRatio,
+    'screen.colorDepth': screen.colorDepth,
+    'navigator.platform': navigator.platform,
+    'navigator.language': navigator.language,
+    'document.fonts (count)': document.fonts.size,
+  };
+  document.getElementById('screen-info').textContent =
+    Object.entries(info).map(([k,v]) => `${k}: ${v}`).join('\n');
+}
+</script>
+</body>
+</html>
