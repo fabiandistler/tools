@@ -4,148 +4,77 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Evolutionärer Algorithmus - Organismus Simulator</title>
+  <title>Evo-Sim 2.0 - Selbstverbessernder Algorithmus</title>
   <style>
     :root {
-      --bg-color: #0b0c10;
-      --panel-bg: rgba(31, 40, 51, 0.85);
-      --text-color: #c5c6c7;
-      --accent: #66fcf1;
-      --accent-hover: #45a29e;
+      --bg: #0f172a;
+      --panel-bg: rgba(30, 41, 59, 0.85);
+      --text: #e2e8f0;
+      --accent: #38bdf8;
+      --good: #4ade80;
+      --bad: #f87171;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+    
+    body { background: var(--bg); color: var(--text); overflow: hidden; width: 100vw; height: 100vh; }
+    canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
 
-    body, html {
-      width: 100%;
-      height: 100%;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      overflow: hidden;
-    }
-
-    canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
-
-    #ui-panel {
+    /* UI Panels */
+    .panel {
       position: absolute;
-      top: 20px;
-      left: 20px;
       background: var(--panel-bg);
-      backdrop-filter: blur(10px);
-      padding: 20px;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.1);
       border-radius: 12px;
-      border: 1px solid rgba(102, 252, 241, 0.2);
-      width: 320px;
-      max-height: calc(100vh - 40px);
-      overflow-y: auto;
+      padding: 20px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-      transition: transform 0.3s ease;
+      pointer-events: auto;
+      max-height: 95vh;
+      overflow-y: auto;
     }
 
-    h1 {
-      font-size: 1.2rem;
-      color: var(--accent);
-      margin-bottom: 5px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
+    #left-panel { top: 20px; left: 20px; width: 320px; }
+    #right-panel { top: 20px; right: 20px; width: 320px; }
 
-    p.subtitle {
-      font-size: 0.8rem;
-      margin-bottom: 20px;
-      opacity: 0.7;
-    }
+    h1, h2 { color: var(--accent); margin-bottom: 5px; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
+    p.desc { font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px; line-height: 1.4; }
 
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 8px;
-      font-size: 0.9rem;
-    }
+    .stat-row { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 8px; }
+    .stat-val { font-weight: bold; color: #fff; }
 
-    .stat-value {
-      font-weight: bold;
-      color: #fff;
-    }
+    hr { border: 0; height: 1px; background: rgba(255,255,255,0.1); margin: 15px 0; }
 
-    hr {
-      border: 0;
-      height: 1px;
-      background: rgba(255,255,255,0.1);
-      margin: 15px 0;
-    }
-
-    .control-group {
-      margin-bottom: 15px;
-    }
-
-    .control-group label {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.85rem;
-      margin-bottom: 5px;
-    }
-
-    input[type=range] {
-      width: 100%;
-      accent-color: var(--accent);
-    }
-
+    /* Controls */
+    .ctrl-group { margin-bottom: 12px; }
+    .ctrl-group label { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px; }
+    input[type=range] { width: 100%; accent-color: var(--accent); }
+    
     button {
-      width: 100%;
-      padding: 10px;
-      background: var(--accent);
-      color: #000;
-      border: none;
-      border-radius: 6px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.2s;
-      margin-top: 10px;
+      width: 100%; padding: 10px; margin-top: 10px;
+      background: var(--accent); color: #0f172a;
+      border: none; border-radius: 6px; font-weight: bold;
+      cursor: pointer; transition: 0.2s;
+    }
+    button:hover { background: #7dd3fc; }
+
+    /* DNA Bars */
+    .dna-bar-container { width: 100%; background: #000; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 5px; position: relative;}
+    .dna-bar { height: 100%; transition: width 0.3s, left 0.3s; position: absolute; }
+    .dna-label { font-size: 0.75rem; margin-top: 8px; display: flex; justify-content: space-between; }
+
+    /* Overlay Help */
+    #interaction-hint {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 20px;
+      font-size: 0.9rem; pointer-events: none; color: #fff; border: 1px solid rgba(255,255,255,0.2);
     }
 
-    button:hover {
-      background: var(--accent-hover);
-    }
-
-    #legend {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      margin-top: 15px;
-      font-size: 0.8rem;
-    }
-    
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .color-box {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-    }
-
-    @media (max-width: 600px) {
-      #ui-panel {
-        top: auto;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        border-radius: 20px 20px 0 0;
-        max-height: 40vh;
-      }
+    @media (max-width: 768px) {
+      .panel { position: relative; top: 0; left: 0; right: 0; width: 100%; border-radius: 0; border: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
+      #interaction-hint { display: none; }
+      body { overflow-y: auto; }
+      canvas { position: fixed; z-index: -1; }
     }
   </style>
 </head>
@@ -153,451 +82,431 @@
 
   <canvas id="world"></canvas>
 
-  <div id="ui-panel">
-    <h1>Evo-Sim</h1>
-    <p class="subtitle">Selbstverbessernder Algorithmus</p>
-
-    <div class="stat-row">
-      <span>Population:</span>
-      <span id="stat-pop" class="stat-value">0</span>
-    </div>
-    <div class="stat-row">
-      <span>Zeit / Epoche:</span>
-      <span id="stat-time" class="stat-value">0</span>
-    </div>
+  <div id="left-panel" class="panel">
+    <h1>Evo-Sim 2.0</h1>
+    <p class="desc">Jedes Dreieck ist ein neuronales Netz (DNA). Die Überlebenden geben ihre DNA mutiert weiter.</p>
     
-    <div id="legend">
-      <div class="legend-item"><div class="color-box" style="background:#00ff00; box-shadow: 0 0 5px #00ff00"></div> Nahrung (+ Energie)</div>
-      <div class="legend-item"><div class="color-box" style="background:#ff0000; box-shadow: 0 0 5px #ff0000"></div> Gift (- Energie)</div>
-      <div class="legend-item"><div class="color-box" style="background:var(--accent);"></div> Ring = Wahrnehmungsradius</div>
-    </div>
-
+    <div class="stat-row"><span>Epoche (Zeit):</span><span id="stat-time" class="stat-val">0</span></div>
+    <div class="stat-row"><span>Population:</span><span id="stat-pop" class="stat-val">0</span></div>
+    <div class="stat-row"><span>Höchste Generation:</span><span id="stat-gen" class="stat-val">0</span></div>
+    
     <hr>
-
-    <div class="control-group">
-      <label>
-        <span>Mutationsrate</span>
-        <span id="val-mutation">0.05</span>
-      </label>
-      <input type="range" id="ctrl-mutation" min="0.01" max="0.5" step="0.01" value="0.05">
+    <h2>Umwelt-Kontrollen</h2>
+    <div class="ctrl-group">
+      <label><span>Mutations-Stärke</span><span id="val-mut">10%</span></label>
+      <input type="range" id="ctrl-mut" min="0.01" max="0.5" step="0.01" value="0.1">
     </div>
-
-    <div class="control-group">
-      <label>
-        <span>Nahrung Spawnrate</span>
-        <span id="val-food">10</span>
-      </label>
-      <input type="range" id="ctrl-food" min="1" max="50" step="1" value="10">
+    <div class="ctrl-group">
+      <label><span>Nahrung (Grün) Spawn</span><span id="val-food">15</span></label>
+      <input type="range" id="ctrl-food" min="1" max="40" step="1" value="15">
     </div>
-
-    <div class="control-group">
-      <label>
-        <span>Gift Spawnrate</span>
-        <span id="val-poison">5</span>
-      </label>
-      <input type="range" id="ctrl-poison" min="0" max="50" step="1" value="5">
+    <div class="ctrl-group">
+      <label><span>Gift (Rot) Spawn</span><span id="val-pos">5</span></label>
+      <input type="range" id="ctrl-pos" min="0" max="40" step="1" value="5">
     </div>
-
-    <button id="btn-reset">Simulation Neustarten</button>
+    <button id="btn-reset">Massenaussterben (Neustart)</button>
   </div>
 
+  <div id="right-panel" class="panel">
+    <h2>Evolutions-Tracker</h2>
+    <p class="desc">Durchschnittliche DNA der aktuellen Population. Wenn der Algorithmus lernt, wachsen die grünen Balken und die roten schrumpfen.</p>
+    
+    <div class="dna-label"><span>Zieht Essen an</span><span id="txt-dna-food">0</span></div>
+    <div class="dna-bar-container"><div id="bar-dna-food" class="dna-bar" style="background: var(--good); left: 50%; width: 0%;"></div></div>
+
+    <div class="dna-label"><span>Zieht Gift an (schlecht!)</span><span id="txt-dna-pos">0</span></div>
+    <div class="dna-bar-container"><div id="bar-dna-pos" class="dna-bar" style="background: var(--bad); left: 50%; width: 0%;"></div></div>
+
+    <div class="dna-label"><span>Sichtweite Essen</span><span id="txt-dna-vis-food">0</span></div>
+    <div class="dna-bar-container"><div id="bar-dna-vis-food" class="dna-bar" style="background: #a7f3d0; left: 0%; width: 0%;"></div></div>
+
+    <hr>
+    <h2>Erklärung der Farben</h2>
+    <p class="desc">
+      <b style="color:var(--good)">Grünlicher Körper:</b> Mag Essen.<br>
+      <b style="color:var(--bad)">Rötlicher Körper:</b> Mag Gift (stirbt schnell).<br>
+      <b>Grauer Körper:</b> Ist noch verwirrt.<br>
+      <b>Farbiger Strahl:</b> Zeigt, was das Wesen gerade sieht und verfolgt/flieht.
+    </p>
+  </div>
+
+  <div id="interaction-hint">👆 Klicke überall hin, um <b>Nahrung</b> zu platzieren!</div>
+
   <script>
-    // --- Setup & Utilities ---
     const canvas = document.getElementById('world');
-    const ctx = canvas.getContext('2d', { alpha: false });
+    const ctx = canvas.getContext('2d');
     let width, height;
 
     // UI Elements
-    const statPop = document.getElementById('stat-pop');
-    const statTime = document.getElementById('stat-time');
-    const ctrlMutation = document.getElementById('ctrl-mutation');
-    const ctrlFood = document.getElementById('ctrl-food');
-    const ctrlPoison = document.getElementById('ctrl-poison');
-    const valMutation = document.getElementById('val-mutation');
-    const valFood = document.getElementById('val-food');
-    const valPoison = document.getElementById('val-poison');
-
-    // State & Settings
-    let state = {
-      mutationRate: 0.05,
-      foodSpawnRate: 10,
-      poisonSpawnRate: 5
+    const DOM = {
+      pop: document.getElementById('stat-pop'),
+      time: document.getElementById('stat-time'),
+      gen: document.getElementById('stat-gen'),
+      mut: document.getElementById('ctrl-mut'), valMut: document.getElementById('val-mut'),
+      food: document.getElementById('ctrl-food'), valFood: document.getElementById('val-food'),
+      pos: document.getElementById('ctrl-pos'), valPos: document.getElementById('val-pos'),
+      barFood: document.getElementById('bar-dna-food'), txtFood: document.getElementById('txt-dna-food'),
+      barPos: document.getElementById('bar-dna-pos'), txtPos: document.getElementById('txt-dna-pos'),
+      barVis: document.getElementById('bar-dna-vis-food'), txtVis: document.getElementById('txt-dna-vis-food'),
     };
-    
-    let organisms = [];
-    let food = [];
-    let poison = [];
-    let particles = [];
-    let timer = 0;
-    let animationId;
 
-    // Load saved settings from localStorage
-    function loadSettings() {
-      const saved = localStorage.getItem('evo-sim-settings');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          state = { ...state, ...parsed };
-          ctrlMutation.value = state.mutationRate;
-          ctrlFood.value = state.foodSpawnRate;
-          ctrlPoison.value = state.poisonSpawnRate;
-        } catch(e) { console.error("Could not load settings", e); }
-      }
-      updateUIValues();
-    }
+    // State
+    let state = { mutationRate: 0.1, foodSpawn: 15, poisonSpawn: 5 };
+    let organisms = [], food = [], poison = [], particles = [];
+    let timer = 0, highestGen = 0;
 
-    function saveSettings() {
-      localStorage.setItem('evo-sim-settings', JSON.stringify(state));
-    }
-
-    function updateUIValues() {
-      valMutation.textContent = state.mutationRate;
-      valFood.textContent = state.foodSpawnRate;
-      valPoison.textContent = state.poisonSpawnRate;
-    }
-
-    // Event Listeners for UI
-    ctrlMutation.addEventListener('input', (e) => { state.mutationRate = parseFloat(e.target.value); updateUIValues(); saveSettings(); });
-    ctrlFood.addEventListener('input', (e) => { state.foodSpawnRate = parseInt(e.target.value); updateUIValues(); saveSettings(); });
-    ctrlPoison.addEventListener('input', (e) => { state.poisonSpawnRate = parseInt(e.target.value); updateUIValues(); saveSettings(); });
-    document.getElementById('btn-reset').addEventListener('click', initSimulation);
-
-    // Resize Handling
-    window.addEventListener('resize', resizeCanvas);
-    function resizeCanvas() {
+    // Init Config
+    function initCanvas() {
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
     }
+    window.addEventListener('resize', initCanvas);
+    initCanvas();
+
+    // Event Listeners (UI + Interactions + LocalStorage)
+    function saveLoad(action) {
+      if(action === 'save') localStorage.setItem('evosim_cfg', JSON.stringify(state));
+      else if (localStorage.getItem('evosim_cfg')) {
+        Object.assign(state, JSON.parse(localStorage.getItem('evosim_cfg')));
+        DOM.mut.value = state.mutationRate; DOM.food.value = state.foodSpawn; DOM.pos.value = state.poisonSpawn;
+      }
+      updateLabels();
+    }
+    function updateLabels() {
+      DOM.valMut.innerText = Math.round(state.mutationRate * 100) + '%';
+      DOM.valFood.innerText = state.foodSpawn;
+      DOM.valPos.innerText = state.poisonSpawn;
+    }
+    DOM.mut.oninput = (e) => { state.mutationRate = parseFloat(e.target.value); updateLabels(); saveLoad('save'); };
+    DOM.food.oninput = (e) => { state.foodSpawn = parseInt(e.target.value); updateLabels(); saveLoad('save'); };
+    DOM.pos.oninput = (e) => { state.poisonSpawn = parseInt(e.target.value); updateLabels(); saveLoad('save'); };
+    document.getElementById('btn-reset').onclick = restart;
+    
+    // User Interaction: Add food on click
+    canvas.addEventListener('mousedown', (e) => {
+      for(let i=0; i<5; i++) {
+        food.push(new Vector(e.clientX + random(-20, 20), e.clientY + random(-20, 20)));
+      }
+      createExplosion(e.clientX, e.clientY, '#4ade80', 5);
+    });
 
     // Math Helpers
     const random = (min, max) => Math.random() * (max - min) + min;
-    const dist = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
-    const constrain = (val, min, max) => Math.min(Math.max(val, min), max);
+    const constrain = (v, min, max) => Math.max(min, Math.min(max, v));
 
-    // --- Vector Math ---
     class Vector {
       constructor(x, y) { this.x = x; this.y = y; }
       add(v) { this.x += v.x; this.y += v.y; return this; }
       sub(v) { this.x -= v.x; this.y -= v.y; return this; }
       mult(n) { this.x *= n; this.y *= n; return this; }
       mag() { return Math.hypot(this.x, this.y); }
-      normalize() {
-        let m = this.mag();
-        if (m !== 0) this.mult(1/m);
-        return this;
-      }
-      limit(max) {
-        if (this.mag() > max) { this.normalize(); this.mult(max); }
-        return this;
-      }
+      normalize() { let m = this.mag(); if(m!==0) this.mult(1/m); return this; }
+      limit(max) { if(this.mag() > max) { this.normalize(); this.mult(max); } return this; }
+      copy() { return new Vector(this.x, this.y); }
       static sub(v1, v2) { return new Vector(v1.x - v2.x, v1.y - v2.y); }
+      static dist(v1, v2) { return Math.hypot(v2.x - v1.x, v2.y - v1.y); }
     }
 
-    // --- Visual Particles (Explosions) ---
     class Particle {
       constructor(x, y, color) {
         this.pos = new Vector(x, y);
-        this.vel = new Vector(random(-2, 2), random(-2, 2));
-        this.life = 1.0;
+        this.vel = new Vector(random(-3, 3), random(-3, 3));
+        this.life = 1;
         this.color = color;
       }
-      update() {
+      update(ctx) {
         this.pos.add(this.vel);
         this.life -= 0.05;
-      }
-      show(ctx) {
-        ctx.save();
-        ctx.globalAlpha = constrain(this.life, 0, 1);
+        ctx.globalAlpha = Math.max(0, this.life);
         ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.pos.x, this.pos.y, 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        ctx.beginPath(); ctx.arc(this.pos.x, this.pos.y, 3, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
       }
     }
+    function createExplosion(x, y, color, count=10) {
+      for(let i=0; i<count; i++) particles.push(new Particle(x, y, color));
+    }
 
-    // --- The Organism (Self-Improving Agent) ---
+    // --- ORGANISMUS (Die KI) ---
     class Organism {
-      constructor(x, y, dna) {
+      constructor(x, y, dna, generation = 1) {
         this.pos = new Vector(x, y);
         this.vel = new Vector(random(-1, 1), random(-1, 1));
         this.acc = new Vector(0, 0);
-        this.r = 4;
-        this.maxSpeed = 3;
-        this.maxForce = 0.2;
-        this.health = 1.0;
-        
-        // DNA: [Food Weight, Poison Weight, Food Perception, Poison Perception]
-        if (dna) {
+        this.r = 5;
+        this.maxSpeed = 3.5;
+        this.maxForce = 0.3;
+        this.health = 1.0; // Startgesundheit
+        this.generation = generation;
+        this.targetLine = null; // Für visuelles Feedback
+
+        // DNA Struktur:
+        // 0: Anziehung Essen (-2 bis 2)
+        // 1: Anziehung Gift (-2 bis 2)
+        // 2: Sichtweite Essen (10 bis 150)
+        // 3: Sichtweite Gift (10 bis 150)
+        if(dna) {
           this.dna = dna;
         } else {
-          this.dna = [
-            random(-2, 2), // Food attraction/repulsion
-            random(-2, 2), // Poison attraction/repulsion
-            random(10, 100), // Food perception radius
-            random(10, 100)  // Poison perception radius
-          ];
+          this.dna = [ random(-1, 1), random(-1, 1), random(20, 100), random(20, 100) ];
         }
+        
+        // Farbe basierend auf DNA berechnen
+        let g = constrain(Math.floor((this.dna[0] + 1) * 127), 0, 255); // Grün wenn mag Essen
+        let r = constrain(Math.floor((this.dna[1] + 1) * 127), 0, 255); // Rot wenn mag Gift
+        this.color = `rgb(${r}, ${g}, 100)`;
       }
 
-      applyForce(force) {
-        this.acc.add(force);
+      // "Suchen" Verhalten - Verhindert stehenbleiben
+      wander() {
+        let wanderPoint = this.vel.copy().normalize().mult(50).add(this.pos);
+        let theta = random(0, Math.PI * 2);
+        let x = 20 * Math.cos(theta);
+        let y = 20 * Math.sin(theta);
+        wanderPoint.add(new Vector(x, y));
+        let steer = Vector.sub(wanderPoint, this.pos).limit(this.maxForce * 0.2); // Schwache Kraft
+        this.acc.add(steer);
       }
 
-      // Steering Behavior
-      seek(target) {
-        let desired = Vector.sub(target, this.pos);
-        desired.normalize();
-        desired.mult(this.maxSpeed);
-        let steer = Vector.sub(desired, this.vel);
-        steer.limit(this.maxForce);
-        return steer;
-      }
-
-      // Core Logic: Eat and Evaluate Environment
-      eat(list, nutrition, perception) {
+      // Wahrnehmung und Essen
+      eat(list, nutrition, perceptionRadius, isPoison) {
         let record = Infinity;
         let closest = null;
-        let closestIndex = -1;
+        let closestIdx = -1;
 
+        // Finde das nächste Objekt im Sichtfeld
         for (let i = list.length - 1; i >= 0; i--) {
-          let d = dist(this.pos.x, this.pos.y, list[i].x, list[i].y);
+          let d = Vector.dist(this.pos, list[i]);
           
-          if (d < this.maxSpeed) {
-            // Eat it!
+          if (d < this.maxSpeed + this.r) {
+            // Gegessen!
             list.splice(i, 1);
             this.health += nutrition;
-          } else {
-            // Find closest within perception
-            if (d < record && d < perception) {
-              record = d;
-              closest = list[i];
-              closestIndex = i;
-            }
+            createExplosion(this.pos.x, this.pos.y, isPoison ? '#f87171' : '#4ade80', 3);
+          } else if (d < record && d < perceptionRadius) {
+            record = d;
+            closest = list[i];
+            closestIdx = i;
           }
         }
 
-        if (closest != null) {
-          return this.seek(closest);
+        if (closest) {
+          // Lenke zum Objekt hin (oder davon weg, je nach Multiplikator)
+          let desired = Vector.sub(closest, this.pos).normalize().mult(this.maxSpeed);
+          let steer = Vector.sub(desired, this.vel).limit(this.maxForce);
+          return { steer, closest };
         }
-        return new Vector(0, 0);
+        return { steer: new Vector(0,0), closest: null };
       }
 
-      behaviors(good, bad) {
-        let steerG = this.eat(good, 0.2, this.dna[2]);
-        let steerB = this.eat(bad, -0.5, this.dna[3]);
+      updateBehavior(foodList, poisonList) {
+        this.targetLine = null; // Reset visual
 
-        steerG.mult(this.dna[0]);
-        steerB.mult(this.dna[1]);
+        let foodAction = this.eat(foodList, 0.2, this.dna[2], false);
+        let poisonAction = this.eat(poisonList, -0.6, this.dna[3], true);
 
-        this.applyForce(steerG);
-        this.applyForce(steerB);
+        // Multipliziere den Lenk-Wunsch mit der DNA-Präferenz
+        let foodSteer = foodAction.steer.mult(this.dna[0]);
+        let poisonSteer = poisonAction.steer.mult(this.dna[1]);
+
+        this.acc.add(foodSteer);
+        this.acc.add(poisonSteer);
+
+        // Visuelles Feedback: Zeige an, worauf das Wesen am stärksten reagiert
+        if (foodAction.closest && this.dna[0] > 0) this.targetLine = { pos: foodAction.closest, color: 'rgba(74, 222, 128, 0.4)' };
+        else if (poisonAction.closest && this.dna[1] > 0) this.targetLine = { pos: poisonAction.closest, color: 'rgba(248, 113, 113, 0.4)' };
+        
+        // Wenn keine starke Kraft wirkt, wander umher!
+        if (this.acc.mag() < 0.01) {
+          this.wander();
+        }
       }
 
-      // Clone with mutation
       reproduce() {
-        if (Math.random() < 0.002 || this.health > 1.8) {
-          let newDNA = [];
+        // Fortpflanzung wenn gesund genug
+        if (this.health > 1.8) {
+          this.health -= 0.8; // Kostet Energie
+          
+          // DNA Kopieren & Mutieren
+          let newDna = [];
           for (let i = 0; i < this.dna.length; i++) {
             if (Math.random() < state.mutationRate) {
-              // Mutate
-              if (i < 2) newDNA[i] = this.dna[i] + random(-0.2, 0.2); // Weights
-              else newDNA[i] = this.dna[i] + random(-10, 10); // Perception radii
+              if (i < 2) newDna[i] = this.dna[i] + random(-0.3, 0.3);
+              else newDna[i] = this.dna[i] + random(-20, 20);
             } else {
-              newDNA[i] = this.dna[i]; // Inherit exactly
+              newDna[i] = this.dna[i];
             }
+            // Grenzen setzen
+            if(i < 2) newDna[i] = constrain(newDna[i], -2, 2);
+            else newDna[i] = constrain(newDna[i], 10, 200);
           }
           
-          // Cost of reproduction
-          this.health -= 0.8;
-          
-          createExplosion(this.pos.x, this.pos.y, '#66fcf1');
-          return new Organism(this.pos.x, this.pos.y, newDNA);
+          createExplosion(this.pos.x, this.pos.y, '#38bdf8', 15);
+          return new Organism(this.pos.x, this.pos.y, newDna, this.generation + 1);
         }
         return null;
       }
 
       update() {
-        this.health -= 0.005; // Health decays over time
+        this.health -= 0.003; // Konstant hungrig
         this.vel.add(this.acc);
         this.vel.limit(this.maxSpeed);
         this.pos.add(this.vel);
-        this.acc.mult(0); // Reset acceleration
+        this.acc.mult(0);
 
-        // Boundaries (Wrap around)
-        if (this.pos.x > width + this.r) this.pos.x = -this.r;
-        if (this.pos.x < -this.r) this.pos.x = width + this.r;
-        if (this.pos.y > height + this.r) this.pos.y = -this.r;
-        if (this.pos.y < -this.r) this.pos.y = height + this.r;
+        // Weltgrenzen (Pacman-Style Wraparound)
+        if (this.pos.x > width) this.pos.x = 0;
+        if (this.pos.x < 0) this.pos.x = width;
+        if (this.pos.y > height) this.pos.y = 0;
+        if (this.pos.y < 0) this.pos.y = height;
       }
 
-      show(ctx) {
-        let angle = Math.atan2(this.vel.y, this.vel.x);
-        
+      draw(ctx) {
+        // Laser-Strahl zum Ziel
+        if (this.targetLine) {
+          ctx.beginPath();
+          ctx.moveTo(this.pos.x, this.pos.y);
+          ctx.lineTo(this.targetLine.pos.x, this.targetLine.pos.y);
+          ctx.strokeStyle = this.targetLine.color;
+          ctx.stroke();
+        }
+
+        let theta = Math.atan2(this.vel.y, this.vel.x);
         ctx.save();
         ctx.translate(this.pos.x, this.pos.y);
-        ctx.rotate(angle);
+        ctx.rotate(theta);
 
-        // Map DNA to colors (Green = likes food, Red = likes poison)
-        let g = constrain(Math.floor((this.dna[0] / 2) * 255), 0, 255);
-        let r = constrain(Math.floor((this.dna[1] / 2) * 255), 0, 255);
-        let color = `rgb(${r}, ${g}, 100)`;
-
-        // Draw Perception Rings (Faintly)
+        // Körper
         ctx.beginPath();
-        ctx.arc(0, 0, Math.abs(this.dna[2]), 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(0, 255, 0, 0.05)';
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(0, 0, Math.abs(this.dna[3]), 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255, 0, 0, 0.05)';
-        ctx.stroke();
-
-        // Draw Body
-        ctx.beginPath();
-        ctx.moveTo(this.r * 2, 0);
-        ctx.lineTo(-this.r, -this.r);
-        ctx.lineTo(-this.r, this.r);
+        ctx.moveTo(this.r * 2.5, 0);
+        ctx.lineTo(-this.r, -this.r * 1.2);
+        ctx.lineTo(-this.r, this.r * 1.2);
         ctx.closePath();
-        
-        ctx.fillStyle = color;
+        ctx.fillStyle = this.color;
         ctx.shadowBlur = 10;
-        ctx.shadowColor = color;
+        ctx.shadowColor = this.color;
         ctx.fill();
 
-        // Draw Health Indicator (Center point)
-        ctx.fillStyle = `rgba(255,255,255, ${constrain(this.health, 0, 1)})`;
-        ctx.beginPath();
-        ctx.arc(0,0, 1.5, 0, Math.PI*2);
-        ctx.fill();
+        // Gesundheits-Kern (leuchtet hell, wenn gesund)
+        ctx.fillStyle = `rgba(255, 255, 255, ${constrain(this.health, 0, 1)})`;
+        ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI*2); ctx.fill();
 
         ctx.restore();
       }
-      
-      dead() {
-        return (this.health <= 0);
-      }
     }
 
-    // --- Environmental Interaction ---
-    function spawnItems(arr, count) {
-      for(let i=0; i<count; i++) {
-        arr.push(new Vector(random(0, width), random(0, height)));
-      }
+    // --- Simulation Management ---
+    function spawnItems(arr, amount) {
+      for(let i=0; i<amount; i++) arr.push(new Vector(random(20, width-20), random(20, height-20)));
     }
 
-    function createExplosion(x, y, color) {
-      for(let i=0; i<10; i++) {
-        particles.push(new Particle(x, y, color));
-      }
+    function restart() {
+      organisms = []; food = []; poison = []; particles = [];
+      timer = 0; highestGen = 0;
+      for (let i = 0; i < 40; i++) organisms.push(new Organism(random(0, width), random(0, height)));
+      spawnItems(food, 120);
+      spawnItems(poison, 30);
     }
 
-    // --- Main Loop ---
-    function initSimulation() {
-      resizeCanvas();
-      loadSettings();
-      
-      organisms = [];
-      food = [];
-      poison = [];
-      particles = [];
-      timer = 0;
+    function updateStats() {
+      DOM.pop.innerText = organisms.length;
+      DOM.time.innerText = Math.floor(timer / 60);
+      DOM.gen.innerText = highestGen;
 
-      // Initial Spawn
-      for (let i = 0; i < 50; i++) {
-        organisms.push(new Organism(random(0, width), random(0, height)));
+      if (organisms.length === 0) {
+        // Wenn alle sterben, neu starten um Frust zu vermeiden
+        setTimeout(restart, 1000);
+        return;
       }
-      spawnItems(food, 100);
-      spawnItems(poison, 20);
-      
-      if(animationId) cancelAnimationFrame(animationId);
-      animate();
+
+      // Berechne Durchschnitts-DNA für das UI
+      let avgFood = 0, avgPos = 0, avgVis = 0;
+      organisms.forEach(o => {
+        avgFood += o.dna[0];
+        avgPos += o.dna[1];
+        avgVis += o.dna[2];
+        if(o.generation > highestGen) highestGen = o.generation;
+      });
+      avgFood /= organisms.length; avgPos /= organisms.length; avgVis /= organisms.length;
+
+      // Update Bars (Werte von -2 bis 2 auf % mappen)
+      // Food (Gut = rechts = > 0)
+      let fPer = (avgFood / 2) * 50; 
+      DOM.barFood.style.width = Math.abs(fPer) + '%';
+      DOM.barFood.style.left = fPer >= 0 ? '50%' : (50 + fPer) + '%';
+      DOM.barFood.style.background = fPer >= 0 ? 'var(--good)' : 'var(--bad)';
+      DOM.txtFood.innerText = avgFood.toFixed(2);
+
+      // Poison (Schlecht = rechts = > 0)
+      let pPer = (avgPos / 2) * 50;
+      DOM.barPos.style.width = Math.abs(pPer) + '%';
+      DOM.barPos.style.left = pPer >= 0 ? '50%' : (50 + pPer) + '%';
+      DOM.barPos.style.background = pPer >= 0 ? 'var(--bad)' : 'var(--good)'; // Positiv bei Gift ist schlecht!
+      DOM.txtPos.innerText = avgPos.toFixed(2);
+
+      // Vision (0 bis 200 mappen)
+      DOM.barVis.style.width = (avgVis / 2) + '%';
+      DOM.txtVis.innerText = Math.floor(avgVis) + 'px';
     }
 
-    function animate() {
-      // Trail effect background
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = 'rgba(11, 12, 16, 0.2)'; 
+    // Main Loop
+    function loop() {
+      // Dunkler Background mit leichtem Trail
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.3)';
       ctx.fillRect(0, 0, width, height);
+
+      // Auto-Spawning
+      if(timer % 10 === 0) {
+        if (Math.random() * 40 < state.foodSpawn) spawnItems(food, 1);
+        if (Math.random() * 40 < state.poisonSpawn) spawnItems(poison, 1);
+      }
+
+      // Limits
+      if (food.length > 200) food.shift();
+      if (poison.length > 80) poison.shift();
+
+      // Zeichne Essen
+      ctx.fillStyle = '#4ade80';
+      for(let f of food) { ctx.beginPath(); ctx.arc(f.x, f.y, 2.5, 0, Math.PI*2); ctx.fill(); }
       
-      // Additive blending for glow effects
-      ctx.globalCompositeOperation = 'lighter';
+      // Zeichne Gift
+      ctx.fillStyle = '#f87171';
+      for(let p of poison) { ctx.beginPath(); ctx.moveTo(p.x, p.y-3); ctx.lineTo(p.x+3, p.y+3); ctx.lineTo(p.x-3, p.y+3); ctx.fill(); }
 
-      // Spawning environment based on UI controls
-      if (Math.random() < (state.foodSpawnRate / 100)) spawnItems(food, 1);
-      if (Math.random() < (state.poisonSpawnRate / 100)) spawnItems(poison, 1);
-
-      // Keep arrays manageable
-      if (food.length > 300) food.shift();
-      if (poison.length > 100) poison.shift();
-
-      // Draw Food
-      ctx.fillStyle = '#00ff00';
-      ctx.shadowBlur = 5;
-      ctx.shadowColor = '#00ff00';
-      for (let f of food) {
-        ctx.beginPath();
-        ctx.arc(f.x, f.y, 2, 0, Math.PI * 2);
-        ctx.fill();
+      // Update Particles
+      for(let i = particles.length-1; i>=0; i--) {
+        particles[i].update(ctx);
+        if(particles[i].life <= 0) particles.splice(i, 1);
       }
 
-      // Draw Poison
-      ctx.fillStyle = '#ff0000';
-      ctx.shadowBlur = 5;
-      ctx.shadowColor = '#ff0000';
-      for (let p of poison) {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Process Particles
-      for (let i = particles.length - 1; i >= 0; i--) {
-        particles[i].update();
-        particles[i].show(ctx);
-        if (particles[i].life <= 0) particles.splice(i, 1);
-      }
-
-      // Process Organisms
-      for (let i = organisms.length - 1; i >= 0; i--) {
+      // Update Organisms
+      for(let i = organisms.length - 1; i >= 0; i--) {
         let org = organisms[i];
-        
-        org.behaviors(food, poison);
+        org.updateBehavior(food, poison);
         org.update();
-        org.show(ctx);
+        org.draw(ctx);
 
+        // Fortpflanzung
         let child = org.reproduce();
-        if (child != null) {
-          organisms.push(child);
-        }
+        if(child) organisms.push(child);
 
-        if (org.dead()) {
-          createExplosion(org.pos.x, org.pos.y, '#ffffff');
-          // Turn dead body into food
-          food.push(new Vector(org.pos.x, org.pos.y));
+        // Tod
+        if(org.health <= 0) {
+          createExplosion(org.pos.x, org.pos.y, '#94a3b8', 8);
+          food.push(org.pos.copy()); // Leiche wird zu Essen
           organisms.splice(i, 1);
         }
       }
 
-      // Update UI Stats
-      if (timer % 10 === 0) {
-        statPop.textContent = organisms.length;
-        statTime.textContent = Math.floor(timer / 60);
-        
-        // Auto-restart if extinct
-        if(organisms.length === 0) {
-           initSimulation();
-           return;
-        }
-      }
+      if(timer % 30 === 0) updateStats();
       
       timer++;
-      animationId = requestAnimationFrame(animate);
+      requestAnimationFrame(loop);
     }
 
-    // Start
-    initSimulation();
+    saveLoad('load');
+    restart();
+    loop();
   </script>
 </body>
 </html>
