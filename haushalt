@@ -1,0 +1,630 @@
+```html
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faire Haushaltsaufteilung - Scoring Tool</title>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --person-a: #ec4899;
+      --person-b: #0ea5e9;
+      --error: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 1rem;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+    p.subtitle { color: var(--text-muted); font-size: 0.95rem; }
+
+    /* Dashboard */
+    .dashboard {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      flex: 1;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .score { font-size: 2.5rem; font-weight: bold; margin: 0.5rem 0; }
+    .score-a { color: var(--person-a); }
+    .score-b { color: var(--person-b); }
+    .person-name-input {
+      border: none;
+      border-bottom: 1px dashed var(--border);
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: inherit;
+      width: 100%;
+      background: transparent;
+    }
+    .person-name-input:focus { outline: none; border-bottom-color: var(--primary); }
+
+    /* Forms */
+    .form-section {
+      background: var(--surface);
+      padding: 1.5rem;
+      border-radius: 0.75rem;
+      border: 1px solid var(--border);
+      margin-bottom: 2rem;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .dashboard { flex-direction: column; }
+    }
+    
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-weight: 500; margin-bottom: 0.25rem; font-size: 0.9rem; }
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+      font-size: 1rem;
+    }
+    
+    .dimensions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.75rem;
+      background: var(--bg);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.375rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+    button:hover { background: var(--primary-hover); }
+    button.secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    button.secondary:hover { background: var(--bg); }
+    button.danger { background: transparent; color: var(--error); border: 1px solid var(--error); padding: 0.25rem 0.5rem; font-size: 0.8rem;}
+    button.danger:hover { background: var(--error); color: white; }
+
+    #error-msg {
+      color: var(--error);
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      display: none;
+    }
+
+    /* AI Features Styles */
+    .sparkle-btn {
+      background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 0.375rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: opacity 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .sparkle-btn:hover { opacity: 0.9; }
+    .sparkle-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .title-row { display: flex; gap: 0.5rem; align-items: flex-end; }
+    .title-row .form-group { flex: 1; margin-bottom: 0; }
+    
+    .modal-overlay { 
+      display: none; position: fixed; top:0; left:0; right:0; bottom:0; 
+      background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 50; 
+      backdrop-filter: blur(4px);
+    }
+    .modal { 
+      background: var(--surface); padding: 2rem; border-radius: 1rem; 
+      max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; 
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+    .loading { animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    /* Task List */
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .task-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .task-item.owner-A { border-left-color: var(--person-a); }
+    .task-item.owner-B { border-left-color: var(--person-b); }
+    
+    .task-meta { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem; }
+    .task-points {
+      font-size: 1.25rem;
+      font-weight: bold;
+      text-align: right;
+    }
+    
+    .toolbar {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>Haushalts-Scoring</h1>
+      <p class="subtitle">Berechne die faire Belastung basierend auf Zeit & Intensität</p>
+    </header>
+
+    <div class="dashboard">
+      <div class="card">
+        <input type="text" id="name-A" class="person-name-input" value="Person A" onchange="updateNames()">
+        <div class="score score-a" id="score-A">0.0</div>
+        <div style="font-size: 0.9rem; color: var(--text-muted)">Punkte Gesamt</div>
+      </div>
+      <div class="card">
+        <input type="text" id="name-B" class="person-name-input" value="Person B" onchange="updateNames()">
+        <div class="score score-b" id="score-B">0.0</div>
+        <div style="font-size: 0.9rem; color: var(--text-muted)">Punkte Gesamt</div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <button class="sparkle-btn" onclick="analyzeFairness()" type="button" style="font-size: 1.1rem; padding: 0.75rem 1.5rem; width: auto;">
+        ✨ KI-Fairness-Analyse starten
+      </button>
+    </div>
+
+    <div class="form-section">
+      <h2 style="margin-bottom: 1rem; font-size: 1.2rem;">Neue Aufgabe eintragen</h2>
+      <form id="task-form">
+        <div class="form-grid">
+          <div class="title-row" style="grid-column: 1 / -1; margin-bottom: 1rem;">
+            <div class="form-group">
+              <label for="title">Aufgabe (z.B. Abendessen)</label>
+              <input type="text" id="title" required placeholder="Was wird gemacht?">
+            </div>
+            <button type="button" class="sparkle-btn" onclick="autoFillTask()" id="autofill-btn" title="Dauer & Intensität mit KI schätzen">
+              ✨ Auto-Fill
+            </button>
+          </div>
+          <div class="form-group">
+            <label for="owner">Zuständig (Owner)</label>
+            <select id="owner">
+              <option value="A" id="opt-A">Person A</option>
+              <option value="B" id="opt-B">Person B</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="duration">Dauer (in Minuten)</label>
+            <input type="number" id="duration" required min="1" placeholder="z.B. 60">
+          </div>
+          <div class="form-group">
+            <label for="bonus">Nacht/Unterbrechungs-Bonus (+Punkte)</label>
+            <input type="number" id="bonus" value="0" min="0" step="0.1">
+          </div>
+        </div>
+
+        <label style="margin-top: 0.5rem;">Intensitäts-Dimensionen (0 = sehr gering, 3 = hoch)</label>
+        <div class="dimensions-grid">
+          <div>
+            <label for="dim-U" title="Unplanbarkeit">U (Planbarkeit)</label>
+            <select id="dim-U"><option>0</option><option>1</option><option>2</option><option>3</option></select>
+          </div>
+          <div>
+            <label for="dim-M" title="Mentale Last">M (Mental)</label>
+            <select id="dim-M"><option>0</option><option>1</option><option>2</option><option>3</option></select>
+          </div>
+          <div>
+            <label for="dim-E" title="Emotionale Last">E (Emotional)</label>
+            <select id="dim-E"><option>0</option><option>1</option><option>2</option><option>3</option></select>
+          </div>
+          <div>
+            <label for="dim-K" title="Körperliche Last">K (Körperlich)</label>
+            <select id="dim-K"><option>0</option><option>1</option><option>2</option><option>3</option></select>
+          </div>
+          <div>
+            <label for="dim-T" title="Tempo / Zeitdruck">T (Tempo)</label>
+            <select id="dim-T"><option>0</option><option>1</option><option>2</option><option>3</option></select>
+          </div>
+        </div>
+
+        <div id="error-msg">Bitte alle Felder korrekt ausfüllen.</div>
+        <button type="submit">Aufgabe hinzufügen</button>
+      </form>
+    </div>
+
+    <div style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+      <h2>Aufgaben-Inventur</h2>
+      <span style="font-size: 0.9rem; color: var(--text-muted);" id="task-count">0 Aufgaben</span>
+    </div>
+    
+    <div class="task-list" id="task-list">
+      <!-- Tasks injected via JS -->
+    </div>
+
+    <div class="toolbar">
+      <button class="secondary" onclick="exportData()">💾 Als JSON herunterladen</button>
+      <button class="secondary" onclick="importData()">📂 Importieren</button>
+      <button class="secondary" onclick="clearData()" style="color: var(--error); border-color: var(--error);">🗑 Alles löschen</button>
+    </div>
+  </div>
+
+  <!-- KI Analysis Modal -->
+  <div id="analysis-modal" class="modal-overlay">
+    <div class="modal">
+      <h2 style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+        <span>✨ Haushalts-Analyse</span>
+        <button onclick="document.getElementById('analysis-modal').style.display='none'" style="background:none; color:var(--text); width:auto; padding:0; font-size: 1.5rem;">✕</button>
+      </h2>
+      <div id="analysis-content" style="line-height: 1.6; color: var(--text);">Lade Analyse...</div>
+    </div>
+  </div>
+
+  <script>
+    // --- State Management ---
+    const STORAGE_KEY = 'haushalts_scoring_data';
+    let state = {
+      names: { A: 'Person A', B: 'Person B' },
+      tasks: []
+    };
+
+    // --- Core Logic ---
+    function calculatePoints(duration, u, m, e, k, t, bonus) {
+      // 1 ZE = 30 min (angebrochene halbe Stunden aufrunden)
+      const ze = Math.ceil(duration / 30);
+      const intensity = 1 + (u + m + e + k + t) / 10;
+      return (ze * intensity) + bonus;
+    }
+
+    // --- App Lifecycle ---
+    function init() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try { state = JSON.parse(saved); } catch (e) { console.error("Could not parse save data"); }
+      }
+      render();
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      render();
+    }
+
+    // --- DOM Interactions ---
+    function updateNames() {
+      state.names.A = document.getElementById('name-A').value || 'Person A';
+      state.names.B = document.getElementById('name-B').value || 'Person B';
+      save();
+    }
+
+    document.getElementById('task-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const title = document.getElementById('title').value.trim();
+      const owner = document.getElementById('owner').value;
+      const duration = parseInt(document.getElementById('duration').value, 10);
+      const bonus = parseFloat(document.getElementById('bonus').value) || 0;
+      
+      const u = parseInt(document.getElementById('dim-U').value, 10);
+      const m = parseInt(document.getElementById('dim-M').value, 10);
+      const em = parseInt(document.getElementById('dim-E').value, 10);
+      const k = parseInt(document.getElementById('dim-K').value, 10);
+      const t = parseInt(document.getElementById('dim-T').value, 10);
+
+      if (!title || isNaN(duration) || duration <= 0) {
+        document.getElementById('error-msg').style.display = 'block';
+        return;
+      }
+      
+      document.getElementById('error-msg').style.display = 'none';
+
+      const points = calculatePoints(duration, u, m, em, k, t, bonus);
+
+      state.tasks.push({
+        id: Date.now().toString(),
+        title, owner, duration, u, m, e: em, k, t, bonus, points
+      });
+
+      e.target.reset();
+      // Set selects back to 0 explicitly
+      ['U','M','E','K','T'].forEach(dim => document.getElementById(`dim-${dim}`).value = "0");
+      save();
+    });
+
+    function deleteTask(id) {
+      state.tasks = state.tasks.filter(t => t.id !== id);
+      save();
+    }
+
+    // --- Rendering ---
+    function render() {
+      // Names
+      document.getElementById('name-A').value = state.names.A;
+      document.getElementById('name-B').value = state.names.B;
+      document.getElementById('opt-A').textContent = state.names.A;
+      document.getElementById('opt-B').textContent = state.names.B;
+
+      // Dashboard Math
+      let scoreA = 0;
+      let scoreB = 0;
+
+      const listEl = document.getElementById('task-list');
+      listEl.innerHTML = '';
+
+      if (state.tasks.length === 0) {
+        listEl.innerHTML = '<div style="text-align:center; padding: 2rem; color: var(--text-muted)">Noch keine Aufgaben angelegt.</div>';
+      }
+
+      state.tasks.forEach(task => {
+        if (task.owner === 'A') scoreA += task.points;
+        if (task.owner === 'B') scoreB += task.points;
+
+        const ownerName = task.owner === 'A' ? state.names.A : state.names.B;
+        const ze = Math.ceil(task.duration / 30);
+        const intensity = (1 + (task.u + task.m + task.e + task.k + task.t) / 10).toFixed(1);
+
+        const item = document.createElement('div');
+        item.className = `task-item owner-${task.owner}`;
+        item.innerHTML = `
+          <div>
+            <div style="font-weight: 600;">${task.title} <span style="font-weight: normal; font-size: 0.9em; padding: 0.1em 0.4em; background: var(--bg); border-radius: 4px; margin-left: 0.5rem;">${ownerName}</span></div>
+            <div class="task-meta">
+              ${task.duration} Min (${ze} ZE) | U:${task.u} M:${task.m} E:${task.e} K:${task.k} T:${task.t} | Intensität: ${intensity}
+              ${task.bonus > 0 ? `| Bonus: +${task.bonus}` : ''}
+            </div>
+          </div>
+          <div style="text-align: right; min-width: 80px;">
+            <div class="task-points">${task.points.toFixed(1)} <span style="font-size: 0.6em; font-weight: normal">Pkt</span></div>
+            <button class="danger" onclick="deleteTask('${task.id}')">Löschen</button>
+          </div>
+        `;
+        listEl.appendChild(item);
+      });
+
+      document.getElementById('score-A').textContent = scoreA.toFixed(1);
+      document.getElementById('score-B').textContent = scoreB.toFixed(1);
+      document.getElementById('task-count').textContent = `${state.tasks.length} Aufgaben`;
+    }
+
+    // --- Utilities ---
+    function exportData() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+      const anchor = document.createElement('a');
+      anchor.setAttribute("href", dataStr);
+      anchor.setAttribute("download", "haushalts_scoring_backup.json");
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    }
+
+    function importData() {
+      const input = prompt("Füge die JSON-Daten hier ein:");
+      if (!input) return;
+      try {
+        const parsed = JSON.parse(input);
+        if (parsed.tasks && parsed.names) {
+          state = parsed;
+          save();
+        } else {
+          alert("Fehlerhaftes Format.");
+        }
+      } catch (e) {
+        alert("Ungültiges JSON.");
+      }
+    }
+
+    function clearData() {
+      if (confirm("Wirklich alle Daten löschen? Dies kann nicht rückgängig gemacht werden.")) {
+        state = { names: state.names, tasks: [] };
+        save();
+      }
+    }
+
+    // --- Gemini API Integrations ---
+    const apiKey = "";
+    
+    async function fetchGemini(prompt, isJson = false) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+      
+      const payload = {
+        contents: [{ parts: [{ text: prompt }] }],
+        systemInstruction: { parts: [{ text: "Du bist ein einfühlsamer, objektiver Haushaltsberater und Experte für Mental Load. Antworte auf Deutsch." }] }
+      };
+
+      if (isJson) {
+        payload.generationConfig = {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              duration: { type: "INTEGER", description: "Geschätzte Dauer in Minuten" },
+              u: { type: "INTEGER", description: "Unplanbarkeit 0-3" },
+              m: { type: "INTEGER", description: "Mentale Last 0-3" },
+              e: { type: "INTEGER", description: "Emotionale Last 0-3" },
+              k: { type: "INTEGER", description: "Körperliche Last 0-3" },
+              t: { type: "INTEGER", description: "Zeitdruck 0-3" }
+            },
+            required: ["duration", "u", "m", "e", "k", "t"]
+          }
+        };
+      }
+
+      const delays = [1000, 2000, 4000, 8000, 16000];
+      for (let i = 0; i < delays.length; i++) {
+        try {
+          const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          const data = await response.json();
+          return data.candidates[0].content.parts[0].text;
+        } catch (error) {
+          if (i === delays.length - 1) throw error;
+          await new Promise(resolve => setTimeout(resolve, delays[i]));
+        }
+      }
+    }
+
+    async function autoFillTask() {
+      const titleInput = document.getElementById('title');
+      const title = titleInput.value.trim();
+      
+      if (!title) {
+        alert("Bitte gib zuerst den Namen der Aufgabe ein (z.B. 'Wocheneinkauf').");
+        titleInput.focus();
+        return;
+      }
+
+      const btn = document.getElementById('autofill-btn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = "✨ Schätze...";
+      btn.classList.add("loading");
+      btn.disabled = true;
+
+      try {
+        const prompt = `Schätze für die typische Haushaltsaufgabe "${title}" die realistische Dauer in Minuten und bewerte sie auf den 5 Intensitäts-Skalen (0 bis 3). U=Unplanbarkeit/Unterbrechungen, M=Mentale Last, E=Emotionale Last, K=Körperliche Last, T=Tempo/Zeitdruck. Sei realistisch, bedenke z.B. bei 'Mental Load' auch die Planung und Koordination.`;
+        
+        const result = await fetchGemini(prompt, true);
+        const data = JSON.parse(result);
+
+        document.getElementById('duration').value = data.duration;
+        document.getElementById('dim-U').value = data.u;
+        document.getElementById('dim-M').value = data.m;
+        document.getElementById('dim-E').value = data.e;
+        document.getElementById('dim-K').value = data.k;
+        document.getElementById('dim-T').value = data.t;
+      } catch (error) {
+        console.error(error);
+        alert("Fehler bei der KI-Anfrage. Bitte versuche es später nochmal.");
+      } finally {
+        btn.innerHTML = originalText;
+        btn.classList.remove("loading");
+        btn.disabled = false;
+      }
+    }
+
+    async function analyzeFairness() {
+      const modal = document.getElementById('analysis-modal');
+      const content = document.getElementById('analysis-content');
+      modal.style.display = 'flex';
+      content.innerHTML = '<div class="loading" style="text-align:center; padding: 2rem;">✨ KI analysiert eure aktuelle Aufteilung...</div>';
+
+      if (state.tasks.length === 0) {
+        content.innerHTML = "Es wurden noch keine Aufgaben angelegt. Tragt zuerst ein paar typische Haushalts- oder Care-Aufgaben ein!";
+        return;
+      }
+
+      let scoreA = 0;
+      let scoreB = 0;
+      let tasksText = "";
+      
+      state.tasks.forEach(t => {
+        const owner = t.owner === 'A' ? state.names.A : state.names.B;
+        if (t.owner === 'A') scoreA += t.points;
+        if (t.owner === 'B') scoreB += t.points;
+        tasksText += `- ${t.title} (${t.duration} min, Intensität U:${t.u} M:${t.m} E:${t.e} K:${t.k} T:${t.t}) - Owner: ${owner} (${t.points.toFixed(1)} Pkt)\n`;
+      });
+
+      const prompt = `
+      Analysiere folgende Haushaltsaufteilung für ein Paar:
+      Person A (${state.names.A}) hat ${scoreA.toFixed(1)} Punkte.
+      Person B (${state.names.B}) hat ${scoreB.toFixed(1)} Punkte.
+      
+      Die Aufgabenliste:
+      ${tasksText}
+      
+      Gib eine kurze, empathische und konstruktive Analyse in 3 Absätzen. 
+      1. Wie ist die aktuelle Balance insgesamt?
+      2. Gibt es ein Ungleichgewicht bei der "mentalen Last" (M-Wert) oder Planbarkeit? (Wer macht die ständigen/planungsintensiven Aufgaben?)
+      3. Mach 1-2 konkrete Vorschläge, wie spezifische Aufgaben umverteilt werden könnten, um es fairer zu machen.
+      
+      Verwende einfaches Markdown (z.B. **fett** für Hervorhebungen). Schreibe fließend und motivierend.
+      `;
+
+      try {
+        const result = await fetchGemini(prompt, false);
+        // Einfacher Markdown zu HTML Parser für Fettdruck und Zeilenumbrüche
+        const formatted = result
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+          .replace(/\n\n/g, '</p><p style="margin-bottom:1rem;">')
+          .replace(/\n/g, '<br>');
+          
+        content.innerHTML = `<p style="margin-bottom:1rem;">${formatted}</p>`;
+      } catch (error) {
+        console.error(error);
+        content.innerHTML = "Leider gab es einen Fehler bei der KI-Analyse. Bitte überprüfe deine Internetverbindung und versuche es erneut.";
+      }
+    }
+
+    // Boot
+    init();
+  </script>
+</body>
+</html>
+
+
+```
