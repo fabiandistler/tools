@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attention Mechanism – Interactive Tutorial</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface2: #334155;
+      --accent: #38bdf8;
+      --accent2: #818cf8;
+      --text: #f1f5f9;
+      --dim: #94a3b8;
+      --green: #4ade80;
+      --orange: #fb923c;
+      --red: #f87171;
+      --r: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh; padding: 20px 16px;
+    }
+    .container { max-width: 860px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; color: var(--accent); margin-bottom: 4px; }
+    .subtitle { color: var(--dim); font-size: 0.88rem; margin-bottom: 20px; }
+
+    /* Progress */
+    .steps-nav { display: flex; gap: 6px; margin-bottom: 22px; }
+    .step-dot {
+      flex: 1; height: 6px; border-radius: 3px;
+      background: var(--surface2); cursor: pointer; transition: background .2s;
+    }
+    .step-dot.active { background: var(--accent); }
+    .step-dot.done { background: var(--accent2); }
+
+    /* Cards */
+    .card { background: var(--surface); border-radius: var(--r); padding: 20px; margin-bottom: 14px; }
+    .card h2 { font-size: 1rem; color: var(--accent); margin-bottom: 8px; }
+    .card p { color: var(--dim); font-size: 0.87rem; line-height: 1.65; margin-bottom: 10px; }
+    .card p:last-child { margin-bottom: 0; }
+
+    /* Formula */
+    .formula {
+      background: var(--bg); border: 1px solid var(--surface2); border-radius: 6px;
+      padding: 10px 16px; font-family: 'Courier New', monospace; font-size: 0.95rem;
+      color: var(--green); text-align: center; margin: 12px 0;
+    }
+
+    /* Tags */
+    .tag {
+      display: inline-block; padding: 1px 8px; border-radius: 12px;
+      font-size: 0.74rem; font-weight: 700; margin: 0 2px;
+    }
+    .tq { background: rgba(56,189,248,.18); color: var(--accent); }
+    .tk { background: rgba(251,146,60,.18); color: var(--orange); }
+    .tv { background: rgba(74,222,128,.18); color: var(--green); }
+    .ta { background: rgba(129,140,248,.18); color: var(--accent2); }
+
+    /* Highlight box */
+    .hbox {
+      border: 1px solid var(--accent2); border-radius: 8px;
+      padding: 12px 14px; background: rgba(129,140,248,.07);
+      margin: 10px 0; font-size: 0.85rem; line-height: 1.75;
+    }
+
+    /* Matrix block */
+    .matrix-wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; margin: 14px 0; }
+    .matrix-block { flex: 1; min-width: 150px; }
+    .matrix-label { font-size: 0.73rem; color: var(--dim); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; }
+    .matrix-label b { color: var(--accent); }
+    .mat-outer { display: flex; gap: 4px; align-items: flex-start; }
+    .row-labels { display: flex; flex-direction: column; gap: 3px; }
+    .row-lbl {
+      height: 30px; display: flex; align-items: center;
+      font-size: 0.7rem; color: var(--dim); justify-content: flex-end; padding-right: 4px;
+    }
+    .mat-inner { flex: 1; }
+    .col-labels { display: grid; gap: 3px; margin-bottom: 3px; }
+    .col-lbl { text-align: center; font-size: 0.68rem; color: var(--dim); }
+    .mat-grid { display: grid; gap: 3px; }
+    .mcell {
+      background: var(--surface2); border-radius: 4px; padding: 5px 3px;
+      text-align: center; font-family: 'Courier New', monospace;
+      font-size: 0.76rem; height: 30px; display: flex; align-items: center; justify-content: center;
+    }
+    .mcell.hl { background: rgba(56,189,248,.22); border: 1px solid var(--accent); }
+
+    /* Heatmap */
+    .hmap { margin: 10px 0; }
+    .hmap-row { display: grid; gap: 3px; margin-bottom: 3px; align-items: center; }
+    .hmap-cell {
+      border-radius: 4px; padding: 6px 2px; text-align: center;
+      font-size: 0.73rem; font-weight: 700; transition: all .4s;
+      height: 34px; display: flex; align-items: center; justify-content: center;
+    }
+    .hmap-rlbl { font-size: 0.71rem; color: var(--dim); text-align: right; padding-right: 6px; }
+
+    /* Token selector */
+    .tok-sel { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+    .tok-btn {
+      padding: 5px 14px; border-radius: 20px; border: 2px solid var(--surface2);
+      background: var(--surface2); color: var(--text); cursor: pointer;
+      font-size: 0.84rem; transition: all .2s;
+    }
+    .tok-btn:hover { border-color: var(--accent); }
+    .tok-btn.active { border-color: var(--accent); background: rgba(56,189,248,.12); color: var(--accent); font-weight: 600; }
+
+    /* Bars */
+    .bar-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+    .bar-lbl { width: 46px; font-size: 0.78rem; text-align: right; color: var(--dim); }
+    .bar-track { flex: 1; height: 22px; background: var(--surface2); border-radius: 5px; overflow: hidden; }
+    .bar-fill {
+      height: 100%; border-radius: 5px; transition: width .5s ease;
+      display: flex; align-items: center; padding-left: 7px;
+      font-size: 0.7rem; font-weight: 700; color: #000;
+    }
+    .bar-val { width: 46px; font-size: 0.76rem; color: var(--dim); font-family: monospace; }
+
+    /* Summary steps */
+    .sum-step {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--surface2); border-radius: 8px; padding: 10px 14px;
+      margin-bottom: 8px;
+    }
+    .sum-num {
+      border-radius: 50%; width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 0.88rem; flex-shrink: 0; color: #000;
+    }
+
+    /* Navigation */
+    .nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
+    .nav-btn {
+      padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer;
+      font-size: 0.9rem; font-weight: 700; transition: opacity .2s;
+    }
+    .nav-btn.prev { background: var(--surface2); color: var(--text); }
+    .nav-btn.next { background: var(--accent); color: #000; }
+    .nav-btn:disabled { opacity: .3; cursor: default; }
+    .step-ctr { color: var(--dim); font-size: 0.84rem; }
+
+    /* Token pills */
+    .tpill { display: inline-block; padding: 1px 8px; border-radius: 12px; font-weight: 700; background: var(--surface2); }
+    
+    /* Equation walk */
+    .eq-walk { font-family: monospace; font-size: 0.82rem; color: var(--text); line-height: 2; }
+    .eq-walk .em { color: var(--accent); font-weight: 700; }
+    .eq-walk .ko { color: var(--orange); }
+    .eq-walk .kg { color: var(--green); }
+    .eq-walk .kp { color: var(--accent2); }
+    
+    .token-embed-grid { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+    .token-card {
+      background: var(--surface2); border-radius: 8px; padding: 10px 14px; text-align: center; flex: 1; min-width: 90px;
+    }
+    .token-card .name { font-weight: 700; color: var(--accent); font-size: 1.05rem; margin-bottom: 4px; }
+    .token-card .vec { font-family: monospace; font-size: 0.73rem; color: var(--dim); }
+    .token-card .idx { font-size: 0.68rem; color: var(--dim); margin-top: 2px; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🔍 Attention Mechanism in Transformers</h1>
+  <p class="subtitle">Interactive Step-by-Step Tutorial — from embeddings to contextualised output</p>
+  <div class="steps-nav" id="stepsNav"></div>
+  <div id="stepContent"></div>
+  <div class="nav-row">
+    <button class="nav-btn prev" id="btnPrev" onclick="navigate(-1)">← Back</button>
+    <span class="step-ctr" id="stepCtr"></span>
+    <button class="nav-btn next" id="btnNext" onclick="navigate(1)">Next →</button>
+  </div>
+</div>
+
+<script>
+// ── Data ─────────────────────────────────────────────────────────────────
+const TOKENS = ["The", "cat", "sat", "mat"];
+const DIM = 3;
+const E = [
+  [1, 0, 1],
+  [0, 2, 1],
+  [1, 1, 0],
+  [0, 0, 1],
+];
+const WQ = [[1,0,1],[0,1,0],[0,0,1]];
+const WK = [[1,0,0],[0,1,1],[1,0,0]];
+const WV = [[0,1,0],[1,0,1],[0,1,0]];
+
+// ── Math ─────────────────────────────────────────────────────────────────
+function matMul(A,B){
+  return A.map((row,i)=>B[0].map((_,j)=>row.reduce((s,_,k)=>s+A[i][k]*B[k][j],0)));
+}
+function transpose(M){ return M[0].map((_,j)=>M.map(r=>r[j])); }
+function softmax(arr){
+  const mx=Math.max(...arr), e=arr.map(x=>Math.exp(x-mx)), s=e.reduce((a,b)=>a+b,0);
+  return e.map(x=>x/s);
+}
+function fmt(n){ return n.toFixed(3); }
+function fmt2(n){ return n.toFixed(2); }
+
+// ── Precompute ────────────────────────────────────────────────────────────
+const Q = matMul(E,WQ);
+const K = matMul(E,WK);
+const V = matMul(E,WV);
+const sqrtDk = Math.sqrt(DIM);
+const rawScores = matMul(Q,transpose(K));
+const scaledScores = rawScores.map(r=>r.map(x=>x/sqrtDk));
+const attWeights = scaledScores.map(r=>softmax(r));
+const output = matMul(attWeights,V);
+
+// ── State ─────────────────────────────────────────────────────────────────
+let step = 0, selTok = 0;
+const NSTEPS = 6;
+
+// ── Color helpers ──────────────────────────────────────────────────────────
+function heatColor(v){
+  const r=Math.round(v*56), g=Math.round(v*189), b=Math.round(100+v*155);
+  return `rgb(${r},${g},${b})`;
+}
+function barColor(v){ return v>0.33?'#38bdf8':v>0.2?'#818cf8':'#4ade80'; }
+
+// ── Renderers ─────────────────────────────────────────────────────────────
+function matBlock(M, title, color, hlRow){
+  const cols=M[0].length, rows=M.length;
+  const gtc=`repeat(${cols},1fr)`;
+  const rowH = `padding-top:${19}px`; // space for col headers
+  let h=`<div class="matrix-block">
+    <div class="matrix-label"><b style="color:${color||'var(--accent)'}">${title}</b> ${rows}×${cols}</div>
+    <div class="mat-outer">
+      <div class="row-labels" style="${rowH}">
+        ${TOKENS.map(t=>`<div class="row-lbl">${t}</div>`).join('')}
+      </div>
+      <div class="mat-inner">
+        <div class="col-labels" style="grid-template-columns:${gtc}">
+          ${['d₁','d₂','d₃'].slice(0,cols).map(l=>`<div class="col-lbl">${l}</div>`).join('')}
+        </div>
+        <div class="mat-grid" style="grid-template-columns:${gtc}">
+          ${M.map((row,i)=>row.map(v=>`<div class="mcell${i===hlRow?' hl':''}">${fmt2(v)}</div>`).join('')).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+  return h;
+}
+
+function heatmap(M, hlRow){
+  const cols=M[0].length;
+  const gtc=`48px repeat(${cols},1fr)`;
+  let h=`<div class="hmap">`;
+  // header
+  h+=`<div class="hmap-row" style="grid-template-columns:${gtc}">
+    <div></div>
+    ${TOKENS.map(t=>`<div style="text-align:center;font-size:.7rem;color:var(--dim)">${t}</div>`).join('')}
+  </div>`;
+  M.forEach((row,i)=>{
+    h+=`<div class="hmap-row" style="grid-template-columns:${gtc}">
+      <div class="hmap-rlbl">${TOKENS[i]}</div>
+      ${row.map(v=>{
+        const bg=heatColor(v), tc=v>0.28?'#000':'#e2e8f0';
+        return `<div class="hmap-cell" style="background:${bg};color:${tc}">${fmt2(v)}</div>`;
+      }).join('')}
+    </div>`;
+  });
+  h+=`</div>`;
+  return h;
+}
+
+function tokSel(onStep){
+  return `<div class="tok-sel">
+    ${TOKENS.map((t,i)=>`<button class="tok-btn${i===selTok?' active':''}" onclick="selToken(${i},${onStep})">${t}</button>`).join('')}
+  </div>`;
+}
+
+function bars(vals, labels){
+  return labels.map((l,i)=>{
+    const v=vals[i], pct=Math.round(v*100);
+    return `<div class="bar-row">
+      <div class="bar-lbl">${l}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${Math.max(3,pct)}%;background:${barColor(v)}">${pct>12?pct+'%':''}</div>
+      </div>
+      <div class="bar-val">${fmt(v)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Step content ───────────────────────────────────────────────────────────
+const STEPS = [
+  // 0 – Intro
+  {title:"What is Attention?", render:()=>`
+    <div class="card">
+      <h2>Intuition: Selective Focus</h2>
+      <p>When reading <em>"The cat sat on the mat"</em>, to understand <em>"sat"</em> your brain focuses on <em>"cat"</em> (who sat?) and <em>"mat"</em> (where?). You give different <strong>attention</strong> to different words.</p>
+      <p>The Transformer attention mechanism does exactly this—it learns which tokens to focus on when producing each output.</p>
+      <div class="formula">Attention(Q, K, V) = softmax( Q·Kᵀ / √d<sub>k</sub> ) · V</div>
+      <p>Don't worry about the formula yet. We'll build it up piece by piece over the next steps.</p>
+    </div>
+    <div class="card">
+      <h2>Our Working Example</h2>
+      <p>We'll use 4 tokens with 3-dimensional embeddings (real models use 512–4096 dimensions):</p>
+      <div class="token-embed-grid">
+        ${TOKENS.map((t,i)=>`<div class="token-card">
+          <div class="name">${t}</div>
+          <div class="vec">[${E[i].join(', ')}]</div>
+          <div class="idx">token ${i}</div>
+        </div>`).join('')}
+      </div>
+      <p>In practice, these embedding vectors are learned during training. Here we use simple numbers to make the math visible. Next: we create three projections from each embedding.</p>
+    </div>
+  `},
+
+  // 1 – Q K V
+  {title:"Query, Key & Value", render:()=>`
+    <div class="card">
+      <h2>Three Roles, One Token</h2>
+      <p>Every token simultaneously plays three roles, each produced by a separate learned weight matrix:</p>
+      <div class="hbox">
+        <span class="tag tq">Q</span> <strong>Query</strong> — "What am I looking for?" — what this token needs<br>
+        <span class="tag tk">K</span> <strong>Key</strong> — "What do I offer?" — what each token advertises<br>
+        <span class="tag tv">V</span> <strong>Value</strong> — "What is my content?" — the actual information to pass on
+      </div>
+      <p><em>Analogy:</em> A database query. You send a Query, it's matched against Keys, and the matching rows return Values. But here every token is a row in its own database—it can query <em>all</em> other tokens at once.</p>
+    </div>
+    <div class="card">
+      <h2>Computing Q, K, V</h2>
+      <p>We multiply the embedding matrix <b>E</b> by three learned weight matrices:</p>
+      <div class="formula">Q = E · W<sub>Q</sub> &nbsp;&nbsp;&nbsp; K = E · W<sub>K</sub> &nbsp;&nbsp;&nbsp; V = E · W<sub>V</sub></div>
+      <div class="matrix-wrap">
+        ${matBlock(Q,'Q = E·W_Q','var(--accent)')}
+        ${matBlock(K,'K = E·W_K','var(--orange)')}
+        ${matBlock(V,'V = E·W_V','var(--green)')}
+      </div>
+      <p>Each row = the projection of one token. The weights W<sub>Q</sub>, W<sub>K</sub>, W<sub>V</sub> are trained end-to-end via backpropagation.</p>
+    </div>
+  `},
+
+  // 2 – Scores
+  {title:"Attention Scores", render:()=>`
+    <div class="card">
+      <h2>Step 1: Dot-product Similarity</h2>
+      <p>We compute the dot product between the <span class="tag tq">Query</span> of one token and the <span class="tag tk">Key</span> of every token. High dot product = high relevance.</p>
+      <div class="formula">Scores = Q · Kᵀ &nbsp;/&nbsp; √d<sub>k</sub> &nbsp;&nbsp; (√${DIM} ≈ ${fmt2(sqrtDk)})</div>
+      <p>The <strong>√d<sub>k</sub> scaling</strong> prevents dot products from growing too large in high-dimensional spaces, which would push softmax into regions with near-zero gradients (vanishing gradient problem).</p>
+    </div>
+    <div class="card">
+      <h2>Choose a Query token</h2>
+      <p>Pick a token to see how its Query vector scores against every Key:</p>
+      ${tokSel(2)}
+      <div id="scoreDetail"></div>
+    </div>
+  `},
+
+  // 3 – Softmax
+  {title:"Softmax → Weights", render:()=>`
+    <div class="card">
+      <h2>Step 2: Softmax — Turn Scores into Probabilities</h2>
+      <p>Raw scores can be any real number. Softmax converts them to values between 0 and 1 that sum to exactly 1. Now we have attention <em>weights</em>: how much does token X attend to token Y?</p>
+      <div class="formula">a<sub>ij</sub> = exp(score<sub>ij</sub>) / Σ<sub>k</sub> exp(score<sub>ik</sub>)</div>
+      <p>Softmax is <strong>sharp</strong> for large score differences (winner takes most) and <strong>diffuse</strong> when scores are similar (attention spread evenly).</p>
+    </div>
+    <div class="card">
+      <h2>Full Attention Weight Matrix</h2>
+      <p>Each row = one token's attention distribution over all tokens. Brighter = more attention.</p>
+      ${heatmap(attWeights)}
+      <p style="margin-top:12px">Select a token for a bar-chart view:</p>
+      ${tokSel(3)}
+      <div id="softmaxDetail"></div>
+    </div>
+  `},
+
+  // 4 – Output
+  {title:"Weighted Output", render:()=>`
+    <div class="card">
+      <h2>Step 3: Weighted Sum of Values</h2>
+      <p>Finally, each token's output is a <strong>weighted combination</strong> of all Value vectors, weighted by the attention scores.</p>
+      <div class="formula">Output = Attention_Weights · V</div>
+      <p>A token that strongly attends to another token "absorbs" that token's Value vector into its own output representation. This is how context flows between tokens.</p>
+    </div>
+    <div class="card">
+      <h2>Output for each token</h2>
+      ${tokSel(4)}
+      <div id="outputDetail"></div>
+    </div>
+  `},
+
+  // 5 – Summary
+  {title:"Summary & Beyond", render:()=>`
+    <div class="card">
+      <h2>The Full Pipeline</h2>
+      ${[
+        ['1','Embeddings E','Tokens → vectors (learned lookup table)','var(--dim)'],
+        ['2','Q = E·W_Q, K = E·W_K, V = E·W_V','Three linear projections of each token','var(--accent)'],
+        ['3','Scores = Q·Kᵀ / √dₖ','Pairwise dot-product similarity, scaled','var(--orange)'],
+        ['4','softmax(Scores)','Normalise to attention weights (0–1, sum=1)','var(--green)'],
+        ['5','Output = Weights · V','Weighted sum = contextualised token representation','var(--accent2)'],
+      ].map(([n,t,d,c])=>`<div class="sum-step">
+        <div class="sum-num" style="background:${c}">${n}</div>
+        <div><div style="font-weight:700;font-size:.88rem">${t}</div>
+             <div style="font-size:.78rem;color:var(--dim)">${d}</div></div>
+      </div>`).join('')}
+    </div>
+    <div class="card">
+      <h2>What Comes Next in Real Transformers</h2>
+      <div class="hbox">
+        <strong>Multi-Head Attention:</strong> Run H parallel attention heads, each with its own W<sub>Q</sub>/W<sub>K</sub>/W<sub>V</sub>. Concatenate outputs → W<sub>O</sub>. Each head can learn different relationship types (syntactic, semantic, coreference…).<br><br>
+        <strong>Positional Encoding:</strong> Attention is permutation-invariant—it doesn't know word order. A positional embedding is added to E before computing Q/K/V.<br><br>
+        <strong>Masking (Causal / Padding):</strong> In decoders, future tokens are masked out (set to −∞ before softmax). In encoders, padding tokens are masked.<br><br>
+        <strong>Cross-Attention:</strong> In encoder-decoder models, Q comes from the decoder and K/V from the encoder—this is how translation "looks at" the source sentence.
+      </div>
+      <p>You now understand the core mechanism behind every Transformer: GPT, BERT, T5, LLaMA, and more. 🎉</p>
+    </div>
+  `}
+];
+
+// ── Detail panel renderers ─────────────────────────────────────────────────
+function renderScoreDetail(){
+  const i=selTok, qv=Q[i], sc=scaledScores[i], rs=rawScores[i];
+  const mx=Math.max(...sc.map(Math.abs))||1;
+  let h=`<div style="margin-top:12px">
+    <div style="font-size:.81rem;color:var(--dim);margin-bottom:8px">
+      <span class="tag tq">Q</span> vector of <strong style="color:var(--accent)">"${TOKENS[i]}"</strong>
+      = [${qv.map(fmt2).join(', ')}]
+    </div>
+    <div style="font-size:.81rem;color:var(--dim);margin-bottom:6px">Scaled scores against every Key:</div>`;
+  TOKENS.forEach((t,j)=>{
+    const sv=sc[j], pct=Math.max(4,Math.round((sv/mx)*100));
+    const kv=K[j];
+    h+=`<div class="bar-row">
+      <div class="bar-lbl">${t}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:var(--accent)">${pct>15?fmt2(sv):''}</div></div>
+      <div class="bar-val">${fmt2(sv)}</div>
+    </div>`;
+  });
+  h+=`<div style="font-size:.76rem;color:var(--dim);margin-top:8px">
+    Raw = Q·K<sup>T</sup>: [${rs.map(fmt2).join(', ')}] &nbsp;→&nbsp; ÷${fmt2(sqrtDk)} &nbsp;→&nbsp; [${sc.map(fmt2).join(', ')}]
+  </div></div>`;
+  const el=document.getElementById('scoreDetail');
+  if(el) el.innerHTML=h;
+}
+
+function renderSoftmaxDetail(){
+  const i=selTok, w=attWeights[i];
+  let h=`<div style="margin-top:12px">
+    <div style="font-size:.81rem;color:var(--dim);margin-bottom:6px">
+      <strong style="color:var(--accent)">"${TOKENS[i]}"</strong> distributes attention as:
+    </div>
+    ${bars(w,TOKENS)}
+    <div style="font-size:.76rem;color:var(--dim);margin-top:6px">Σ = ${fmt(w.reduce((a,b)=>a+b,0))} ✓</div>
+  </div>`;
+  const el=document.getElementById('softmaxDetail');
+  if(el) el.innerHTML=h;
+}
+
+function renderOutputDetail(){
+  const i=selTok, w=attWeights[i], out=output[i];
+  let h=`<div style="margin-top:12px">
+    <div style="font-size:.81rem;color:var(--dim);margin-bottom:8px">
+      Output for <strong style="color:var(--accent)">"${TOKENS[i]}"</strong> = weighted sum of V rows:
+    </div>
+    <div style="font-size:.78rem;font-family:monospace;color:var(--dim);line-height:2;margin-bottom:10px">
+      ${TOKENS.map((t,j)=>`<span style="color:var(--text)">${fmt2(w[j])}</span> × V[${t}]`).join(' + ')}
+    </div>
+    ${bars(w,TOKENS)}
+    <div style="background:var(--bg);border-radius:8px;padding:12px;font-family:monospace;font-size:.82rem;margin-top:10px;border:1px solid var(--surface2)">
+      <span style="color:var(--dim)">output["${TOKENS[i]}"] =</span> [${out.map(fmt2).join(', ')}]
+    </div>
+    <p style="margin-top:10px;font-size:.82rem;color:var(--dim)">
+      Compare to the raw embedding [${E[i].join(', ')}] — the output vector has been enriched with context from other tokens.
+    </p>
+  </div>`;
+  const el=document.getElementById('outputDetail');
+  if(el) el.innerHTML=h;
+}
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+function renderStep(){
+  document.getElementById('stepContent').innerHTML = STEPS[step].render();
+  if(step===2) renderScoreDetail();
+  if(step===3) renderSoftmaxDetail();
+  if(step===4) renderOutputDetail();
+
+  document.getElementById('btnPrev').disabled = step===0;
+  document.getElementById('btnNext').textContent = step===NSTEPS-1 ? '✓ Done' : 'Next →';
+  document.getElementById('stepCtr').textContent = `${step+1} / ${NSTEPS}`;
+
+  document.getElementById('stepsNav').innerHTML = STEPS.map((s,i)=>{
+    let c='step-dot'+(i===step?' active':i<step?' done':'');
+    return `<div class="${c}" onclick="goStep(${i})" title="${s.title}"></div>`;
+  }).join('');
+}
+
+function navigate(d){
+  const nx=step+d;
+  if(nx>=0&&nx<NSTEPS){ step=nx; renderStep(); window.scrollTo({top:0,behavior:'smooth'}); }
+}
+function goStep(i){ step=i; renderStep(); }
+function selToken(i,s){ selTok=i; if(step===s) renderStep(); }
+
+renderStep();
+</script>
+</body>
+</html>
