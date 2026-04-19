@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Review Pyramid Guide</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <style>
+        .pyramid-layer { transition: all 0.2s ease-in-out; }
+        .pyramid-layer:hover { transform: scale(1.02); }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-sans min-h-screen p-4 md:p-8 transition-colors duration-200">
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 text-center relative">
+            <button onclick="toggleDarkMode()" class="absolute right-0 top-0 p-2 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors" title="Toggle Dark Mode">
+                <svg id="theme-icon-dark" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                <svg id="theme-icon-light" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+            </button>
+            <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Code Review Pyramid Tool</h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">
+                Structure your PR reviews based on Gunnar Morling's <a href="https://www.morling.dev/blog/the-code-review-pyramid/" target="_blank" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 underline transition-colors">Pyramid</a> and the <a href="https://code-review.tidyverse.org/" target="_blank" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 underline transition-colors">Tidyverse Review Guidelines</a>.
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+            
+            <!-- Left Column: Pyramid Navigation -->
+            <div class="lg:col-span-5 flex flex-col justify-end space-y-2 h-full p-6 bg-slate-200/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700" id="pyramid-container">
+                <!-- Generated via JavaScript -->
+            </div>
+            
+            <!-- Right Column: Editor & Checklist -->
+            <div class="lg:col-span-7 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col min-h-[500px]">
+                <div class="mb-4">
+                    <h2 id="editor-title" class="text-2xl font-bold text-slate-800 dark:text-white flex items-center"></h2>
+                    <p id="editor-desc" class="text-sm text-slate-500 dark:text-slate-400 font-medium mt-1"></p>
+                </div>
+                
+                <!-- Tidyteam Mindset Box -->
+                <div class="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800/50 rounded-xl p-3 mb-4 flex gap-3 text-sm text-emerald-800 dark:text-emerald-200">
+                    <span class="text-lg">💡</span>
+                    <div>
+                        <strong>Tidyteam Mindset:</strong> Strive for code health (improvement > perfection). Don't forget to leave <strong>positive feedback</strong> and clearly mark optional comments!
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800/50 rounded-xl p-4 mb-5">
+                    <h3 class="text-xs font-bold text-indigo-900 dark:text-indigo-300 mb-2 uppercase tracking-wider">Focus questions for this layer:</h3>
+                    <ul id="editor-checks" class="space-y-1.5 text-sm">
+                        <!-- Generated via JavaScript -->
+                    </ul>
+                </div>
+                
+                <div class="flex-grow flex flex-col">
+                    <div class="flex justify-between items-end mb-2">
+                        <label for="editor-textarea" class="block text-sm font-bold text-slate-700 dark:text-slate-300">Your notes & findings:</label>
+                        <span id="save-indicator" class="text-xs text-green-600 dark:text-green-400 font-medium opacity-0 transition-opacity">✓ Saved</span>
+                    </div>
+                    <textarea id="editor-textarea" class="w-full flex-grow min-h-[250px] p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:border-indigo-500 outline-none resize-y transition-all text-slate-800 dark:text-slate-200" placeholder="Write your notes for this layer here... (Markdown formatting supported)"></textarea>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bottom Section: Result & Export -->
+        <div class="mt-8 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                <h2 class="text-xl font-bold text-slate-800 dark:text-white">Review Summary (Markdown)</h2>
+                
+                <div class="flex flex-wrap items-center gap-3">
+                    <span id="copy-error" class="text-sm text-red-500 font-medium hidden">Copy failed!</span>
+                    
+                    <button id="reset-btn" onclick="clearNotes(this)" data-confirm="false" class="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors">
+                        Reset
+                    </button>
+
+                    <button onclick="downloadMarkdown()" class="flex items-center px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        .md Download
+                    </button>
+                    
+                    <button id="copy-btn" onclick="copyToClipboard()" class="flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
+                        <svg id="copy-icon" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                        <span id="copy-text">Copy</span>
+                    </button>
+                </div>
+            </div>
+            
+            <textarea id="markdown-preview" readonly class="w-full h-48 p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-mono text-sm text-slate-600 dark:text-slate-400 outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"></textarea>
+        </div>
+    </div>
+
+    <script>
+        // Theme Toggle Logic
+        function initTheme() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-icon-light').classList.remove('hidden');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('theme-icon-dark').classList.remove('hidden');
+            }
+        }
+        
+        function toggleDarkMode() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.theme = isDark ? 'dark' : 'light';
+            document.getElementById('theme-icon-dark').classList.toggle('hidden');
+            document.getElementById('theme-icon-light').classList.toggle('hidden');
+        }
+        initTheme();
+
+        // Definition der Pyramiden-Ebenen von oben nach unten, gerendert werden sie visuell als Pyramide
+        const layers = [
+            {
+                id: 'style',
+                title: '5. Code Style & Formatting',
+                width: 'w-2/5',
+                bg: 'bg-slate-300 dark:bg-slate-700',
+                text: 'text-slate-800 dark:text-slate-200',
+                activeBg: 'bg-slate-400 dark:bg-slate-600 ring-2 ring-slate-500 dark:ring-slate-400 ring-offset-2 dark:ring-offset-slate-900',
+                icon: '✨',
+                description: 'Largely automatable. Invest minimal manual review time.',
+                checks: ['Are naming conventions followed?', 'Is the code formatting consistent?']
+            },
+            {
+                id: 'tests',
+                title: '4. Tests',
+                width: 'w-3/5',
+                bg: 'bg-indigo-300 dark:bg-indigo-800/80',
+                text: 'text-indigo-900 dark:text-indigo-100',
+                activeBg: 'bg-indigo-400 dark:bg-indigo-700 ring-2 ring-indigo-500 dark:ring-indigo-400 ring-offset-2 dark:ring-offset-slate-900',
+                icon: '🧪',
+                description: 'Ensure behavior and prevent regressions.',
+                checks: ['Were tests added or updated for new logic?', 'Are refactorings covered by existing or new tests?']
+            },
+            {
+                id: 'docs',
+                title: '3. Documentation',
+                width: 'w-4/5',
+                bg: 'bg-indigo-500 dark:bg-indigo-600',
+                text: 'text-white',
+                activeBg: 'bg-indigo-600 dark:bg-indigo-500 ring-2 ring-indigo-700 dark:ring-indigo-400 ring-offset-2 dark:ring-offset-slate-900',
+                icon: '📚',
+                description: 'Knowledge transfer and onboarding for future maintainers.',
+                checks: ['Are new public APIs documented?', 'Is the usage of new functions shown in the docs?']
+            },
+            {
+                id: 'impl',
+                title: '2. Implementation & Functionality',
+                width: 'w-11/12',
+                bg: 'bg-indigo-700 dark:bg-indigo-800',
+                text: 'text-white',
+                activeBg: 'bg-indigo-800 dark:bg-indigo-700 ring-2 ring-indigo-900 dark:ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900',
+                icon: '⚙️',
+                description: 'Does the code do what it should? Best to try it locally.',
+                checks: ['Is the desired behavior functionally implemented?', 'Did you test the PR locally (e.g. via pr_fetch())?', 'Are edge cases handled (e.g., incorrect types, empty inputs)?', 'Is the complexity reasonable (can you "execute" it in your head)?']
+            },
+            {
+                id: 'api',
+                title: '1. Design & API Semantics',
+                width: 'w-full',
+                bg: 'bg-indigo-950 dark:bg-indigo-950',
+                text: 'text-white',
+                activeBg: 'bg-black dark:bg-black ring-2 ring-indigo-950 dark:ring-indigo-700 ring-offset-2 dark:ring-offset-slate-900',
+                icon: '🏗️',
+                description: 'First things first: Does the design make sense? If not, stop here.',
+                checks: ['Is the PR focused (only one topic, refactoring separated)?', 'Does this change belong in this package?', 'Does it integrate well into the rest of the ecosystem?', 'Was over-engineering avoided (solving future problems instead of current ones)?']
+            }
+        ];
+
+        // State laden oder initialisieren
+        let notes = JSON.parse(localStorage.getItem('cr-pyramid-notes')) || {
+            style: '', tests: '', docs: '', impl: '', api: ''
+        };
+        
+        // Start always at the foundation (API Semantics)
+        let activeLayerId = 'api';
+        let saveTimeout;
+
+        function renderPyramid() {
+            const container = document.getElementById('pyramid-container');
+            // Rendert die Arrays von oben (Index 0) nach unten
+            container.innerHTML = layers.map(layer => `
+                <button onclick="selectLayer('${layer.id}')" 
+                    class="pyramid-layer ${layer.width} ${layer.id === activeLayerId ? layer.activeBg : layer.bg} ${layer.text}
+                    py-3 md:py-4 px-2 rounded-lg font-semibold shadow-sm flex flex-col items-center justify-center relative mx-auto">
+                    <span class="text-xs md:text-sm truncate w-full text-center px-2">${layer.icon} ${layer.title}</span>
+                    
+                    <!-- Indikator wenn Notizen existieren -->
+                    ${notes[layer.id].trim().length > 0 ? 
+                      `<span class="absolute right-1 top-1 w-2.5 h-2.5 bg-green-400 rounded-full border border-white dark:border-slate-800 shadow-sm" title="Notes available"></span>` 
+                      : ''}
+                </button>
+            `).join('');
+        }
+
+        function renderEditor() {
+            const layer = layers.find(l => l.id === activeLayerId);
+            document.getElementById('editor-title').innerHTML = `${layer.icon} ${layer.title}`;
+            document.getElementById('editor-desc').innerText = layer.description;
+            
+            document.getElementById('editor-checks').innerHTML = layer.checks.map(c => `
+                <li class="flex items-start space-x-2">
+                    <svg class="w-5 h-5 text-indigo-500 dark:text-indigo-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span class="text-slate-700 dark:text-slate-300">${c}</span>
+                </li>
+            `).join('');
+
+            const textarea = document.getElementById('editor-textarea');
+            textarea.value = notes[activeLayerId] || '';
+            textarea.focus();
+        }
+
+        function selectLayer(id) {
+            activeLayerId = id;
+            renderPyramid();
+            renderEditor();
+        }
+
+        function handleInput(e) {
+            notes[activeLayerId] = e.target.value;
+            localStorage.setItem('cr-pyramid-notes', JSON.stringify(notes));
+            updateMarkdown();
+            
+            // Re-render Pyramid lightly to update green dots if necessary
+            renderPyramid();
+
+            // Zeige kurzen Save-Indikator an
+            const indicator = document.getElementById('save-indicator');
+            indicator.style.opacity = '1';
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => { indicator.style.opacity = '0'; }, 1000);
+        }
+
+        function updateMarkdown() {
+            let md = `# Code Review Summary\n\n`;
+            
+            // Review-Zusammenfassung von der Basis (API) nach oben (Style) aufbauen
+            const reversedLayers = [...layers].reverse();
+            let hasNotes = false;
+            
+            reversedLayers.forEach(layer => {
+                const layerNotes = notes[layer.id].trim();
+                if (layerNotes) {
+                    hasNotes = true;
+                    md += `## ${layer.icon} ${layer.title}\n${layerNotes}\n\n`;
+                }
+            });
+
+            if (!hasNotes) {
+                md += `*No special remarks. LGTM! (Looks Good To Me) ✨*`;
+            }
+
+            document.getElementById('markdown-preview').value = md.trim();
+        }
+
+        function copyToClipboard() {
+            const textarea = document.getElementById('markdown-preview');
+            textarea.select();
+            const errorMsg = document.getElementById('copy-error');
+            const btn = document.getElementById('copy-btn');
+            const icon = document.getElementById('copy-icon');
+            const textSpan = document.getElementById('copy-text');
+            
+            try {
+                // execCommand als robustes Fallback für iFrames
+                document.execCommand('copy');
+                errorMsg.classList.add('hidden');
+                
+                // Success UI State
+                btn.classList.replace('bg-indigo-600', 'bg-green-600');
+                btn.classList.replace('hover:bg-indigo-700', 'hover:bg-green-700');
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>';
+                textSpan.innerText = 'Copied!';
+                
+                setTimeout(() => {
+                    btn.classList.replace('bg-green-600', 'bg-indigo-600');
+                    btn.classList.replace('hover:bg-green-700', 'hover:bg-indigo-700');
+                    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>';
+                    textSpan.innerText = 'Copy';
+                }, 2000);
+            } catch (err) {
+                errorMsg.classList.remove('hidden');
+            }
+            // Selektion aufheben
+            window.getSelection().removeAllRanges();
+        }
+
+        function downloadMarkdown() {
+            const md = document.getElementById('markdown-preview').value;
+            const blob = new Blob([md], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `code-review-${new Date().toISOString().split('T')[0]}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        let resetConfirmTimeout;
+        function clearNotes(btn) {
+            // Vermeide native confirm() Dialoge zwecks iFrame-Sicherheit
+            if (btn.dataset.confirm === "true") {
+                notes = { style: '', tests: '', docs: '', impl: '', api: '' };
+                localStorage.removeItem('cr-pyramid-notes');
+                renderPyramid();
+                renderEditor();
+                updateMarkdown();
+                
+                // Button Reset
+                btn.dataset.confirm = "false";
+                btn.innerText = 'Reset';
+                btn.classList.replace('bg-red-600', 'bg-red-50');
+                btn.classList.replace('text-white', 'text-red-600');
+                btn.classList.remove('dark:bg-red-600', 'dark:text-white');
+                btn.classList.add('dark:bg-red-900/30', 'dark:text-red-400');
+                clearTimeout(resetConfirmTimeout);
+            } else {
+                btn.dataset.confirm = "true";
+                btn.innerText = 'Are you sure?';
+                btn.classList.replace('bg-red-50', 'bg-red-600');
+                btn.classList.replace('text-red-600', 'text-white');
+                btn.classList.remove('dark:bg-red-900/30', 'dark:text-red-400');
+                btn.classList.add('dark:bg-red-600', 'dark:text-white');
+                
+                resetConfirmTimeout = setTimeout(() => {
+                    btn.dataset.confirm = "false";
+                    btn.innerText = 'Reset';
+                    btn.classList.replace('bg-red-600', 'bg-red-50');
+                    btn.classList.replace('text-white', 'text-red-600');
+                    btn.classList.remove('dark:bg-red-600', 'dark:text-white');
+                    btn.classList.add('dark:bg-red-900/30', 'dark:text-red-400');
+                }, 3000);
+            }
+        }
+
+        // Initialsierung
+        document.getElementById('editor-textarea').addEventListener('input', handleInput);
+        renderPyramid();
+        renderEditor();
+        updateMarkdown();
+    </script>
+</body>
+</html>
