@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Engineering Decision Workflow</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #1e293b;
+      --text-light: #64748b;
+      --border: #e2e8f0;
+      --success: #10b981;
+      --code-bg: #f1f5f9;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+      color: var(--primary);
+    }
+
+    .subtitle {
+      color: var(--text-light);
+      font-size: 1rem;
+    }
+
+    .workflow-container {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .step {
+      display: none;
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    .step.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .step-title {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      color: var(--primary-dark);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .step-number {
+      background: var(--primary);
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
+
+    .options {
+      display: grid;
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .option-card {
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .option-card:hover {
+      border-color: var(--primary);
+      background: #f0f7ff;
+    }
+
+    .option-card.selected {
+      border-color: var(--primary);
+      background: #eff6ff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .option-title {
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .option-desc {
+      color: var(--text-light);
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+    }
+
+    .code-example {
+      background: var(--code-bg);
+      border-radius: 6px;
+      padding: 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .option-card.selected .code-example {
+      display: block;
+    }
+
+    .code-example pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 25px;
+    }
+
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-dark);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: #cbd5e1;
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      margin-bottom: 30px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--primary);
+      transition: width 0.3s;
+    }
+
+    .result {
+      background: #f0fdf4;
+      border: 2px solid var(--success);
+      border-radius: 8px;
+      padding: 25px;
+      margin-top: 20px;
+    }
+
+    .result h3 {
+      color: var(--success);
+      margin-bottom: 15px;
+    }
+
+    .result-item {
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #d1fae5;
+    }
+
+    .result-item:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .result-label {
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 5px;
+    }
+
+    .result-value {
+      color: var(--text-light);
+    }
+
+    .tag {
+      display: inline-block;
+      background: var(--primary);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      margin-right: 8px;
+      margin-top: 5px;
+    }
+
+    @media (max-width: 640px) {
+      .container {
+        padding: 10px;
+      }
+      
+      h1 {
+        font-size: 1.5rem;
+      }
+      
+      .workflow-container {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🗂️ Data Engineering Decision Workflow</h1>
+      <p class="subtitle">Interaktiver Guide für Datenformat-, Datenbank- und Persistenz-Entscheidungen</p>
+    </header>
+
+    <div class="workflow-container">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <!-- Step 1: Data Format -->
+      <div class="step active" id="step1">
+        <div class="step-title">
+          <span class="step-number">1</span>
+          <span>Wähle dein Datenformat</span>
+        </div>
+        
+        <div class="options">
+          <div class="option-card" data-value="json">
+            <div class="option-title">📄 JSON</div>
+            <div class="option-desc">Standard für Web-APIs und Document Databases. Keine nativen Kommentare oder Binärdaten.</div>
+            <div class="code-example">
+<pre>{ 
+  "user": {
+    "name": "Alice",
+    "email": "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="593835303a3c193c21383429353c773a3634">[email&#160;protected]</a>"
+  }
+}</pre>
+            </div>
+          </div>
+
+          <div class="option-card" data-value="xml">
+            <div class="option-title">📋 XML</div>
+            <div class="option-desc">Für komplexe Anwendungen mit Schema-Validierung und Namespaces.</div>
+            <div class="code-example">
+<pre>&lt;user&gt;
+  &lt;name&gt;Alice&lt;/name&gt;
+  &lt;email&gt;<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="583934313b3d183d20393528343d763b3735">[email&#160;protected]</a>&lt;/email&gt;
+&lt;/user&gt;</pre>
+            </div>
+          </div>
+
+          <div class="option-card" data-value="csv">
+            <div class="option-title">📊 CSV</div>
+            <div class="option-desc">Ideal für einfache Tabellendaten und Spreadsheet-Kompatibilität.</div>
+            <div class="code-example">
+<pre>name,email
+Alice,<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="46272a2f252306233e272b362a236825292b">[email&#160;protected]</a>
+Bob,<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="8eece1ecceebf6efe3fee2eba0ede1e3">[email&#160;protected]</a></pre>
+            </div>
+          </div>
+
+          <div class="option-card" data-value="yaml">
+            <div class="option-title">⚙️ YAML</div>
+            <div class="option-desc">Perfekt für Konfigurationsdateien, besonders in DevOps.</div>
+            <div class="code-example">
+<pre>user:
+  name: Alice
+  email: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6e0f02070d0b2e0b160f031e020b400d0103">[email&#160;protected]</a></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn-primary" id="next1" disabled>Weiter</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Database Type -->
+      <div class="step" id="step2">
+        <div class="step-title">
+          <span class="step-number">2</span>
+          <span>Wähle deinen Datenbanktyp</span>
+        </div>
+        
+        <div class="options">
+          <div class="option-card" data-value="sql">
+            <div class="option-title">🗄️ Relational (SQL)</div>
+            <div class="option-desc">ACID-Properties für Datenintegrität. Perfekt für strukturierte Daten mit Beziehungen.</div>
+            <div class="code-example">
+<pre>CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(50) UNIQUE NOT NULL
+);
+
+INSERT INTO users (username, email) 
+VALUES (?, ?);</pre>
+            </div>
+          </div>
+
+          <div class="option-card" data-value="document">
+            <div class="option-title">📑 Document Database</div>
+            <div class="option-desc">Flexible JSON-ähnliche Dokumente für sich entwickelnde Schemas.</div>
+            <div class="code-example">
+<pre>Document post = new Document()
+  .append("title", "Getting Started")
+  .append("author", 
+    new Document("name", "Jane"));
+    
+collection.insertOne(post);</pre>
+            </div>
+          </div>
+
+          <div class="option-card" data-value="keyvalue">
+            <div class="option-title">🔑 Key-Value Store</div>
+            <div class="option-desc">Optimiert für Geschwindigkeit. Ideal für Caching und Session-Management.</div>
+            <div class="code-example">
+<pre>jedis.setex("session:" + sessionId, 
+  1800, userJson);
+
+String session = jedis.get(
+  "session:" + sessionId);</pre>
+            </div>
+          </div>
+
+          <div class="option-card" data-value="graph">
+            <div class="option-title">🕸️ Graph Database</div>
+            <div class="option-desc">Fokus auf stark vernetzte Daten und komplexe Beziehungen.</div>
+            <div class="code-example">
+<pre>tx.run("CREATE (user:Person {name: $name})", 
+  parameters("name", "Alice"));
+
+tx.run("MATCH (a:Person), (b:Person) 
+  CREATE (a)-[:FOLLOWS]->(b)");</pre>
+            </div>
+          </div>
+
+          <div class="option-card" data-value="vector">
+            <div class="option-title">🤖 Vector Database</div>
+            <div class="option-desc">Speichert Embeddings für KI-gestützte semantische Suche (Pinecone, Weaviate).</div>
+            <div class="code-example">
+<pre>// Embedding-basierte Suche
+vectors.query({
+  vector: [0.1, 0.2, ...],
+  topK: 10
+});</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn-secondary" id="back2">Zurück</button>
+          <button class="btn-primary" id="next2" disabled>Weiter</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Persistence Pattern -->
+      <div class="step" id="step3">
+        <div class="step-title">
+          <span class="step-number">3</span>
+          <span>Wähle dein Persistenz-Pattern</span>
+        </div>
+        
+        <div class="options">
+          <div class="option-card" data-value="direct">
+            <div class="option-title">⚡ Direct Access</div>
+            <div class="option-desc">Raw SQL für totale Kontrolle über Queries.</div>
+            <div class="code-example">
+<pre>ResultSet rs = stmt.executeQuery(
+  "SELECT id, username FROM users 
+   WHERE active = true");
+
+while (rs.next()) {
+  String name = rs.getString("username");
+}</pre>
+            </div>
+          </div>
+
+          <div class="option-card" data-value="repository">
+            <div class="option-title">📦 Repository Pattern</div>
+            <div class="option-desc">Zentralisiert Datenlogik und isoliert sie von Business-Logik.</div>
+            <div class="code-example">
+<pre>public class UserRepository {
+  public List&lt;User&gt; findActiveUsers() {
+    // Gekapselte SQL-Logik
+    return query("SELECT * FROM users 
+                  WHERE active = true");
+  }
+}</pre>
+            </div>
+          </div>
+
+          <div class="option-card" data-value="orm">
+            <div class="option-title">🔄 ORM (Object-Relational Mapping)</div>
+            <div class="option-desc">Mappt Domain-Objekte direkt auf Tabellen via Metadaten.</div>
+            <div class="code-example">
+<pre>@Entity
+public class User {
+  @Id 
+  @GeneratedValue 
+  private Long id;
+  
+  private String username;
+}
+
+// Nutzung
+entityManager.persist(user);</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn-secondary" id="back3">Zurück</button>
+          <button class="btn-primary" id="finish" disabled>Ergebnis anzeigen</button>
+        </div>
+      </div>
+
+      <!-- Result -->
+      <div class="step" id="result">
+        <div class="result">
+          <h3>✅ Deine Architektur-Entscheidung</h3>
+          
+          <div class="result-item">
+            <div class="result-label">Datenformat</div>
+            <div class="result-value" id="resultFormat"></div>
+          </div>
+
+          <div class="result-item">
+            <div class="result-label">Datenbanktyp</div>
+            <div class="result-value" id="resultDb"></div>
+          </div>
+
+          <div class="result-item">
+            <div class="result-label">Persistenz-Pattern</div>
+            <div class="result-value" id="resultPattern"></div>
+          </div>
+
+          <div class="result-item">
+            <div class="result-label">Empfohlene Stack-Kombination</div>
+            <div id="resultStack"></div>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn-secondary" id="restart">Von vorne beginnen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+    const state = {
+      currentStep: 1,
+      selections: {
+        format: null,
+        database: null,
+        pattern: null
+      }
+    };
+
+    const labels = {
+      format: {
+        json: 'JSON - Web APIs & Document DBs',
+        xml: 'XML - Enterprise & Schema-Validation',
+        csv: 'CSV - Tabellendaten & Spreadsheets',
+        yaml: 'YAML - Konfiguration & DevOps'
+      },
+      database: {
+        sql: 'Relational Database (PostgreSQL, MySQL)',
+        document: 'Document Database (MongoDB, CouchDB)',
+        keyvalue: 'Key-Value Store (Redis, Memcached)',
+        graph: 'Graph Database (Neo4j, ArangoDB)',
+        vector: 'Vector Database (Pinecone, Weaviate)'
+      },
+      pattern: {
+        direct: 'Direct SQL Access',
+        repository: 'Repository Pattern',
+        orm: 'ORM (JPA, Hibernate)'
+      }
+    };
+
+    const recommendations = {
+      'json-document-orm': ['Spring Data MongoDB', 'Mongoose (Node.js)', 'Python Motor'],
+      'json-sql-orm': ['Spring Boot + JPA', 'Django ORM', 'TypeORM'],
+      'json-keyvalue-direct': ['Redis + Jedis', 'Node-Redis', 'ioredis'],
+      'csv-sql-repository': ['JDBC + Repository', 'Pandas + SQLAlchemy', 'GORM (Go)'],
+      'yaml-document-repository': ['MongoDB + Custom Repos', 'PyMongo', 'Mongoid (Ruby)'],
+      'xml-sql-orm': ['JPA + JAXB', 'Entity Framework', 'MyBatis'],
+      'graph-direct': ['Neo4j Cypher', 'Gremlin Console', 'SPARQL'],
+      'vector-direct': ['Pinecone Client', 'Weaviate Python', 'LangChain'],
+    };
+
+    // Event delegation für option-cards
+    document.querySelector('.workflow-container').addEventListener('click', (e) => {
+      const card = e.target.closest('.option-card');
+      if (!card) return;
+
+      const step = card.closest('.step');
+      const stepId = step.id;
+      
+      // Deselect all in current step
+      step.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+      
+      // Select clicked card
+      card.classList.add('selected');
+      
+      // Store selection
+      const value = card.dataset.value;
+      if (stepId === 'step1') {
+        state.selections.format = value;
+        document.getElementById('next1').disabled = false;
+      } else if (stepId === 'step2') {
+        state.selections.database = value;
+        document.getElementById('next2').disabled = false;
+      } else if (stepId === 'step3') {
+        state.selections.pattern = value;
+        document.getElementById('finish').disabled = false;
+      }
+    });
+
+    // Navigation
+    document.getElementById('next1').addEventListener('click', () => goToStep(2));
+    document.getElementById('next2').addEventListener('click', () => goToStep(3));
+    document.getElementById('back2').addEventListener('click', () => goToStep(1));
+    document.getElementById('back3').addEventListener('click', () => goToStep(2));
+    
+    document.getElementById('finish').addEventListener('click', () => {
+      showResult();
+      goToStep(4);
+    });
+
+    document.getElementById('restart').addEventListener('click', () => {
+      state.selections = { format: null, database: null, pattern: null };
+      document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+      document.getElementById('next1').disabled = true;
+      document.getElementById('next2').disabled = true;
+      document.getElementById('finish').disabled = true;
+      goToStep(1);
+    });
+
+    function goToStep(step) {
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+      document.getElementById(`step${step === 4 ? 'result' : step}`).classList.add('active');
+      state.currentStep = step;
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const progress = (state.currentStep / 4) * 100;
+      document.getElementById('progressFill').style.width = progress + '%';
+    }
+
+    function showResult() {
+      const { format, database, pattern } = state.selections;
+      
+      document.getElementById('resultFormat').innerHTML = 
+        `<span class="tag">${format.toUpperCase()}</span> ${labels.format[format]}`;
+      
+      document.getElementById('resultDb').innerHTML = 
+        `<span class="tag">${database.toUpperCase()}</span> ${labels.database[database]}`;
+      
+      document.getElementById('resultPattern').innerHTML = 
+        `<span class="tag">${pattern.toUpperCase()}</span> ${labels.pattern[pattern]}`;
+
+      // Stack recommendation
+      const key = `${format}-${database}-${pattern}`;
+      const altKey1 = `${format}-${database}`;
+      const altKey2 = `${database}-${pattern}`;
+      
+      let stack = recommendations[key] || recommendations[altKey1] || recommendations[altKey2] || 
+                  ['Custom Stack', 'Kombiniere Libraries manuell', 'Prüfe Dokumentation'];
+      
+      document.getElementById('resultStack').innerHTML = 
+        stack.map(s => `<span class="tag">${s}</span>`).join('');
+    }
+
+    // Initialize
+    updateProgress();
+  </script>
+</body>
+</html>
