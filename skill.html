@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Skill Explorer</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3350;
+      --accent: #6c8ef7;
+      --accent2: #a78bfa;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --text: #e2e8f0;
+      --muted: #8892b0;
+      --code-bg: #111827;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 { font-size: 18px; font-weight: 700; }
+    header span { font-size: 22px; }
+    .badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    nav {
+      display: flex;
+      gap: 4px;
+      padding: 14px 32px 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      overflow-x: auto;
+    }
+    nav button {
+      background: none;
+      border: none;
+      color: var(--muted);
+      padding: 8px 16px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      border-bottom: 2px solid transparent;
+      transition: all .15s;
+    }
+    nav button:hover { color: var(--text); }
+    nav button.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    main { max-width: 1080px; margin: 0 auto; padding: 32px 24px; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--accent); }
+    p { color: var(--muted); margin-bottom: 12px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    @media (max-width: 700px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .card.accent-border { border-color: var(--accent); }
+    .card.green-border { border-color: var(--green); }
+    .card.yellow-border { border-color: var(--yellow); }
+    .card.red-border { border-color: var(--red); }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font-size: 12px;
+      line-height: 1.7;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+    }
+    .hl-comment { color: #6272a4; }
+    .hl-key { color: #ff79c6; }
+    .hl-str { color: var(--green); }
+    .hl-head { color: var(--accent); font-weight: bold; }
+    .hl-warn { color: var(--yellow); }
+    .hl-section { color: var(--accent2); font-weight: bold; }
+
+    .pill {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+    .pill-blue { background: #1e3a5f; color: var(--accent); }
+    .pill-green { background: #14432a; color: var(--green); }
+    .pill-yellow { background: #3d2f00; color: var(--yellow); }
+    .pill-red { background: #3d1515; color: var(--red); }
+
+    .complexity-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .ctab {
+      padding: 7px 18px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all .15s;
+    }
+    .ctab:hover { color: var(--text); border-color: var(--accent); }
+    .ctab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    .annotation-box {
+      display: flex;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .annotation-box pre {
+      flex: 1;
+      border-radius: 0;
+      border: none;
+      border-right: 1px solid var(--border);
+      margin: 0;
+    }
+    .annotations {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--surface2);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+      max-height: 400px;
+    }
+    .ann {
+      font-size: 11px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: var(--surface);
+      border-left: 3px solid var(--accent);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .ann:hover { background: var(--surface2); color: var(--text); }
+    .ann strong { display: block; color: var(--text); margin-bottom: 2px; font-size: 11px; }
+
+    .checklist { display: flex; flex-direction: column; gap: 8px; }
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: var(--surface2);
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .check-item:hover { background: var(--border); }
+    .check-item .ico { font-size: 18px; flex-shrink: 0; }
+    .check-item span { color: var(--muted); font-size: 13px; }
+    .check-item.done span { color: var(--text); text-decoration: none; }
+    .check-item.done .ico::before { content: "✅"; }
+    .check-item:not(.done) .ico::before { content: "⬜"; }
+
+    .builder form { display: flex; flex-direction: column; gap: 14px; }
+    .builder label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
+    .builder input, .builder textarea, .builder select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 8px 12px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .builder textarea { resize: vertical; min-height: 70px; }
+    .builder input:focus, .builder textarea:focus, .builder select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .btn {
+      padding: 9px 20px;
+      border-radius: 7px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-outline {
+      background: none;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+    }
+    .btn-outline:hover { background: var(--accent); color: #fff; opacity: 1; }
+
+    .copy-btn {
+      position: relative;
+      float: right;
+      margin-bottom: -32px;
+      z-index: 2;
+      top: 8px;
+      right: 8px;
+      font-size: 11px;
+    }
+
+    .output-area {
+      position: relative;
+    }
+    .output-area pre {
+      margin-top: 0;
+    }
+
+    .layer-diagram {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .layer {
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .layer:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+    .layer:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+    .layer:not(:last-child) { border-bottom: none; }
+    .layer:hover { background: var(--surface2); }
+    .layer.active-layer { background: var(--surface2); border-color: var(--accent); }
+    .layer-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    .layer-detail {
+      background: var(--code-bg);
+      border: 1px solid var(--accent);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      padding: 16px 20px;
+      display: none;
+    }
+    .layer-detail.visible { display: block; }
+
+    .tip-box {
+      background: #1a2a1a;
+      border: 1px solid var(--green);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--green);
+      margin-top: 12px;
+    }
+    .warn-box {
+      background: #2a1a00;
+      border: 1px solid var(--yellow);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--yellow);
+      margin-top: 12px;
+    }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+    .spacer-8 { height: 8px; }
+    .spacer-16 { height: 16px; }
+    .spacer-24 { height: 24px; }
+
+    .flow {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+      flex-wrap: wrap;
+    }
+    .flow-step {
+      flex: 1;
+      min-width: 110px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      font-size: 12px;
+    }
+    .flow-step .step-n { font-size: 20px; margin-bottom: 4px; }
+    .flow-step strong { display: block; color: var(--text); margin-bottom: 4px; font-size: 12px; }
+    .flow-arrow { display: flex; align-items: center; color: var(--muted); font-size: 18px; flex-shrink: 0; }
+
+    .tag { font-size: 11px; color: var(--muted); background: var(--surface2); border-radius: 4px; padding: 1px 6px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span>🧩</span>
+  <h1>Agent Skill Explorer</h1>
+  <div class="badge">Best Practices</div>
+</header>
+
+<nav>
+  <button class="active" onclick="showSection('overview')">🗺 Überblick</button>
+  <button onclick="showSection('anatomy')">🔬 Anatomie</button>
+  <button onclick="showSection('levels')">📊 Komplexitätsstufen</button>
+  <button onclick="showSection('patterns')">💡 Patterns</button>
+  <button onclick="showSection('checklist')">✅ Checklist</button>
+  <button onclick="showSection('builder')">🛠 Builder</button>
+</nav>
+
+<main>
+
+  <!-- OVERVIEW -->
+  <div id="overview" class="section active">
+    <h2>Was ist ein Agent Skill?</h2>
+    <p>Ein Agent Skill ist ein wiederverwendbares Wissenspaket, das einem LLM-Agenten beibringt, eine bestimmte Klasse von Aufgaben zuverlässig auszuführen — ohne es jedes Mal neu erklären zu müssen.</p>
+
+    <div class="spacer-16"></div>
+
+    <div class="flow">
+      <div class="flow-step">
+        <div class="step-n">📥</div>
+        <strong>Trigger</strong>
+        User-Anfrage matcht die Skill-Description
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-n">📖</div>
+        <strong>Load</strong>
+        SKILL.md wird in den Kontext geladen
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-n">⚙️</div>
+        <strong>Execute</strong>
+        Claude folgt den Instruktionen
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-n">📦</div>
+        <strong>Output</strong>
+        Deterministisches, hochwertiges Ergebnis
+      </div>
+    </div>
+
+    <div class="spacer-24"></div>
+
+    <div class="grid-3">
+      <div class="card">
+        <h3>📁 Struktur</h3>
+        <p>Jeder Skill ist ein Ordner mit einer <code>SKILL.md</code> plus optionalen Ressourcen (Scripts, References, Assets).</p>
+        <span class="pill pill-blue">YAML Frontmatter</span>
+        <span class="pill pill-blue">Markdown Body</span>
+      </div>
+      <div class="card">
+        <h3>🎯 Triggering</h3>
+        <p>Claude sieht nur <em>name + description</em>. Die Description ist das primäre Triggering-Mechanismus — sie muss präzise sein.</p>
+        <span class="pill pill-green">Spezifisch</span>
+        <span class="pill pill-green">Aktiv-formuliert</span>
+      </div>
+      <div class="card">
+        <h3>📐 Progressive Disclosure</h3>
+        <p>3 Ladeschichten: Metadata → SKILL.md Body → Bundled Resources. Nur was gebraucht wird, kommt in den Kontext.</p>
+        <span class="pill pill-yellow">~100 Wörter</span>
+        <span class="pill pill-yellow">&lt;500 Zeilen</span>
+      </div>
+    </div>
+
+    <div class="spacer-24"></div>
+    <div class="tip-box">💡 <strong>Kernprinzip:</strong> Ein Skill löst ein Problem, das Claude alleine nicht zuverlässig lösen kann. Einfache 1-Schritt-Aufgaben brauchen keinen Skill — nur komplexe, mehrstufige oder spezialisierte Workflows profitieren davon.</div>
+  </div>
+
+  <!-- ANATOMY -->
+  <div id="anatomy" class="section">
+    <h2>Anatomie eines Skills</h2>
+    <p>Klick auf eine Schicht, um Details zu sehen.</p>
+
+    <div class="layer-diagram" id="layers">
+      <div class="layer" onclick="toggleLayer(0)">
+        <div class="layer-num" style="background:#1e3a5f;color:var(--accent)">1</div>
+        <div>
+          <strong>YAML Frontmatter</strong> <span class="tag">immer im Kontext</span>
+          <div style="font-size:12px;color:var(--muted)">name · description — das Triggering-Herz des Skills</div>
+        </div>
+        <span style="margin-left:auto;color:var(--muted)">▾</span>
+      </div>
+      <div class="layer" onclick="toggleLayer(1)">
+        <div class="layer-num" style="background:#14432a;color:var(--green)">2</div>
+        <div>
+          <strong>SKILL.md Body</strong> <span class="tag">&lt;500 Zeilen ideal</span>
+          <div style="font-size:12px;color:var(--muted)">Instruktionen, Workflow, Entscheidungsregeln, Beispiele</div>
+        </div>
+        <span style="margin-left:auto;color:var(--muted)">▾</span>
+      </div>
+      <div class="layer" onclick="toggleLayer(2)">
+        <div class="layer-num" style="background:#3d2f00;color:var(--yellow)">3</div>
+        <div>
+          <strong>Bundled Resources</strong> <span class="tag">bei Bedarf</span>
+          <div style="font-size:12px;color:var(--muted)">scripts/ · references/ · assets/ — unbegrenzt, nur bei Bedarf</div>
+        </div>
+        <span style="margin-left:auto;color:var(--muted)">▾</span>
+      </div>
+    </div>
+
+    <div id="layer-detail" class="layer-detail"></div>
+
+    <div class="spacer-24"></div>
+    <h3>Dateisystem-Struktur</h3>
+    <pre><span class="hl-section">my-skill/</span>
+├── <span class="hl-key">SKILL.md</span>          <span class="hl-comment"># Pflicht: YAML frontmatter + Instruktionen</span>
+├── scripts/
+│   └── <span class="hl-str">process.py</span>    <span class="hl-comment"># Ausführbare Scripts für repetitive Aufgaben</span>
+├── references/
+│   ├── <span class="hl-str">aws.md</span>        <span class="hl-comment"># Domain-spezifische Doku (nur bei Bedarf laden)</span>
+│   └── <span class="hl-str">gcp.md</span>
+└── assets/
+    └── <span class="hl-str">template.docx</span> <span class="hl-comment"># Dateien für den Output</span></pre>
+
+    <div class="tip-box" style="margin-top:16px">💡 <strong>Principle of Least Surprise:</strong> Der Skill soll tun, was seine Description verspricht — nicht mehr, nicht weniger. Keine unerwarteten Seiteneffekte.</div>
+  </div>
+
+  <!-- COMPLEXITY LEVELS -->
+  <div id="levels" class="section">
+    <h2>Komplexitätsstufen</h2>
+    <p>Wähle eine Stufe, um ein annotiertes Beispiel zu sehen.</p>
+
+    <div class="complexity-tabs">
+      <button class="ctab active" onclick="showLevel('simple')">🟢 Simple</button>
+      <button class="ctab" onclick="showLevel('medium')">🟡 Medium</button>
+      <button class="ctab" onclick="showLevel('complex')">🔴 Complex</button>
+    </div>
+
+    <div id="level-simple">
+      <div class="card green-border" style="margin-bottom:12px">
+        <h3 style="color:var(--green)">🟢 Simple Skill</h3>
+        <p>Klar umrissene Aufgabe, ein Output-Format, keine externen Abhängigkeiten, &lt;100 Zeilen SKILL.md.</p>
+        <span class="pill pill-green">1 Input-Typ</span>
+        <span class="pill pill-green">1 Output-Typ</span>
+        <span class="pill pill-green">Kein Script</span>
+      </div>
+      <div class="annotation-box">
+        <pre id="code-simple"><span class="hl-comment">---</span>
+<span class="hl-key">name</span>: <span class="hl-str">pdf-summary</span>
+<span class="hl-key">description</span>: <span class="hl-str">|
+  Fasst PDF-Dokumente präzise zusammen.
+  Nutzen wenn: User sagt "fasse zusammen",
+  "tldr", oder eine PDF-Datei hochlädt und
+  nach dem Inhalt fragt.</span>
+<span class="hl-comment">---</span>
+
+<span class="hl-head"># PDF Summary Skill</span>
+
+<span class="hl-head">## Vorgehen</span>
+1. Lese das komplette PDF
+2. Identifiziere: Thema, Kernaussagen, Fazit
+3. Schreibe eine strukturierte Zusammenfassung
+
+<span class="hl-head">## Output-Format</span>
+- <span class="hl-str">**Thema:**</span> 1 Satz
+- <span class="hl-str">**Kernpunkte:**</span> 3–5 Bullet Points  
+- <span class="hl-str">**Fazit:**</span> 2–3 Sätze
+
+<span class="hl-head">## Constraints</span>
+- Keine Zitate über 15 Wörter
+- Neutral, keine Wertung
+- Immer Deutsch, auch wenn PDF englisch</pre>
+        <div class="annotations">
+          <div class="ann"><strong>name</strong> Kurz, lowercase, mit Bindestrich. Eindeutiger Identifier.</div>
+          <div class="ann"><strong>description</strong> Enthält explizite Trigger-Phrasen ("fasse zusammen", "tldr"). Claude matcht darauf.</div>
+          <div class="ann"><strong>Vorgehen</strong> Nummerierte Schritte = deterministischer Ablauf.</div>
+          <div class="ann"><strong>Output-Format</strong> Explizites Schema verhindert kreative Ausreißer.</div>
+          <div class="ann"><strong>Constraints</strong> Grenzen helfen Claude, Scope zu halten.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="level-medium" style="display:none">
+      <div class="card yellow-border" style="margin-bottom:12px">
+        <h3 style="color:var(--yellow)">🟡 Medium Skill</h3>
+        <p>Mehrere Inputs/Outputs, ein optionales Script, 100–300 Zeilen, mit Entscheidungslogik und Fehlerbehandlung.</p>
+        <span class="pill pill-yellow">Entscheidungslogik</span>
+        <span class="pill pill-yellow">1 Script</span>
+        <span class="pill pill-yellow">Fehlerbehandlung</span>
+      </div>
+      <div class="annotation-box">
+        <pre id="code-medium"><span class="hl-comment">---</span>
+<span class="hl-key">name</span>: <span class="hl-str">docx-report-creator</span>
+<span class="hl-key">description</span>: <span class="hl-str">|
+  Erstellt professionelle Word-Reports aus
+  Daten oder Text. Nutzen bei: "erstelle
+  einen Bericht", "Word-Dokument", ".docx",
+  "Report für den Kunden". Auch wenn der
+  User nach Tabellen oder Formatierung fragt.</span>
+<span class="hl-comment">---</span>
+
+<span class="hl-head"># DOCX Report Creator</span>
+
+<span class="hl-head">## Lies zuerst</span>
+Lese <span class="hl-str">`/mnt/skills/public/docx/SKILL.md`</span>
+bevor du Code schreibst.
+
+<span class="hl-head">## Entscheidungslogik</span>
+
+<span class="hl-warn">Prüfe den Input:</span>
+- Strukturierte Daten (CSV/JSON) → Tabellen
+- Freitext → Prose mit Headings
+- Gemischt → Hybrid-Layout
+
+<span class="hl-head">## Workflow</span>
+1. Input analysieren (Typ, Umfang)
+2. Gliederung vorschlagen → User bestätigt
+3. Script ausführen: <span class="hl-str">`scripts/generate.py`</span>
+4. File nach <span class="hl-str">`/mnt/user-data/outputs/`</span>
+5. <span class="hl-str">`present_files`</span> aufrufen
+
+<span class="hl-head">## Fehlerbehandlung</span>
+- Fehlende Daten → nachfragen, nicht raten
+- Script-Fehler → Fallback auf reinen Text
+- Unklarer Scope → immer zuerst klären</pre>
+        <div class="annotations">
+          <div class="ann"><strong>description</strong> "Auch wenn..." — aktive Formulierung erhöht Trigger-Rate. Mehrere Phrasen-Varianten.</div>
+          <div class="ann"><strong>Lies zuerst</strong> Verweist auf weiteres Skill-File. Spart Platz in der SKILL.md.</div>
+          <div class="ann"><strong>Entscheidungslogik</strong> Wenn-Dann-Regeln machen den Skill robuster als eine Einheitslösung.</div>
+          <div class="ann"><strong>Workflow</strong> Schritt 2 enthält User-Checkpoint — verhindert falsche Annahmen.</div>
+          <div class="ann"><strong>Fehlerbehandlung</strong> Explizite Fallbacks = kein stilles Scheitern.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="level-complex" style="display:none">
+      <div class="card red-border" style="margin-bottom:12px">
+        <h3 style="color:var(--red)">🔴 Complex Skill</h3>
+        <p>Multi-Domain, mehrere Scripts, eigene Reference-Files, sub-skill Verweise, iterativer Loop, 300–500 Zeilen SKILL.md.</p>
+        <span class="pill pill-red">Multi-Domain</span>
+        <span class="pill pill-red">Sub-Agents</span>
+        <span class="pill pill-red">Iterativer Loop</span>
+        <span class="pill pill-red">Reference-Files</span>
+      </div>
+      <div class="annotation-box">
+        <pre id="code-complex"><span class="hl-comment">---</span>
+<span class="hl-key">name</span>: <span class="hl-str">salary-analytics-suite</span>
+<span class="hl-key">description</span>: <span class="hl-str">|
+  Vollständige Gehaltsanalyse-Pipeline:
+  Anomalie-Erkennung, Benchmarking, Report.
+  Nutzen bei: Gehalts-/Kompensationsanalyse,
+  HR-Analytics, Benchmarking, Outlier-Detection
+  in Vergütungsdaten, Equity-Analysen.</span>
+<span class="hl-comment">---</span>
+
+<span class="hl-head"># Salary Analytics Suite</span>
+
+<span class="hl-head">## Überblick</span>
+Dieser Skill orchestriert 3 Sub-Workflows.
+Entscheide anhand des User-Inputs, welcher:
+
+| Input | Workflow |
+|-------|---------|
+| Rohdaten + "Ausreißer" | anomaly.md |
+| Marktdaten + "Benchmark" | benchmark.md |
+| Ergebnisse vorhanden | report.md |
+
+<span class="hl-head">## Reference Files (bei Bedarf laden)</span>
+- <span class="hl-str">`references/anomaly.md`</span> — Isolation Forest, Z-Score
+- <span class="hl-str">`references/benchmark.md`</span> — Percentile-Methoden
+- <span class="hl-str">`references/report.md`</span> — Output-Templates
+
+<span class="hl-head">## Scripts</span>
+- <span class="hl-str">`scripts/detect_outliers.R`</span> — Anomalie-Detection
+- <span class="hl-str">`scripts/benchmark_calc.R`</span> — Benchmark-Kennzahlen
+- <span class="hl-str">`scripts/render_report.R`</span> — PDF/DOCX Output
+
+<span class="hl-head">## Iterativer Loop</span>
+1. Daten laden + validieren
+2. User: Scope bestätigen (welche Positionen?)
+3. Analyse ausführen
+4. Ergebnisse präsentieren → Feedback
+5. Auf Wunsch: iterieren oder exportieren
+
+<span class="hl-head">## Qualitäts-Gates</span>
+- n &lt; 5 pro Gruppe → kein Output, Warnung
+- Fehlende Felder &gt;20% → User warnen
+- Immer Konfidenz-Intervalle angeben</pre>
+        <div class="annotations">
+          <div class="ann"><strong>Routing-Tabelle</strong> Klar definierter Entscheidungsbaum — Claude weiß immer, welchen Pfad es nimmt.</div>
+          <div class="ann"><strong>Reference Files</strong> Werden NUR geladen wenn nötig. Spart Kontext-Budget.</div>
+          <div class="ann"><strong>Scripts</strong> Deterministischer Code für repetitive Berechnungen — nicht Claude überlassen.</div>
+          <div class="ann"><strong>Iterativer Loop</strong> Explizite User-Checkpoints verhindern, dass Claude zu weit läuft.</div>
+          <div class="ann"><strong>Qualitäts-Gates</strong> Verhindert falsche Ergebnisse bei schlechten Daten. Statistik-Ethik.</div>
+        </div>
+      </div>
+      <div class="warn-box">⚠️ <strong>Ab ~500 Zeilen:</strong> Füge eine weitere Hierarchie-Ebene hinzu und verweise klar auf Sub-Files. Die SKILL.md wird sonst zur Blackbox.</div>
+    </div>
+  </div>
+
+  <!-- PATTERNS -->
+  <div id="patterns" class="section">
+    <h2>Best-Practice Patterns</h2>
+    <p>Bewährte Muster für verschiedene Skill-Situationen.</p>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>🎯 Gute Description schreiben</h3>
+        <p>Die Description ist der Trigger-Mechanismus. Sie muss <em>spezifisch</em> und <em>aktiv</em> formuliert sein.</p>
+        <pre style="font-size:11px"><span class="hl-warn"># Schlecht — zu vage:</span>
+description: >
+  Hilft bei Dokumenten.
+
+<span class="hl-str"># Gut — spezifisch + Trigger-Phrasen:</span>
+description: |
+  Erstellt Word-Reports aus Daten.
+  Nutzen wenn: "Bericht erstellen",
+  "Word-Dokument", ".docx", "Report"
+  oder Tabellen-Formatierung gefragt.</pre>
+      </div>
+
+      <div class="card">
+        <h3>📋 User-Checkpoints einbauen</h3>
+        <p>Bei mehrstufigen Workflows immer Bestätigungs-Punkte einbauen, bevor Claude irreversible Schritte ausführt.</p>
+        <pre style="font-size:11px"><span class="hl-head">## Workflow</span>
+1. Analysiere Input
+2. <span class="hl-warn">Schlage Gliederung vor → warte auf OK</span>
+3. Erstelle Dokument
+4. <span class="hl-warn">Zeige Vorschau → warte auf Feedback</span>
+5. Exportiere final</pre>
+        <div class="tip-box" style="margin-top:8px;font-size:11px">💡 Schritt 2 und 4 sind Checkpoints — nie ohne User-OK weiter.</div>
+      </div>
+
+      <div class="card">
+        <h3>🗂 Progressive Disclosure</h3>
+        <p>Nur das in die SKILL.md schreiben, was Claude immer braucht. Alles andere auslagern.</p>
+        <pre style="font-size:11px"><span class="hl-comment"># In SKILL.md:</span>
+<span class="hl-head">## API-Referenz</span>
+Für Details zur REST-API:
+<span class="hl-str">`references/api-spec.md`</span>
+
+<span class="hl-head">## Lade wenn:</span>
+- User fragt nach spez. Endpoint
+- Fehler beim API-Call auftreten</pre>
+      </div>
+
+      <div class="card">
+        <h3>⚠️ Fehlerbehandlung</h3>
+        <p>Jeder Skill braucht explizite Fallbacks. Was passiert wenn Input fehlt, Script crasht, Daten ungültig sind?</p>
+        <pre style="font-size:11px"><span class="hl-head">## Fehlerbehandlung</span>
+- <span class="hl-warn">Fehlende Pflichtfelder</span> → fragen, nicht raten
+- <span class="hl-warn">Script-Fehler</span> → Fallback beschreiben
+- <span class="hl-warn">Unklarer Scope</span> → klären vor Ausführung
+- <span class="hl-warn">n &lt; Mindestgröße</span> → warnen + stoppen</pre>
+      </div>
+
+      <div class="card">
+        <h3>🔀 Routing-Tabellen</h3>
+        <p>Für Multi-Domain-Skills: immer eine klare Entscheidungstabelle an den Anfang stellen.</p>
+        <pre style="font-size:11px"><span class="hl-head">## Workflow-Auswahl</span>
+
+| Wenn User sagt | Dann nutze |
+|----------------|------------|
+| "Ausreißer"    | detect.md  |
+| "Benchmark"    | bench.md   |
+| "Report"       | report.md  |</pre>
+      </div>
+
+      <div class="card">
+        <h3>🧪 Testbarkeit einplanen</h3>
+        <p>Formuliere den Skill so, dass er mit konkreten Test-Prompts überprüfbar ist. Vage Skills sind schwer zu evaluieren.</p>
+        <pre style="font-size:11px"><span class="hl-head">## Erwarteter Output</span>
+Input: <span class="hl-str">salary_data.csv</span> mit 50 Zeilen
+Output:
+- outliers.csv (Ausreißer-Liste)
+- summary.md (Textbericht)
+- plot.png (Visualisierung)
+
+<span class="hl-comment"># → klar testbar ✓</span></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHECKLIST -->
+  <div id="checklist" class="section">
+    <h2>Skill Quality Checklist</h2>
+    <p>Klick auf die Punkte, um sie abzuhaken. Alle sollten ✅ sein bevor du deployst.</p>
+
+    <div class="spacer-16"></div>
+    <h3>📝 Spezifikation</h3>
+    <div class="checklist" id="cl1">
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Name ist kurz, lowercase, mit Bindestrich (z.B. <code>pdf-summary</code>)</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Description enthält konkrete Trigger-Phrasen, die User tatsächlich verwenden</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Description ist aktiv formuliert ("Nutzen wenn...", nicht nur "Hilft bei...")</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Scope ist klar abgegrenzt — was der Skill NICHT tut, ist implizit oder explizit klar</span></div>
+    </div>
+
+    <div class="spacer-16"></div>
+    <h3>⚙️ Struktur & Inhalt</h3>
+    <div class="checklist" id="cl2">
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>SKILL.md Body unter 500 Zeilen (oder: klar auf Sub-Files verweisend)</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Workflow ist nummeriert und linear (kein Sprungwirrwarr)</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Output-Format ist explizit spezifiziert</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Bundled Resources (Scripts, Refs) sind nur bei Bedarf geladen, nicht standardmäßig</span></div>
+    </div>
+
+    <div class="spacer-16"></div>
+    <h3>🛡 Robustheit</h3>
+    <div class="checklist" id="cl3">
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Fehlerbehandlung ist explizit — kein stilles Scheitern</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>User-Checkpoints vor irreversiblen Schritten eingebaut</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Edge Cases sind adressiert (fehlende Daten, kleines n, unklarer Scope)</span></div>
+    </div>
+
+    <div class="spacer-16"></div>
+    <h3>🧪 Testbarkeit</h3>
+    <div class="checklist" id="cl4">
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Mindestens 2 konkrete Test-Prompts existieren oder sind geplant</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Erwarteter Output ist klar definiert (sodass "richtig/falsch" prüfbar ist)</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Skill wurde mindestens einmal manuell mit einem Test-Prompt verifiziert</span></div>
+    </div>
+
+    <div class="spacer-16"></div>
+    <div id="checklist-progress" style="background:var(--surface2);border-radius:8px;padding:14px 18px;display:flex;align-items:center;gap:16px">
+      <span id="progress-text" style="font-size:13px;color:var(--muted)">0 / 13 abgehakt</span>
+      <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+        <div id="progress-bar" style="height:100%;width:0%;background:var(--accent);border-radius:3px;transition:width .3s"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUILDER -->
+  <div id="builder" class="section">
+    <h2>Skill Template Builder</h2>
+    <p>Fülle die Felder aus — das Template wird live generiert.</p>
+
+    <div class="grid-2">
+      <div>
+        <div class="builder">
+          <div>
+            <label>Skill Name <span style="color:var(--red)">*</span></label>
+            <input type="text" id="b-name" placeholder="z.B. salary-report-generator" oninput="buildTemplate()">
+          </div>
+          <div>
+            <label>Was macht der Skill? (1-2 Sätze)</label>
+            <textarea id="b-what" placeholder="z.B. Erstellt strukturierte Gehaltsberichte aus CSV-Daten..." oninput="buildTemplate()"></textarea>
+          </div>
+          <div>
+            <label>Trigger-Phrasen (kommagetrennt)</label>
+            <input type="text" id="b-triggers" placeholder="z.B. Gehaltsbericht, Vergütungsanalyse, compensation report" oninput="buildTemplate()">
+          </div>
+          <div>
+            <label>Komplexitätsstufe</label>
+            <select id="b-level" onchange="buildTemplate()">
+              <option value="simple">🟢 Simple</option>
+              <option value="medium">🟡 Medium</option>
+              <option value="complex">🔴 Complex</option>
+            </select>
+          </div>
+          <div>
+            <label>Workflow-Schritte (einer pro Zeile)</label>
+            <textarea id="b-steps" placeholder="Input validieren&#10;Analyse durchführen&#10;Report generieren" oninput="buildTemplate()"></textarea>
+          </div>
+          <div>
+            <label>Output-Format</label>
+            <input type="text" id="b-output" placeholder="z.B. Markdown-Report + CSV-Datei" oninput="buildTemplate()">
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn" onclick="copyTemplate()">📋 Kopieren</button>
+            <button class="btn btn-outline" onclick="resetBuilder()">↺ Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px">Live-Vorschau</label>
+        <div class="output-area">
+          <pre id="template-output" style="min-height:300px;max-height:500px;overflow-y:auto"><span class="hl-comment"># Fülle die Felder links aus...</span></pre>
+        </div>
+        <div id="copy-toast" style="display:none;margin-top:8px;color:var(--green);font-size:12px">✅ In Zwischenablage kopiert!</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // NAV
+  function showSection(id) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  // LAYER DETAILS
+  const layerData = [
+    {
+      title: "Layer 1: YAML Frontmatter",
+      color: "var(--accent)",
+      content: `<strong style="color:var(--accent)">Immer im Kontext</strong> · ~100 Wörter · Das Einzige was Claude sieht bevor es den Skill öffnet.
+<br><br>
+<strong>Pflichtfelder:</strong><br>
+• <code>name</code> — Kurz, lowercase, Bindestrich<br>
+• <code>description</code> — Was der Skill tut UND wann er triggern soll<br><br>
+<strong>Best Practices für die Description:</strong><br>
+• Konkrete Trigger-Phrasen einbauen ("wenn User sagt...")<br>
+• Aktiv formulieren ("Nutzen wenn...", nicht "Kann helfen...")<br>
+• Leicht "pushy" sein — Claude unter-triggert tendenziell`
+    },
+    {
+      title: "Layer 2: SKILL.md Body",
+      color: "var(--green)",
+      content: `<strong style="color:var(--green)">In Kontext wenn Skill triggered</strong> · Idealerweise &lt;500 Zeilen<br><br>
+<strong>Typische Abschnitte:</strong><br>
+• Überblick / Was dieser Skill tut<br>
+• Entscheidungslogik / Routing<br>
+• Schritt-für-Schritt Workflow<br>
+• Output-Format-Spezifikation<br>
+• Fehlerbehandlung<br>
+• Verweise auf Reference Files (wenn nötig)<br><br>
+<strong>Wenn du 500 Zeilen näherst:</strong> Füge eine weitere Hierarchie hinzu und verweise auf Sub-Files.`
+    },
+    {
+      title: "Layer 3: Bundled Resources",
+      color: "var(--yellow)",
+      content: `<strong style="color:var(--yellow)">Nur bei Bedarf geladen</strong> · Unbegrenzte Größe<br><br>
+<strong>scripts/</strong> — Python/R/Bash Scripts für deterministische, repetitive Aufgaben<br>
+<strong>references/</strong> — Tiefe Dokumentation, API-Specs, Domain-Wissen<br>
+<strong>assets/</strong> — Templates, Icons, Fonts, Starter-Files<br><br>
+<strong>Wichtig:</strong> Scripts können ausgeführt werden OHNE geladen zu werden — spart Kontext. Reference Files erst laden wenn wirklich gebraucht.`
+    }
+  ];
+  let activeLayer = -1;
+  function toggleLayer(i) {
+    const detail = document.getElementById('layer-detail');
+    const layers = document.querySelectorAll('.layer');
+    if (activeLayer === i) {
+      detail.classList.remove('visible');
+      layers[i].classList.remove('active-layer');
+      activeLayer = -1;
+      return;
+    }
+    layers.forEach(l => l.classList.remove('active-layer'));
+    layers[i].classList.add('active-layer');
+    const d = layerData[i];
+    detail.innerHTML = `<p style="color:${d.color};font-weight:700;margin-bottom:8px">${d.title}</p><p style="font-size:13px;color:var(--muted)">${d.content}</p>`;
+    detail.classList.add('visible');
+    activeLayer = i;
+  }
+
+  // COMPLEXITY TABS
+  function showLevel(l) {
+    ['simple','medium','complex'].forEach(x => {
+      document.getElementById('level-' + x).style.display = x === l ? 'block' : 'none';
+    });
+    document.querySelectorAll('.ctab').forEach((b,i) => {
+      b.classList.toggle('active', ['simple','medium','complex'][i] === l);
+    });
+  }
+
+  // CHECKLIST
+  function toggle(el) {
+    el.classList.toggle('done');
+    updateProgress();
+  }
+  function updateProgress() {
+    const all = document.querySelectorAll('.check-item');
+    const done = document.querySelectorAll('.check-item.done');
+    const pct = Math.round((done.length / all.length) * 100);
+    document.getElementById('progress-text').textContent = `${done.length} / ${all.length} abgehakt`;
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-bar').style.background = pct === 100 ? 'var(--green)' : 'var(--accent)';
+  }
+
+  // BUILDER
+  function buildTemplate() {
+    const name = document.getElementById('b-name').value.trim().replace(/\s+/g, '-').toLowerCase() || 'my-skill';
+    const what = document.getElementById('b-what').value.trim() || 'Beschreibung fehlt noch.';
+    const triggers = document.getElementById('b-triggers').value.trim();
+    const level = document.getElementById('b-level').value;
+    const stepsRaw = document.getElementById('b-steps').value.trim();
+    const output = document.getElementById('b-output').value.trim() || 'Noch nicht definiert.';
+
+    const triggerLine = triggers
+      ? `  Nutzen wenn User sagt: ${triggers.split(',').map(t => `"${t.trim()}"`).join(', ')}.`
+      : '  Nutzen wenn: [Trigger-Phrasen eintragen]';
+
+    const steps = stepsRaw
+      ? stepsRaw.split('\n').filter(Boolean).map((s, i) => `${i + 1}. ${s}`).join('\n')
+      : '1. [Schritt 1]\n2. [Schritt 2]\n3. [Schritt 3]';
+
+    const levelExtras = {
+      simple: '',
+      medium: `\n## Fehlerbehandlung\n- Fehlende Pflichtfelder → nachfragen, nicht raten\n- Unklarer Scope → zuerst klären\n`,
+      complex: `\n## Reference Files (bei Bedarf laden)\n- \`references/details.md\` — Tiefe Spezifikation\n\n## Scripts\n- \`scripts/main.py\` — Hauptlogik\n\n## Fehlerbehandlung\n- Fehlende Pflichtfelder → nachfragen, nicht raten\n- Script-Fehler → Fallback auf manuelle Analyse\n- Edge Cases → immer warnen\n`
+    }[level];
+
+    const tpl = `---\nname: ${name}\ndescription: |\n  ${what}\n${triggerLine}\n---\n\n# ${name.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}\n\n## Workflow\n${steps}\n\n## Output-Format\n${output}\n${levelExtras || ''}`;
+
+    const pre = document.getElementById('template-output');
+    pre.textContent = tpl;
+    syntaxHL(pre);
+  }
+
+  function syntaxHL(pre) {
+    let t = pre.innerHTML;
+    t = t.replace(/(---)/g, '<span class="hl-comment">$1</span>');
+    t = t.replace(/^(name:|description:)/gm, '<span class="hl-key">$1</span>');
+    t = t.replace(/(## .+)/g, '<span class="hl-section">$1</span>');
+    t = t.replace(/(# .+)/g, '<span class="hl-head">$1</span>');
+    pre.innerHTML = t;
+  }
+
+  function copyTemplate() {
+    const text = document.getElementById('template-output').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const t = document.getElementById('copy-toast');
+      t.style.display = 'block';
+      setTimeout(() => t.style.display = 'none', 2500);
+    });
+  }
+
+  function resetBuilder() {
+    ['b-name','b-what','b-triggers','b-steps','b-output'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('b-level').value = 'simple';
+    document.getElementById('template-output').innerHTML = '<span class="hl-comment"># Fülle die Felder links aus...</span>';
+  }
+
+  buildTemplate();
+</script>
+</body>
+</html>
