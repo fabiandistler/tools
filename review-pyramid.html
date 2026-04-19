@@ -135,7 +135,11 @@
                 activeBg: 'bg-slate-400 dark:bg-slate-600 ring-2 ring-slate-500 dark:ring-slate-400 ring-offset-2 dark:ring-offset-slate-900',
                 icon: '✨',
                 description: 'Largely automatable. Invest minimal manual review time.',
-                checks: ['Are naming conventions followed?', 'Is the code formatting consistent?']
+                checks: [
+                    'Are naming conventions followed?', 
+                    'Is the code formatting consistent?',
+                    'Are there typos in variables or comments?'
+                ]
             },
             {
                 id: 'tests',
@@ -146,7 +150,13 @@
                 activeBg: 'bg-indigo-400 dark:bg-indigo-700 ring-2 ring-indigo-500 dark:ring-indigo-400 ring-offset-2 dark:ring-offset-slate-900',
                 icon: '🧪',
                 description: 'Ensure behavior and prevent regressions.',
-                checks: ['Were tests added or updated for new logic?', 'Are refactorings covered by existing or new tests?']
+                checks: [
+                    'Were tests added or updated for new logic?', 
+                    'Are refactorings covered by existing or new tests?',
+                    'Are happy-path and edge-cases tested?',
+                    'Are test names descriptive (can you understand what failed)?',
+                    'Are there potentially "flaky" tests?'
+                ]
             },
             {
                 id: 'docs',
@@ -157,7 +167,12 @@
                 activeBg: 'bg-indigo-600 dark:bg-indigo-500 ring-2 ring-indigo-700 dark:ring-indigo-400 ring-offset-2 dark:ring-offset-slate-900',
                 icon: '📚',
                 description: 'Knowledge transfer and onboarding for future maintainers.',
-                checks: ['Are new public APIs documented?', 'Is the usage of new functions shown in the docs?']
+                checks: [
+                    'Are new public APIs documented?', 
+                    'Is the usage of new functions shown in the docs?',
+                    'Was the README or manual updated?',
+                    'Do Architectural Decision Records (ADRs) need to be written?'
+                ]
             },
             {
                 id: 'impl',
@@ -168,7 +183,16 @@
                 activeBg: 'bg-indigo-800 dark:bg-indigo-700 ring-2 ring-indigo-900 dark:ring-indigo-500 ring-offset-2 dark:ring-offset-slate-900',
                 icon: '⚙️',
                 description: 'Does the code do what it should? Best to try it locally.',
-                checks: ['Is the desired behavior functionally implemented?', 'Did you test the PR locally (e.g. via pr_fetch())?', 'Are edge cases handled (e.g., incorrect types, empty inputs)?', 'Is the complexity reasonable (can you "execute" it in your head)?']
+                checks: [
+                    'Is the desired behavior functionally implemented?', 
+                    'Did you test the PR locally (e.g. via pr_fetch())?', 
+                    'Are edge cases handled (e.g., incorrect types, empty inputs)?', 
+                    'Is the complexity reasonable (can you "execute" it in your head)?',
+                    'Are there security vulnerabilities (Injection, missing Auth)?',
+                    'Is the performance (Big O, N+1 queries) acceptable?',
+                    'Are errors handled robustly?',
+                    'Is the code thread-safe / concurrency-safe?'
+                ]
             },
             {
                 id: 'api',
@@ -179,7 +203,16 @@
                 activeBg: 'bg-black dark:bg-black ring-2 ring-indigo-950 dark:ring-indigo-700 ring-offset-2 dark:ring-offset-slate-900',
                 icon: '🏗️',
                 description: 'First things first: Does the design make sense? If not, stop here.',
-                checks: ['Is the PR focused (only one topic, refactoring separated)?', 'Does this change belong in this package?', 'Does it integrate well into the rest of the ecosystem?', 'Was over-engineering avoided (solving future problems instead of current ones)?']
+                checks: [
+                    'Is the PR focused (only one topic, refactoring separated)?', 
+                    'Does this change belong in this package?', 
+                    'Does it integrate well into the rest of the ecosystem?', 
+                    'Was over-engineering avoided (solving future problems instead of current ones)?',
+                    'Is the change backwards compatible (no breaking changes)?',
+                    'Does the API design fit the overall architecture?',
+                    'Are public interfaces logically separated and well-named?',
+                    'Were unnecessary dependencies avoided?'
+                ]
             }
         ];
 
