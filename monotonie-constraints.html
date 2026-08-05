@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monotonie-Constraints für Compensation-Modelle</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-dark: #1e40af;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --text-light: #64748b;
+    --border: #e2e8f0;
+    --ok: #059669;
+    --warn: #d97706;
+    --bad: #dc2626;
+    --code-bg: #0f172a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6; padding: 20px;
+  }
+  .container { max-width: 1000px; margin: 0 auto; }
+  header { margin-bottom: 28px; }
+  h1 { font-size: 1.9rem; color: var(--primary); margin-bottom: 6px; }
+  .subtitle { color: var(--text-light); }
+  section {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px; margin-bottom: 20px;
+  }
+  h2 {
+    font-size: 1.15rem; color: var(--primary-dark); margin-bottom: 4px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .num {
+    background: var(--primary); color: #fff; width: 26px; height: 26px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: .8rem; font-weight: 700; flex: none;
+  }
+  .sec-hint { color: var(--text-light); font-size: .9rem; margin: 0 0 18px 36px; }
+
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  input[type=text], select {
+    padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: .95rem; font-family: inherit; background: #fff; color: var(--text);
+  }
+  input[type=text] { flex: 1; min-width: 220px; }
+  input[type=text]:focus, select:focus { outline: 2px solid rgba(37,99,235,.35); border-color: var(--primary); }
+  button {
+    padding: 9px 16px; border: 1px solid var(--primary); background: var(--primary); color: #fff;
+    border-radius: 8px; font-size: .9rem; font-family: inherit; cursor: pointer; transition: .15s;
+  }
+  button:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+  button.ghost { background: #fff; color: var(--primary); }
+  button.ghost:hover { background: #eff6ff; }
+  .inline-error { color: var(--bad); font-size: .85rem; margin-top: 8px; display: none; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip {
+    display: flex; align-items: center; gap: 8px; padding: 7px 10px 7px 12px;
+    border: 1px solid var(--border); border-radius: 999px; background: #fff;
+    cursor: pointer; font-size: .88rem; transition: .15s;
+  }
+  .chip:hover { border-color: var(--primary); }
+  .chip.active { border-color: var(--primary); background: #eff6ff; box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+  .chip .del { color: var(--text-light); font-weight: 700; padding: 0 3px; border-radius: 4px; }
+  .chip .del:hover { color: var(--bad); background: #fee2e2; }
+  .empty { color: var(--text-light); font-style: italic; }
+
+  .badge {
+    display: inline-block; padding: 1px 8px; border-radius: 999px;
+    font-size: .78rem; font-weight: 700; white-space: nowrap;
+  }
+  .b-up { background: #d1fae5; color: #065f46; }
+  .b-down { background: #dbeafe; color: #1e40af; }
+  .b-zero { background: #f1f5f9; color: #475569; }
+  .b-check { background: #fef3c7; color: #92400e; }
+  .b-block { background: #fee2e2; color: #991b1b; }
+
+  .q { margin-bottom: 22px; }
+  .q-label { font-weight: 600; margin-bottom: 2px; }
+  .q-hint { color: var(--text-light); font-size: .88rem; margin-bottom: 10px; }
+  .opts { display: grid; gap: 8px; }
+  .opt {
+    display: flex; gap: 10px; align-items: flex-start; padding: 11px 14px;
+    border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: .15s;
+  }
+  .opt:hover { border-color: var(--primary); background: #f8fbff; }
+  .opt.sel { border-color: var(--primary); background: #eff6ff; }
+  .opt input { margin-top: 5px; accent-color: var(--primary); }
+  .opt b { font-weight: 600; font-size: .95rem; }
+  .opt span { display: block; color: var(--text-light); font-size: .85rem; }
+
+  .verdict { border-radius: 10px; padding: 16px 18px; margin-top: 6px; border: 1px solid var(--border); background: #f8fafc; }
+  .verdict h3 { font-size: 1rem; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  .verdict ul { margin: 0 0 0 20px; font-size: .9rem; color: var(--text-light); }
+  .verdict ul li { margin-bottom: 3px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--text-light); font-weight: 600; font-size: .82rem; text-transform: uppercase; letter-spacing: .03em; }
+  td.note { color: var(--text-light); font-size: .85rem; }
+
+  .callout {
+    border-left: 3px solid var(--warn); background: #fffbeb; padding: 12px 16px;
+    border-radius: 0 8px 8px 0; font-size: .9rem; margin-top: 16px;
+  }
+  .callout.info { border-left-color: var(--primary); background: #eff6ff; }
+  .callout b { display: block; margin-bottom: 3px; }
+
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .tab {
+    padding: 6px 13px; border: 1px solid var(--border); background: #fff; color: var(--text-light);
+    border-radius: 7px; font-size: .85rem; cursor: pointer;
+  }
+  .tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  pre {
+    background: var(--code-bg); color: #e2e8f0; padding: 16px; border-radius: 8px;
+    overflow-x: auto; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: .82rem; line-height: 1.55;
+  }
+  .checklist { list-style: none; }
+  .checklist li { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: .92rem; }
+  .checklist li:last-child { border-bottom: 0; }
+  .checklist input { margin-right: 10px; accent-color: var(--primary); }
+  footer { color: var(--text-light); font-size: .82rem; text-align: center; padding: 10px 0 30px; }
+  @media (max-width: 600px) {
+    body { padding: 12px; }
+    section { padding: 18px 16px; }
+    .sec-hint { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Monotonie-Constraints für Compensation-Modelle</h1>
+  <p class="subtitle">Merkmal für Merkmal entscheiden, ob im AutoML-Modell ein <code>+1</code>, <code>-1</code> oder <code>0</code> gesetzt wird — mit Begründung, Code und Entscheidungsprotokoll.</p>
+</header>
+
+<section>
+  <h2><span class="num">1</span> Merkmale erfassen</h2>
+  <p class="sec-hint">Reihenfolge = Spaltenreihenfolge im Trainings-DataFrame. Bei LightGBM/XGBoost/sklearn ist die Position entscheidend.</p>
+  <div class="row">
+    <input type="text" id="featInput" placeholder="Merkmal, z. B. Joblevel" autocomplete="off">
+    <button id="addBtn">Hinzufügen</button>
+    <button class="ghost" id="presetBtn">Typische Comp-Merkmale laden</button>
+    <button class="ghost" id="resetBtn">Zurücksetzen</button>
+  </div>
+  <div class="inline-error" id="featError"></div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<section>
+  <h2><span class="num">2</span> Merkmal bewerten</h2>
+  <p class="sec-hint">Fünf Fragen pro Merkmal. Die Empfehlung aktualisiert sich sofort.</p>
+  <div id="panel"></div>
+</section>
+
+<section>
+  <h2><span class="num">3</span> Ergebnis</h2>
+  <p class="sec-hint">Übersicht aller Entscheidungen inkl. Constraint-Budget.</p>
+  <div id="summary"></div>
+</section>
+
+<section>
+  <h2><span class="num">4</span> Code</h2>
+  <p class="sec-hint">Der Vektor folgt der Reihenfolge aus Schritt 1. <code>?</code>-Merkmale werden vorsichtshalber als <code>0</code> gesetzt.</p>
+  <div class="tabs" id="tabs"></div>
+  <pre id="code">–</pre>
+  <button class="ghost" id="copyCode" style="margin-top:12px">Code kopieren</button>
+  <div class="callout">
+    <b>AutoML-Falle: Stacked Ensembles</b>
+    Monotonie gilt nur, wenn <em>alle</em> Base-Learner monoton sind und der Meta-Learner nicht-negative Gewichte hat. Random Forest, Deep Learning und viele Ensembles ignorieren Constraints stillschweigend — Suchraum entsprechend einschränken (nur GBM/XGBoost/CatBoost) und die Monotonie am Endmodell nachmessen, nicht am Base-Learner.
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">5</span> Validierung &amp; Dokumentation</h2>
+  <p class="sec-hint">Ein Constraint ist erst dann gesetzt, wenn seine Wirkung und sein Preis gemessen sind.</p>
+  <ul class="checklist">
+    <li><label><input type="checkbox"> Baseline ohne Constraints trainiert, Metrik (MAE/RMSE, CV) festgehalten</label></li>
+    <li><label><input type="checkbox"> Constrained-Modell trainiert, Delta gemessen — Faustregel: über ~2–3 % Verschlechterung Constraint hinterfragen statt hinnehmen</label></li>
+    <li><label><input type="checkbox"> PDP/ALE je constrainedem Merkmal geplottet: ist die Richtung im Endmodell tatsächlich sichtbar?</label></li>
+    <li><label><input type="checkbox"> Randbereiche geprüft (dünn besetzte Level, Extremwerte, Extrapolation über den Trainingsbereich hinaus)</label></li>
+    <li><label><input type="checkbox"> Fehlende Werte geprüft — NA-Behandlung kann Monotonie faktisch aushebeln</label></li>
+    <li><label><input type="checkbox"> Pay-Equity-Auswertung nach Modelländerung wiederholt (Constraints sind kein Fairness-Fix)</label></li>
+    <li><label><input type="checkbox"> Entscheidungen mit Begründung und Datum dokumentiert und abgestimmt</label></li>
+  </ul>
+  <div class="row" style="margin-top:16px">
+    <button class="ghost" id="copyMd">Protokoll als Markdown kopieren</button>
+    <button class="ghost" id="dlJson">JSON herunterladen</button>
+    <span id="exportMsg" style="align-self:center;color:var(--ok);font-size:.88rem"></span>
+  </div>
+</section>
+
+<footer>Eingaben werden nur lokal im Browser gespeichert (localStorage).</footer>
+</div>
+
+<script>
+// ---------------------------------------------------------------- Fragenkatalog
+const QUESTIONS = [
+  { key: 'dir', label: '1. Fachliche Richtungserwartung',
+    hint: 'Was sagt die Vergütungslogik (Policy, Tarif, Comp-Philosophie), wenn dieses Merkmal steigt und alles andere gleich bleibt?',
+    opts: [
+      { v: 'up',      l: 'Höher → höheres Gehalt',            d: 'z. B. Joblevel, Führungsspanne, Standort-Index. Abflachende Sättigung ist weiterhin monoton.' },
+      { v: 'down',    l: 'Höher → niedrigeres Gehalt',        d: 'seltener, z. B. Remote-Abschlagsfaktor oder Distanz zum Hochkosten-Standort.' },
+      { v: 'none',    l: 'Kein durchgehend gerichteter Zusammenhang', d: 'Peak- oder U-Form, z. B. Alter oder Betriebszugehörigkeit mit späterem Rückgang.' },
+      { v: 'nominal', l: 'Nominal, ohne Rangfolge',           d: 'Funktionsbereich, Kostenstelle, Standortname.' }
+    ]},
+  { key: 'prot', label: '2. Geschütztes Merkmal oder Proxy?',
+    hint: 'Geschlecht, Alter, Herkunft, Behinderung, Schwangerschaft/Elternzeit — oder ein enger Stellvertreter davon.',
+    opts: [
+      { v: 'no',    l: 'Nein',                     d: 'Fachliches Merkmal ohne erkennbaren Bezug.' },
+      { v: 'proxy', l: 'Proxy-Verdacht',           d: 'Korreliert spürbar mit einem geschützten Merkmal, z. B. Erfahrungsjahre ↔ Alter, Teilzeitquote ↔ Geschlecht.' },
+      { v: 'yes',   l: 'Ja, geschütztes Merkmal',  d: 'Direktes Merkmal wie Geschlecht oder Alter.' }
+    ]},
+  { key: 'evi', label: '3. Datenevidenz',
+    hint: 'Was zeigen PDP/ALE, Spearman-Korrelation oder gruppierte Mediane im unconstrained Baseline-Modell?',
+    opts: [
+      { v: 'confirm',   l: 'Bestätigt die erwartete Richtung', d: 'Verlauf ist über den relevanten Wertebereich monoton.' },
+      { v: 'noisy',     l: 'Verrauscht / dünne Randbereiche',  d: 'Grundrichtung stimmt, aber Ausreißer oder Zickzack in schwach besetzten Bereichen.' },
+      { v: 'contra',    l: 'Widerspricht der Erwartung',       d: 'Der Effekt läuft klar in die andere Richtung.' },
+      { v: 'unchecked', l: 'Noch nicht geprüft',               d: 'Es gibt bisher nur die fachliche Annahme.' }
+    ]},
+  { key: 'gov', label: '4. Erklärbarkeits- und Governance-Anspruch',
+    hint: 'Wie stark muss die Richtung gegenüber Mitarbeitenden, Betriebsrat, Audit oder Revision verteidigbar sein?',
+    opts: [
+      { v: 'high', l: 'Hoch',    d: 'Modell wirkt auf Einzelentscheidungen (Angebot, Anpassungsrunde) und muss begründbar sein.' },
+      { v: 'mid',  l: 'Mittel',  d: 'Entscheidungsunterstützung mit menschlicher Prüfung.' },
+      { v: 'low',  l: 'Gering',  d: 'Reine Analyse, Budgetsimulation oder Benchmarking ohne Individualbezug.' }
+    ]},
+  { key: 'imp', label: '5. Beitrag zum Modell',
+    hint: 'Wie stark trägt das Merkmal laut Importance/Gain zur Vorhersage bei?',
+    opts: [
+      { v: 'high', l: 'Top-Treiber', d: 'Constraint wirkt stark — Nutzen groß, Genauigkeitskosten aber ebenso.' },
+      { v: 'mid',  l: 'Mittel',      d: 'Spürbarer, aber nicht dominanter Beitrag.' },
+      { v: 'low',  l: 'Gering',      d: 'Constraint ist praktisch gratis und macht das Modell aufgeräumter.' }
+    ]}
+];
+
+const PRESETS = [
+  { name: 'Joblevel / Grade',                 dir: 'up',      prot: 'no'    },
+  { name: 'Berufserfahrung (Jahre)',          dir: 'up',      prot: 'proxy' },
+  { name: 'Betriebszugehörigkeit (Jahre)',    dir: 'up',      prot: 'proxy' },
+  { name: 'Führungsspanne (FTE)',             dir: 'up',      prot: 'no'    },
+  { name: 'Standort-Index (Cost of Labor)',   dir: 'up',      prot: 'no'    },
+  { name: 'Umsatz-/Budgetverantwortung',      dir: 'up',      prot: 'no'    },
+  { name: 'Ausbildungsniveau (ordinal)',      dir: 'up',      prot: 'no'    },
+  { name: 'Performance-Rating',               dir: 'up',      prot: 'no'    },
+  { name: 'Anzahl zertifizierter Skills',     dir: 'up',      prot: 'no'    },
+  { name: 'Funktionsbereich',                 dir: 'nominal', prot: 'no'    },
+  { name: 'Teilzeitquote / FTE-Faktor',       dir: 'up',      prot: 'proxy' },
+  { name: 'Alter',                            dir: 'none',    prot: 'yes'   }
+];
+
+const DEFAULTS = { dir: 'up', prot: 'no', evi: 'unchecked', gov: 'mid', imp: 'mid' };
+
+// ---------------------------------------------------------------- Entscheidungslogik
+function decide(f) {
+  const r = [], notes = [];
+
+  if (f.prot === 'yes') {
+    return { code: '0', cls: 'b-block', label: 'Merkmal-Nutzung klären — Constraint löst das Problem nicht',
+      reasons: ['Ein Monotonie-Constraint erzwingt eine Richtung, er legitimiert die Nutzung eines geschützten Merkmals nicht.',
+        'Übliche Wege: Merkmal aus dem Produktivmodell entfernen, oder bewusst nur im Audit-Modell zur Messung von Pay Gaps behalten.',
+        'Vorher rechtliche und mitbestimmungsrechtliche Klärung, nicht danach.'],
+      notes: ['Geschütztes Merkmal'] };
+  }
+  if (f.dir === 'nominal') {
+    return { code: '0', cls: 'b-block', label: 'Nicht anwendbar — nominales Merkmal',
+      reasons: ['Monotonie-Constraints setzen eine Ordnung der Werte voraus; One-Hot- oder Label-Encoding erzeugt keine.',
+        'Falls doch eine Ordnung existiert (z. B. Karrierestufe): explizit ordinal kodieren und neu bewerten.',
+        'Alternative: geordnetes Target-Encoding, dann ist das abgeleitete Merkmal constraint-fähig.'],
+      notes: ['Erst ordinal kodieren'] };
+  }
+  if (f.dir === 'none') {
+    return { code: '0', cls: 'b-zero', label: 'Frei lassen (0)',
+      reasons: ['Ohne durchgehend gerichteten Zusammenhang würde ein Constraint ein reales Muster kaputtmachen.',
+        'Falls die Beziehung abschnittsweise monoton ist: Merkmal splitten (z. B. Erfahrung bis 10 Jahre / darüber) und die Teile einzeln bewerten.'],
+      notes: ['Peak-/U-Form'] };
+  }
+
+  const sign = f.dir === 'up' ? '+1' : '-1';
+  const cls  = f.dir === 'up' ? 'b-up' : 'b-down';
+
+  if (f.evi === 'contra') {
+    if (f.gov === 'high') {
+      return { code: '?', cls: 'b-check', label: 'Erst klären, dann setzen',
+        reasons: ['Fachliche Erwartung und Daten widersprechen sich bei hohem Governance-Anspruch — das ist der teuerste Fall.',
+          'Typische Ursachen prüfen: Confounder (Level/Standort nicht kontrolliert), Selektionseffekt, Datenfehler, Legacy-Gehälter.',
+          'Wenn die Erwartung Policy ist, kann ' + sign + ' bewusst gesetzt werden — dann aber als dokumentierte Normentscheidung, nicht als Datenaussage.'],
+        notes: ['Konflikt Daten ↔ Erwartung'] };
+    }
+    return { code: '0', cls: 'b-zero', label: 'Vorerst 0 — Daten widersprechen',
+      reasons: ['Die Daten zeigen die Gegenrichtung und der Erklärbarkeitsdruck ist begrenzt.',
+        'Erst Ursache klären, sonst wird ein Constraint gesetzt, der nur Fehler in den Daten kaschiert.'],
+      notes: ['Widerspruch offen'] };
+  }
+
+  let score = 0;
+  if (f.evi === 'confirm')        { score += 2; r.push('Daten bestätigen die Richtung — der Constraint kostet kaum Genauigkeit und sichert sie nur ab.'); }
+  else if (f.evi === 'noisy')     { score += 1; r.push('Verrauschte Randbereiche: genau hier bringt der Constraint am meisten, weil er sprunghafte Vorhersagen in dünn besetzten Bereichen glättet.'); }
+  else                            { score -= 1; r.push('Noch keine Datenprüfung — die Richtung ist bisher nur Annahme. PDP/ALE aus dem Baseline-Modell nachziehen.'); }
+
+  if (f.gov === 'high')           { score += 2; r.push('Hoher Governance-Anspruch: eine garantierte Richtung ist gegenüber Betriebsrat und Audit deutlich leichter zu vertreten als „das Modell hat das so gelernt“.'); }
+  else if (f.gov === 'mid')       { score += 1; r.push('Mittlerer Erklärbarkeitsanspruch — der Constraint hilft, ist aber nicht zwingend.'); }
+  else                            {             r.push('Geringer Erklärbarkeitsanspruch — Genauigkeit darf hier Vorrang haben.'); }
+
+  if (f.imp === 'low')            { score += 1; r.push('Geringe Importance: der Constraint ist praktisch gratis.'); }
+  else if (f.imp === 'high')      {             r.push('Top-Treiber: größte Wirkung, aber auch größte Genauigkeitskosten — Delta gegen die Baseline unbedingt messen.'); }
+
+  if (f.prot === 'proxy')         { score -= 1; r.push('Proxy-Verdacht: der Constraint macht den Effekt sichtbar und begrenzt, beseitigt die indirekte Diskriminierung aber nicht. Zusätzlich auf Gruppenebene auswerten.'); notes.push('Proxy'); }
+
+  if (score >= 3) return { code: sign, cls, label: 'Constraint setzen (' + sign + ')', reasons: r, notes };
+  if (score >= 1) return { code: sign, cls, label: 'Setzen, aber gegen Baseline messen (' + sign + ')',
+    reasons: r.concat(['Beides trainieren und die Metrik vergleichen — der Constraint muss den Genauigkeitsverlust wert sein.']), notes };
+  return { code: '0', cls: 'b-zero', label: 'Vorerst 0 lassen',
+    reasons: r.concat(['Zu wenig Nutzen für die Einschränkung. Nach der Datenprüfung oder bei steigendem Governance-Anspruch neu bewerten.']), notes };
+}
+
+// ---------------------------------------------------------------- State
+const KEY = 'monotonie-constraints-v1';
+let state = { features: [], sel: null, tab: 'lightgbm' };
+
+function save()  { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+function load()  {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) { const s = JSON.parse(raw); if (s && Array.isArray(s.features)) state = Object.assign(state, s); }
+  } catch (e) {}
+}
+
+function addFeature(name, base) {
+  const f = Object.assign({ name: name }, DEFAULTS, base || {});
+  state.features.push(f);
+  state.sel = state.features.length - 1;
+}
+
+// ---------------------------------------------------------------- Rendering
+const $ = id => document.getElementById(id);
+
+function render() { renderChips(); renderPanel(); renderSummary(); renderCode(); save(); }
+
+function renderChips() {
+  const el = $('chips');
+  if (!state.features.length) { el.innerHTML = '<span class="empty">Noch keine Merkmale erfasst.</span>'; return; }
+  el.innerHTML = '';
+  state.features.forEach((f, i) => {
+    const d = decide(f);
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (i === state.sel ? ' active' : '');
+    const label = document.createElement('span');
+    label.textContent = f.name;
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + d.cls;
+    badge.textContent = d.code;
+    const del = document.createElement('span');
+    del.className = 'del';
+    del.textContent = '×';
+    del.title = 'Entfernen';
+    del.onclick = ev => {
+      ev.stopPropagation();
+      state.features.splice(i, 1);
+      if (state.sel >= state.features.length) state.sel = state.features.length - 1;
+      render();
+    };
+    chip.append(label, badge, del);
+    chip.onclick = () => { state.sel = i; render(); };
+    el.appendChild(chip);
+  });
+}
+
+function renderPanel() {
+  const el = $('panel');
+  const f = state.features[state.sel];
+  if (!f) { el.innerHTML = '<p class="empty">Merkmal in Schritt 1 anlegen oder oben auswählen.</p>'; return; }
+  el.innerHTML = '';
+
+  const h = document.createElement('h3');
+  h.style.cssText = 'font-size:1.05rem;margin-bottom:18px';
+  h.textContent = f.name;
+  el.appendChild(h);
+
+  QUESTIONS.forEach(q => {
+    const wrap = document.createElement('div');
+    wrap.className = 'q';
+    wrap.innerHTML = '<div class="q-label">' + q.label + '</div><div class="q-hint">' + q.hint + '</div>';
+    const opts = document.createElement('div');
+    opts.className = 'opts';
+    q.opts.forEach(o => {
+      const lab = document.createElement('label');
+      lab.className = 'opt' + (f[q.key] === o.v ? ' sel' : '');
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = q.key + '-' + state.sel;
+      radio.checked = f[q.key] === o.v;
+      radio.onchange = () => { f[q.key] = o.v; render(); };
+      const txt = document.createElement('div');
+      txt.innerHTML = '<b>' + o.l + '</b><span>' + o.d + '</span>';
+      lab.append(radio, txt);
+      opts.appendChild(lab);
+    });
+    wrap.appendChild(opts);
+    el.appendChild(wrap);
+  });
+
+  const d = decide(f);
+  const v = document.createElement('div');
+  v.className = 'verdict';
+  v.innerHTML = '<h3><span class="badge ' + d.cls + '">' + d.code + '</span> ' + d.label + '</h3><ul>' +
+    d.reasons.map(x => '<li>' + x + '</li>').join('') + '</ul>';
+  el.appendChild(v);
+}
+
+function renderSummary() {
+  const el = $('summary');
+  if (!state.features.length) { el.innerHTML = '<p class="empty">Noch nichts zu zeigen.</p>'; return; }
+
+  let html = '<table><thead><tr><th>#</th><th>Merkmal</th><th>Constraint</th><th>Empfehlung</th><th>Hinweis</th></tr></thead><tbody>';
+  let set = 0, open = 0;
+  state.features.forEach((f, i) => {
+    const d = decide(f);
+    if (d.code === '+1' || d.code === '-1') set++;
+    if (d.code === '?') open++;
+    html += '<tr><td>' + i + '</td><td>' + esc(f.name) + '</td><td><span class="badge ' + d.cls + '">' + d.code +
+      '</span></td><td>' + d.label + '</td><td class="note">' + (d.notes.join(', ') || '–') + '</td></tr>';
+  });
+  html += '</tbody></table>';
+
+  const n = state.features.length;
+  const pct = Math.round(set / n * 100);
+  html += '<div class="callout info"><b>Constraint-Budget: ' + set + ' von ' + n + ' Merkmalen (' + pct + ' %)</b>' +
+    (pct > 70
+      ? 'Sehr viele Constraints — das schränkt die Modellkapazität deutlich ein. Prüfe, ob die schwach begründeten wirklich gebraucht werden.'
+      : pct === 0
+        ? 'Aktuell kein Constraint gesetzt. Das ist eine valide Entscheidung, sollte aber genauso dokumentiert werden wie das Setzen.'
+        : 'Plausibler Rahmen. Entscheidend bleibt der gemessene Metrik-Delta gegen die unconstrained Baseline.') + '</div>';
+  if (open) html += '<div class="callout"><b>' + open + ' offene Klärung(en)</b>Diese Merkmale gehen als <code>0</code> in den Code — bis der Widerspruch zwischen Daten und fachlicher Erwartung geklärt ist.</div>';
+  el.innerHTML = html;
+}
+
+// ---------------------------------------------------------------- Code-Erzeugung
+const TABS = [
+  ['lightgbm',   'LightGBM'],
+  ['xgboost',    'XGBoost'],
+  ['catboost',   'CatBoost'],
+  ['sklearn',    'scikit-learn'],
+  ['autogluon',  'AutoGluon'],
+  ['h2o',        'H2O']
+];
+
+// UI zeigt "+1"/"?"; im Code stehen gültige Python-Werte: 1 / -1 / 0.
+function vector() {
+  return state.features.map(f => {
+    const c = decide(f).code;
+    if (c === '?' || c === '0') return '0';
+    return c === '+1' ? '1' : '-1';
+  });
+}
+function pyList(a) { return '[' + a.join(', ') + ']'; }
+function pyStrList(a) { return '[\n    ' + a.map(x => '"' + x.replace(/"/g, "'") + '"').join(',\n    ') + ',\n]'; }
+
+function renderCode() {
+  const el = $('code');
+  if (!state.features.length) { el.textContent = '–'; return; }
+  const names = state.features.map(f => f.name);
+  const vec = vector();
+  const cols = 'feature_cols = ' + pyStrList(names);
+  const mc = 'monotone_constraints = ' + pyList(vec) + '\n' +
+    names.map((n, i) => '#   [' + i + '] ' + n + ' → ' + vec[i]).join('\n');
+  const dict = names.map((n, i) => '    "' + n.replace(/"/g, "'") + '": ' + vec[i]).join(',\n');
+  let out;
+
+  if (state.tab === 'lightgbm') {
+    out = 'import lightgbm as lgb\n\n' + cols + '\n' + mc + '\n\n' +
+      'model = lgb.LGBMRegressor(\n' +
+      '    monotone_constraints=monotone_constraints,\n' +
+      '    monotone_constraints_method="advanced",  # "basic" ist am striktesten und kostet am meisten Genauigkeit\n' +
+      '    # monotone_penalty=0.0,                  # >0 verbietet Splits nahe der Wurzel, die die Monotonie erzwingen müssten\n' +
+      '    n_estimators=800, learning_rate=0.05,\n' +
+      ')\nmodel.fit(X[feature_cols], y)';
+  } else if (state.tab === 'xgboost') {
+    out = 'import xgboost as xgb\n\n' + cols + '\n' + mc + '\n\n' +
+      'model = xgb.XGBRegressor(\n' +
+      '    monotone_constraints=tuple(monotone_constraints),  # Reihenfolge = Spaltenreihenfolge\n' +
+      '    tree_method="hist", n_estimators=800, learning_rate=0.05,\n' +
+      ')\nmodel.fit(X[feature_cols], y)';
+  } else if (state.tab === 'catboost') {
+    out = 'from catboost import CatBoostRegressor\n\n' +
+      '# CatBoost akzeptiert ein Dict — unabhängig von der Spaltenreihenfolge, deshalb robuster.\n' +
+      'monotone_constraints = {\n' + dict + ',\n}\n\n' +
+      'model = CatBoostRegressor(\n' +
+      '    monotone_constraints=monotone_constraints,\n' +
+      '    iterations=1500, learning_rate=0.05, verbose=False,\n' +
+      ')\nmodel.fit(X[feature_cols], y)';
+  } else if (state.tab === 'sklearn') {
+    out = 'from sklearn.ensemble import HistGradientBoostingRegressor\n\n' + cols + '\n' + mc + '\n\n' +
+      'model = HistGradientBoostingRegressor(\n' +
+      '    monotonic_cst=monotone_constraints,  # 1 / 0 / -1, Reihenfolge = Spaltenreihenfolge\n' +
+      '    max_iter=800, learning_rate=0.05,\n' +
+      ')\nmodel.fit(X[feature_cols], y)';
+  } else if (state.tab === 'autogluon') {
+    out = 'from autogluon.tabular import TabularPredictor\n\n' + cols + '\n' + mc + '\n\n' +
+      '# Nur constraint-fähige Modellfamilien zulassen — sonst gewinnt ein unconstrained Modell den Vergleich.\n' +
+      'hyperparameters = {\n' +
+      '    "GBM": {"monotone_constraints": monotone_constraints},\n' +
+      '    "XGB": {"monotone_constraints": tuple(monotone_constraints)},\n' +
+      '    "CAT": {"monotone_constraints": {\n' + dict.replace(/^ {4}/gm, '        ') + ',\n    }},\n' +
+      '}\n\n' +
+      'predictor = TabularPredictor(label="gehalt").fit(\n' +
+      '    train_data[feature_cols + ["gehalt"]],\n' +
+      '    hyperparameters=hyperparameters,\n' +
+      '    excluded_model_types=["RF", "XT", "NN_TORCH", "FASTAI", "KNN"],  # ignorieren Constraints\n' +
+      ')';
+  } else {
+    out = 'import h2o\nfrom h2o.estimators import H2OGradientBoostingEstimator\n\n' + cols + '\n\n' +
+      '# H2O erwartet ein Dict; -1/+1 wirken nur bei GBM und XGBoost.\n' +
+      'monotone_constraints = {\n' + dict + ',\n}\n\n' +
+      'model = H2OGradientBoostingEstimator(\n' +
+      '    monotone_constraints=monotone_constraints,\n' +
+      '    ntrees=800, learn_rate=0.05,\n' +
+      ')\nmodel.train(x=feature_cols, y="gehalt", training_frame=train)\n\n' +
+      '# In AutoML: Suchraum auf GBM/XGBoost begrenzen und Stacked Ensembles prüfen –\n' +
+      '# ein Ensemble aus monotonen Base-Learnern ist nur bei nicht-negativen Meta-Gewichten monoton.';
+  }
+  el.textContent = out;
+}
+
+// ---------------------------------------------------------------- Export
+function markdown() {
+  const date = new Date().toISOString().slice(0, 10);
+  let md = '# Monotonie-Constraints — Entscheidungsprotokoll\n\nStand: ' + date + '\n\n' +
+    '| # | Merkmal | Constraint | Empfehlung | Richtungserwartung | Datenevidenz | Governance | Importance |\n' +
+    '|---|---|---|---|---|---|---|---|\n';
+  const lbl = (k, v) => { const q = QUESTIONS.find(x => x.key === k); const o = q.opts.find(x => x.v === v); return o ? o.l : v; };
+  state.features.forEach((f, i) => {
+    const d = decide(f);
+    md += '| ' + i + ' | ' + f.name + ' | `' + d.code + '` | ' + d.label + ' | ' + lbl('dir', f.dir) + ' | ' +
+      lbl('evi', f.evi) + ' | ' + lbl('gov', f.gov) + ' | ' + lbl('imp', f.imp) + ' |\n';
+  });
+  md += '\n## Begründungen\n\n';
+  state.features.forEach(f => {
+    const d = decide(f);
+    md += '### ' + f.name + ' → `' + d.code + '`\n' + d.reasons.map(x => '- ' + x).join('\n') + '\n\n';
+  });
+  md += '## Constraint-Vektor (Reihenfolge der Merkmale)\n\n```python\nmonotone_constraints = ' + pyList(vector()) + '\n```\n';
+  return md;
+}
+
+function flash(msg) {
+  const el = $('exportMsg');
+  el.textContent = msg;
+  setTimeout(() => { el.textContent = ''; }, 2500);
+}
+
+function copy(text, msg) {
+  navigator.clipboard.writeText(text).then(() => flash(msg), () => flash('Kopieren nicht möglich — Text manuell markieren.'));
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ---------------------------------------------------------------- Events
+$('addBtn').onclick = () => {
+  const input = $('featInput'), err = $('featError');
+  const name = input.value.trim();
+  if (!name) { err.textContent = 'Bitte einen Merkmalsnamen eingeben.'; err.style.display = 'block'; return; }
+  if (state.features.some(f => f.name.toLowerCase() === name.toLowerCase())) {
+    err.textContent = 'Dieses Merkmal gibt es schon.'; err.style.display = 'block'; return;
+  }
+  err.style.display = 'none';
+  addFeature(name);
+  input.value = '';
+  render();
+};
+$('featInput').onkeydown = e => { if (e.key === 'Enter') $('addBtn').click(); };
+$('presetBtn').onclick = () => {
+  PRESETS.forEach(p => {
+    if (!state.features.some(f => f.name === p.name)) addFeature(p.name, { dir: p.dir, prot: p.prot });
+  });
+  state.sel = 0;
+  $('featError').style.display = 'none';
+  render();
+};
+$('resetBtn').onclick = () => { state.features = []; state.sel = null; $('featError').style.display = 'none'; render(); };
+$('copyCode').onclick = () => copy($('code').textContent, 'Code kopiert.');
+$('copyMd').onclick = () => {
+  if (!state.features.length) { flash('Erst Merkmale erfassen.'); return; }
+  copy(markdown(), 'Markdown kopiert.');
+};
+$('dlJson').onclick = () => {
+  if (!state.features.length) { flash('Erst Merkmale erfassen.'); return; }
+  const data = {
+    erstellt: new Date().toISOString(),
+    merkmale: state.features.map((f, i) => {
+      const d = decide(f);
+      return { position: i, name: f.name, constraint: d.code, empfehlung: d.label, antworten: {
+        richtung: f.dir, geschuetzt: f.prot, evidenz: f.evi, governance: f.gov, importance: f.imp
+      }, begruendung: d.reasons };
+    }),
+    constraint_vektor: vector().map(Number)
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'monotonie-constraints.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  flash('JSON heruntergeladen.');
+};
+
+const tabsEl = $('tabs');
+TABS.forEach(([id, label]) => {
+  const b = document.createElement('button');
+  b.className = 'tab' + (state.tab === id ? ' active' : '');
+  b.textContent = label;
+  b.dataset.id = id;
+  b.onclick = () => {
+    state.tab = id;
+    [...tabsEl.children].forEach(c => c.classList.toggle('active', c.dataset.id === id));
+    renderCode(); save();
+  };
+  tabsEl.appendChild(b);
+});
+
+load();
+[...tabsEl.children].forEach(c => c.classList.toggle('active', c.dataset.id === state.tab));
+render();
+</script>
+</body>
+</html>
