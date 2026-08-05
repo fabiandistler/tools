@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Die Mincer-Gleichung — Bildung, Erfahrung und Vergütung</title>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-soft: #eef2ff;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --accent: #0ea5e9;
+      --warn: #b45309;
+      --warn-bg: #fffbeb;
+      --lvl-a: #0ea5e9;
+      --lvl-b: #4f46e5;
+      --lvl-c: #ec4899;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      padding: 1rem;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; }
+
+    header { margin-bottom: 1.5rem; }
+    h1 { font-size: 1.7rem; margin-bottom: 0.35rem; }
+    h2 { font-size: 1.15rem; margin-bottom: 0.6rem; }
+    h3 { font-size: 0.95rem; margin-bottom: 0.3rem; }
+    p.subtitle { color: var(--text-muted); font-size: 0.95rem; }
+    p + p { margin-top: 0.7rem; }
+
+    /* Tabs */
+    nav.tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1.25rem;
+    }
+    nav.tabs button {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 0.5rem 0.9rem;
+      border-radius: 999px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    nav.tabs button:hover { border-color: var(--primary); color: var(--primary); }
+    nav.tabs button.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .note {
+      background: var(--primary-soft);
+      border-left: 3px solid var(--primary);
+      border-radius: 0 0.5rem 0.5rem 0;
+      padding: 0.8rem 1rem;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+    }
+    .warn {
+      background: var(--warn-bg);
+      border-left: 3px solid var(--warn);
+      border-radius: 0 0.5rem 0.5rem 0;
+      padding: 0.8rem 1rem;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+    }
+
+    ul.tight { margin: 0.6rem 0 0 1.1rem; }
+    ul.tight li { margin-bottom: 0.35rem; }
+
+    code, .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: #f1f5f9;
+      padding: 0.1rem 0.3rem;
+      border-radius: 0.25rem;
+      font-size: 0.88em;
+    }
+
+    /* Formel */
+    .formula {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      font-size: 1.4rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      padding: 1.2rem 0.5rem;
+    }
+    .formula .op { color: var(--text-muted); }
+    .formula .term {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.4rem;
+      padding: 0.2rem 0.5rem;
+      cursor: pointer;
+    }
+    .formula .term:hover { border-color: var(--primary); color: var(--primary); }
+    .formula .term.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .hint-center { text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+
+    /* Regler */
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.5rem; }
+    .control label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 0.88rem;
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+    }
+    .control .val {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: var(--primary);
+    }
+    .control .desc { font-size: 0.78rem; color: var(--text-muted); }
+    input[type="range"] { width: 100%; accent-color: var(--primary); }
+    input[type="number"] {
+      width: 100%;
+      padding: 0.45rem;
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+      font-size: 1rem;
+    }
+
+    button.ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 0.45rem 0.9rem;
+      border-radius: 0.375rem;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    button.ghost:hover { border-color: var(--primary); color: var(--primary); }
+
+    canvas { width: 100%; height: 320px; display: block; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      justify-content: center;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+    .legend span::before {
+      content: '';
+      display: inline-block;
+      width: 0.8rem;
+      height: 0.2rem;
+      border-radius: 2px;
+      margin-right: 0.35rem;
+      vertical-align: middle;
+      background: currentColor;
+    }
+
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; }
+    .stat {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      text-align: center;
+    }
+    .stat .num { font-size: 1.35rem; font-weight: 700; color: var(--primary); }
+    .stat .cap { font-size: 0.75rem; color: var(--text-muted); }
+
+    .msg { color: var(--warn); font-size: 0.83rem; margin-top: 0.4rem; min-height: 1.1rem; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+    th, td { text-align: left; padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    td.num { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .table-wrap { overflow-x: auto; }
+
+    footer { color: var(--text-muted); font-size: 0.8rem; margin-top: 2rem; text-align: center; }
+    footer a { color: var(--primary); }
+
+    @media (max-width: 600px) {
+      .controls { grid-template-columns: 1fr; }
+      .formula { font-size: 1.05rem; }
+      h1 { font-size: 1.35rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Die Mincer-Gleichung</h1>
+    <p class="subtitle">Wie Bildung und Berufserfahrung Löhne erklären — und was das für die Analyse von Vergütungsdaten bedeutet.</p>
+  </header>
+
+  <nav class="tabs" id="tabs"></nav>
+
+  <!-- 1. Idee -->
+  <section class="panel" id="p-idee">
+    <div class="card">
+      <h2>Bildung als Investition</h2>
+      <p>Jacob Mincer hat 1958 und ausgearbeitet 1974 eine Frage beantwortet, die vorher nur beschreibend behandelt wurde: <strong>Warum verdienen Menschen mit mehr Ausbildung mehr?</strong> Seine Antwort kommt nicht aus der Statistik, sondern aus der Ökonomik.</p>
+      <p>Wer ein zusätzliches Jahr zur Schule oder Universität geht, verzichtet in diesem Jahr auf ein Erwerbseinkommen. Diese entgangenen Löhne sind die eigentlichen Kosten der Ausbildung — sie sind viel größer als Studiengebühren oder Bücher. Damit sich Bildung überhaupt lohnt, muss der Markt diesen Verzicht über das restliche Erwerbsleben kompensieren. Bildung ist also eine Investition in <em>Humankapital</em>, mit Kosten heute und einer Rendite später.</p>
+      <p>Aus dieser Überlegung folgt eine überraschend konkrete Vorhersage über die <em>Form</em> des Zusammenhangs.</p>
+    </div>
+
+    <div class="card">
+      <h2>Warum der Logarithmus?</h2>
+      <p>Wenn alle Personen dieselbe Rendite auf ein Ausbildungsjahr erzielen und diese Rendite ein <em>prozentualer</em> Aufschlag ist, dann multipliziert jedes weitere Jahr den Lohn mit einem konstanten Faktor. Das ist exponentielles Wachstum in den Bildungsjahren — und der Logarithmus macht daraus eine Gerade:</p>
+      <p style="text-align:center; font-family: ui-monospace, monospace; margin-top:0.8rem;">w = w₀ · e<sup>ρS</sup> &nbsp;&nbsp;⟺&nbsp;&nbsp; ln(w) = ln(w₀) + ρ·S</p>
+      <p>Deshalb steht links in der Mincer-Gleichung nicht der Lohn, sondern sein Logarithmus. Das ist keine technische Bequemlichkeit, sondern eine inhaltliche Aussage: Bildung wirkt <strong>relativ</strong>, nicht absolut. Ein Ausbildungsjahr bringt nicht „3.000 € mehr", sondern „8 % mehr" — und 8 % sind bei einer Fachkraft ein anderer Betrag als bei einer Führungskraft.</p>
+      <div class="note">
+        <strong>Der zweite Baustein:</strong> Auch nach dem Berufseinstieg wird weiter in Humankapital investiert — durch Learning by Doing und Weiterbildung. Diese Investitionen sind am Anfang der Karriere am größten und nehmen mit der Zeit ab, weil die verbleibende Amortisationszeit schrumpft. Daraus folgt ein Lohnprofil, das zunächst steil steigt, dann abflacht und am Ende des Erwerbslebens sogar leicht fällt. Mincer bildet das mit einem quadratischen Term in der Berufserfahrung ab.
+      </div>
+    </div>
+
+    <div class="warn">
+      <strong>Begriffsklärung:</strong> „Mincer-Theorem" ist ein verbreiteter, aber irreführender Name. Es handelt sich nicht um einen bewiesenen mathematischen Satz, sondern um eine <em>empirische Spezifikation</em>, die aus der Humankapitaltheorie abgeleitet ist. Sie ist deshalb einflussreich, weil sie sich über Jahrzehnte und Länder hinweg als bemerkenswert stabil erwiesen hat — nicht, weil sie beweisbar wäre. Üblich sind die Bezeichnungen <em>Mincer-Gleichung</em> oder <em>Mincersche Einkommensfunktion</em>.
+    </div>
+  </section>
+
+  <!-- 2. Gleichung -->
+  <section class="panel" id="p-gleichung">
+    <div class="card">
+      <h2>Die Gleichung</h2>
+      <div class="formula" id="formula"></div>
+      <p class="hint-center">Auf einen Term klicken, um ihn zu erklären.</p>
+      <div class="note" id="term-box"></div>
+    </div>
+
+    <div class="card">
+      <h2>Koeffizienten richtig lesen</h2>
+      <p>Weil links der Logarithmus steht, sind die Koeffizienten <strong>Semi-Elastizitäten</strong>: sie geben näherungsweise die prozentuale Lohnänderung pro Einheit der erklärenden Variable an. Für kleine Werte gilt die Faustregel „ρ = 0,08 heißt 8 %".</p>
+      <p>Exakt ist das nur für infinitesimale Änderungen. Der korrekte Prozenteffekt eines diskreten Sprungs um eine Einheit ist:</p>
+      <p style="text-align:center; font-family: ui-monospace, monospace; margin-top:0.8rem;">Effekt in % = (e<sup>β</sup> − 1) · 100</p>
+      <p>Bei ρ = 0,10 sind das 10,5 % statt 10 %. Bei kleinen Koeffizienten ist der Unterschied vernachlässigbar, bei großen — etwa einem Dummy für einen Hochschulabschluss mit β = 0,45 — nicht mehr: dort stehen 56,8 % gegen 45 %.</p>
+      <div class="warn">
+        Der Unterschied wird in Vergütungsberichten regelmäßig übersehen. Wenn eine Kennzahl als Prozentsatz an Stakeholder geht, sollte sie über <code>exp(β) − 1</code> berechnet sein.
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Interaktiv -->
+  <section class="panel" id="p-interaktiv">
+    <div class="card">
+      <h2>Parameter</h2>
+      <div class="controls" id="controls"></div>
+      <div style="margin-top:1rem; text-align:right;">
+        <button class="ghost" id="reset-btn">Auf Literaturwerte zurücksetzen</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Erfahrungs-Verdienst-Profil</h2>
+      <canvas id="chart"></canvas>
+      <div class="legend">
+        <span style="color: var(--lvl-a)">10 Bildungsjahre</span>
+        <span style="color: var(--lvl-b)">13 Bildungsjahre</span>
+        <span style="color: var(--lvl-c)">17 Bildungsjahre</span>
+      </div>
+      <p class="hint-center" style="margin-top:0.6rem;">Der senkrechte Abstand zwischen den Kurven ist die Bildungsrendite. Die Krümmung ist der Erfahrungseffekt.</p>
+    </div>
+
+    <div class="card">
+      <h2>Beispielperson</h2>
+      <div class="controls">
+        <div class="control">
+          <label for="in-s">Bildungsjahre S</label>
+          <input type="number" id="in-s" min="8" max="22" step="1" value="13">
+          <div class="desc">Schule + Ausbildung/Studium, ab dem ersten Schuljahr gezählt.</div>
+        </div>
+        <div class="control">
+          <label for="in-age">Alter</label>
+          <input type="number" id="in-age" min="16" max="67" step="1" value="39">
+          <div class="desc">Daraus folgt die potenzielle Erfahrung X = Alter − S − 6.</div>
+        </div>
+      </div>
+      <div class="msg" id="person-msg"></div>
+      <div class="stats" style="margin-top:1rem;" id="stats"></div>
+    </div>
+  </section>
+
+  <!-- 4. Vergütungsdaten -->
+  <section class="panel" id="p-daten">
+    <div class="card">
+      <h2>Eine geschätzte Gleichung lesen</h2>
+      <p>So sieht das Ergebnis aus, wenn die Gleichung per Kleinste-Quadrate-Schätzung auf einen Vergütungsdatensatz angewendet wird — hier um einen Geschlechter-Dummy erweitert, wie es in Pay-Equity-Analysen üblich ist.</p>
+      <div class="table-wrap" style="margin-top:1rem;">
+        <table>
+          <thead>
+            <tr><th>Variable</th><th style="text-align:right">Koeffizient</th><th style="text-align:right">Std.-Fehler</th><th>Deutung</th></tr>
+          </thead>
+          <tbody id="coef-body"></tbody>
+        </table>
+      </div>
+      <p class="hint-center" style="margin-top:0.8rem;">n = 2.000 · R² = 0,31 · abhängige Variable: ln(Jahresbruttogehalt)</p>
+      <div class="warn">
+        Diese Zahlen sind <strong>simulierte Illustrationswerte</strong> in der Größenordnung typischer Schätzungen für Deutschland. Sie sind kein Benchmark und kein Ersatz für eine Schätzung auf den eigenen Daten.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>R² = 0,31 — und das ist normal</h2>
+      <p>Bildung und Erfahrung erklären typischerweise nur 25 bis 35 % der Lohnvarianz. Wer das als schlechtes Modell liest, missversteht den Zweck: die Gleichung soll nicht Gehälter vorhersagen, sondern <strong>den erklärbaren Teil sauber herausrechnen</strong>.</p>
+      <p>Die übrigen zwei Drittel stecken in Beruf, Branche, Betriebsgröße, Region, Verhandlung, Leistung — und in allem, was nicht gemessen wird. Ein R² von 0,9 wäre in diesem Kontext kein gutes Zeichen, sondern ein Hinweis darauf, dass eine Variable im Modell steckt, die selbst schon fast das Gehalt ist (etwa die Gehaltsstufe).</p>
+    </div>
+
+    <div class="card">
+      <h2>Das Residuum ist der interessante Teil</h2>
+      <p>Für die Vergütungsanalyse ist ε — die Differenz zwischen tatsächlichem und modelliertem Log-Gehalt — nicht der Fehlerterm, sondern das eigentliche Ergebnis. Drei Anwendungen:</p>
+      <ul class="tight">
+        <li><strong>Bereinigte Entgeltlücke.</strong> Der Koeffizient des Geschlechter-Dummys misst den Lohnunterschied <em>bei gleicher Bildung und gleicher potenzieller Erfahrung</em>. Er ist immer kleiner als die unbereinigte Lücke — das ist keine Entwarnung, sondern verschiebt nur die Frage: Was erklärt den herausgerechneten Teil, und ist diese Erklärung selbst gerechtfertigt?</li>
+        <li><strong>Ausreißer-Diagnostik.</strong> Personen mit stark negativem Residuum verdienen deutlich weniger, als ihr Profil erwarten lässt. Das ist eine Kandidatenliste für die manuelle Prüfung — kein Beweis für Ungleichbehandlung, aber ein sinnvoller Startpunkt.</li>
+        <li><strong>Gehaltsbänder.</strong> Die angepasste Kurve ist eine empirisch begründete Bandmitte. Die Streuung der Residuen liefert eine Bandbreite, die aus den eigenen Daten stammt statt aus einer gesetzten Regel.</li>
+      </ul>
+      <div class="note">
+        <strong>Praktischer Hinweis:</strong> Bei kleinen Gruppen wird jede dieser Kennzahlen instabil. Unter etwa 30 Beobachtungen pro Gruppe sind Koeffizienten kaum interpretierbar, und Residuen einzelner Personen sagen mehr über den Zufall als über die Vergütungspraxis. Konfidenzintervalle gehören in jeden Bericht.
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Grenzen -->
+  <section class="panel" id="p-grenzen">
+    <div class="card">
+      <h2>Grenzen und Fallstricke</h2>
+      <p>Die Gleichung ist robust und weit verbreitet — genau deshalb werden ihre Annahmen leicht übersehen. Fünf, die in der Praxis wirklich stören:</p>
+    </div>
+    <div id="limits"></div>
+  </section>
+
+  <footer>
+    Nach Jacob Mincer, <em>Schooling, Experience, and Earnings</em> (1974), und Gary Becker, <em>Human Capital</em> (1964).<br>
+    Ein Erklär-Tool — alle gezeigten Schätzwerte sind simuliert.
+  </footer>
+
+</div>
+
+<script>
+/* ---------- Inhalte ---------- */
+
+const TABS = [
+  { id: 'p-idee',        label: '1 · Idee' },
+  { id: 'p-gleichung',   label: '2 · Die Gleichung' },
+  { id: 'p-interaktiv',  label: '3 · Interaktiv' },
+  { id: 'p-daten',       label: '4 · Vergütungsdaten' },
+  { id: 'p-grenzen',     label: '5 · Grenzen' }
+];
+
+const TERMS = [
+  { tex: 'ln(w)', op: '=', title: 'ln(w) — logarithmierter Lohn',
+    text: 'Der natürliche Logarithmus des Lohns, meist des Bruttostundenlohns oder des Jahresbruttogehalts. Die Log-Form sorgt dafür, dass alle Effekte als prozentuale Auf- und Abschläge wirken statt als feste Beträge — und sie zieht die rechtsschiefe Verteilung von Löhnen in eine annähernd symmetrische Form, was die Schätzung stabiler macht.' },
+  { tex: 'β₀', op: '+', title: 'β₀ — Achsenabschnitt',
+    text: 'Das rechnerische Log-Lohnniveau einer Person ohne Bildung und ohne Berufserfahrung. Inhaltlich bedeutungslos, weil es niemanden mit S = 0 gibt — β₀ ist ein Verankerungsparameter, kein Mindestlohn. Wer ihn interpretierbar machen will, zentriert S und X um ihre Mittelwerte; dann ist exp(β₀) das Gehalt der Durchschnittsperson.' },
+  { tex: 'ρ · S', op: '+', title: 'ρ · S — Bildungsrendite mal Bildungsjahre',
+    text: 'S sind die Bildungsjahre, gezählt ab dem ersten Schuljahr. ρ ist die zentrale Größe des Modells: die Rendite eines zusätzlichen Ausbildungsjahres. Empirisch liegt sie über Länder und Jahrzehnte hinweg meist zwischen 6 und 10 % pro Jahr, in Deutschland eher am unteren Rand dieser Spanne. Die Linearität ist eine Annahme — Abschlussjahre bringen oft überproportional viel („sheepskin effects").' },
+  { tex: 'β₁ · X', op: '+', title: 'β₁ · X — linearer Erfahrungsterm',
+    text: 'X ist die potenzielle Berufserfahrung, konventionell als Alter − S − 6 berechnet: alles, was nach dem Ende der Ausbildung an Lebenszeit vergangen ist. β₁ ist positiv und beschreibt, wie steil die Löhne zu Beginn der Karriere steigen — typisch sind 4 bis 6 % im ersten Berufsjahr.' },
+  { tex: 'β₂ · X²', op: '+', title: 'β₂ · X² — quadratischer Erfahrungsterm',
+    text: 'β₂ ist negativ und sorgt für die Konkavität: der Zuwachs pro Erfahrungsjahr wird kleiner und kehrt sich irgendwann um. Der Verdienstgipfel liegt bei X* = −β₁ / (2 · β₂), in der Praxis meist zwischen 25 und 35 Jahren Erfahrung. Ohne diesen Term würde das Modell behaupten, Löhne stiegen bis zur Rente linear weiter.' },
+  { tex: 'ε', op: '', title: 'ε — Residuum',
+    text: 'Alles, was das Modell nicht erklärt: Beruf, Branche, Betriebsgröße, Region, Verhandlungsgeschick, Leistung, Glück — und mögliche Ungleichbehandlung. In der Vergütungsanalyse ist ε nicht der lästige Rest, sondern der Gegenstand der Untersuchung.' }
+];
+
+const DEFAULTS = { b0: 9.20, rho: 0.079, b1: 0.051, b2: -0.00084 };
+
+// Deutsche Zahlformatierung mit typografischem Minus
+const de = (v, digits) => v.toFixed(digits).replace('.', ',').replace('-', '−');
+
+const PARAMS = [
+  { key: 'b0',  label: 'β₀ — Achsenabschnitt', min: 8.4,     max: 10.2, step: 0.01,
+    desc: 'Verschiebt alle Kurven nach oben oder unten.', fmt: v => de(v, 2) },
+  { key: 'rho', label: 'ρ — Bildungsrendite',  min: 0,       max: 0.15, step: 0.001,
+    desc: 'Abstand zwischen den Kurven. Empirisch 0,06–0,10.', fmt: v => de(v, 3) },
+  { key: 'b1',  label: 'β₁ — Erfahrung',       min: 0,       max: 0.10, step: 0.001,
+    desc: 'Anfangssteigung der Karrierekurve.', fmt: v => de(v, 3) },
+  { key: 'b2',  label: 'β₂ — Erfahrung²',      min: -0.0030, max: 0,    step: 0.00005,
+    desc: 'Krümmung. Je negativer, desto früher der Gipfel.', fmt: v => de(v, 5) }
+];
+
+const COEFS = [
+  ['Konstante', '9,21', '0,08', 'Verankerung des Niveaus, inhaltlich nicht interpretierbar.'],
+  ['Bildungsjahre S', '0,079', '0,004', 'Ein Ausbildungsjahr bringt exp(0,079) − 1 = <strong>+8,2 %</strong>.'],
+  ['Erfahrung X', '0,051', '0,005', 'Im ersten Berufsjahr rund +5,2 %.'],
+  ['Erfahrung² X²', '−0,00084', '0,00011', 'Negativ ⇒ konkav. Verdienstgipfel bei rund 30 Jahren.'],
+  ['Frau (Dummy)', '−0,112', '0,015', 'Bereinigte Lücke: exp(−0,112) − 1 = <strong>−10,6 %</strong>.']
+];
+
+const LIMITS = [
+  { t: 'Potenzielle ≠ tatsächliche Erfahrung',
+    d: 'X = Alter − S − 6 unterstellt eine lückenlose Erwerbsbiografie. Elternzeit, Pflege und Teilzeit werden mitgezählt, als wären sie Vollzeitjahre. Da diese Unterbrechungen ungleich verteilt sind, wird die tatsächliche Erfahrung bei den betroffenen Gruppen systematisch überschätzt — und die „bereinigte" Entgeltlücke damit zu klein ausgewiesen. Wenn tatsächliche Erwerbsjahre in den Daten vorhanden sind, gehören sie ins Modell.' },
+  { t: 'Ability Bias — ρ ist keine kausale Rendite',
+    d: 'Wer länger zur Schule geht, unterscheidet sich auch sonst: Fähigkeiten, Elternhaus, Motivation. Diese Merkmale erhöhen den Lohn direkt und werden ρ fälschlich zugerechnet. Der geschätzte Koeffizient ist eine <em>Assoziation</em>, keine Wirkung. Die kausale Literatur arbeitet deshalb mit Zwillingsstudien, Schulreformen und Instrumentvariablen — und findet Renditen in ähnlicher, teils sogar leicht höherer Größenordnung.' },
+  { t: 'Selektionsverzerrung',
+    d: 'Geschätzt wird nur auf Personen mit beobachtetem Lohn. Wer nicht erwerbstätig ist, fehlt — und diese Entscheidung hängt selbst vom erzielbaren Lohn ab. Das verzerrt die Schätzung systematisch. Heckmans Zweistufenverfahren ist die klassische Korrektur; in betrieblichen Daten tritt dasselbe Problem als Überlebenseffekt auf, weil nur aktuelle Beschäftigte in der Datei stehen.' },
+  { t: 'Die quadratische Form ist restriktiv',
+    d: 'Ein Polynom zweiten Grades erzwingt einen symmetrischen Auf- und Abstieg um genau einen Gipfel. Murphy und Welch haben gezeigt, dass ein Polynom vierten Grades das tatsächliche Profil deutlich besser trifft: die Löhne steigen am Anfang stärker und fallen am Ende weniger, als das Quadrat behauptet. Bei Fragen zu Berufseinsteigern oder älteren Beschäftigten kann das die Antwort ändern.' },
+  { t: 'Ein gutes Modell ist kein Nachweis von Fairness',
+    d: 'Jede Variable, die ins Modell aufgenommen wird, verschwindet aus der unerklärten Lücke — auch dann, wenn sie selbst Ergebnis von Ungleichbehandlung ist. Wird für die Hierarchieebene kontrolliert und werden Beförderungen ungleich vergeben, misst das Modell die Ungleichheit weg, statt sie zu zeigen. Die Auswahl der Kontrollvariablen ist deshalb keine technische, sondern eine inhaltliche Entscheidung, die begründet und dokumentiert gehört.' }
+];
+
+/* ---------- Zustand ---------- */
+
+const state = Object.assign({}, DEFAULTS);
+let person = { s: 13, age: 39 };
+
+/* ---------- Tabs ---------- */
+
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === id));
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.panel === id));
+  if (id === 'p-interaktiv') drawChart();
+}
+
+document.getElementById('tabs').innerHTML = TABS
+  .map(t => `<button data-panel="${t.id}">${t.label}</button>`).join('');
+document.querySelectorAll('#tabs button').forEach(b => {
+  b.addEventListener('click', () => showPanel(b.dataset.panel));
+});
+
+/* ---------- Formel ---------- */
+
+document.getElementById('formula').innerHTML = TERMS
+  .map((t, i) => `<span class="term" data-i="${i}">${t.tex}</span>` + (t.op ? `<span class="op">${t.op}</span>` : ''))
+  .join('');
+
+function selectTerm(i) {
+  const t = TERMS[i];
+  document.querySelectorAll('.formula .term').forEach(el => el.classList.toggle('active', +el.dataset.i === i));
+  document.getElementById('term-box').innerHTML = `<h3>${t.title}</h3>${t.text}`;
+}
+
+document.querySelectorAll('.formula .term').forEach(el => {
+  el.addEventListener('click', () => selectTerm(+el.dataset.i));
+});
+
+/* ---------- Regler ---------- */
+
+document.getElementById('controls').innerHTML = PARAMS.map(p => `
+  <div class="control">
+    <label for="sl-${p.key}"><span>${p.label}</span><span class="val" id="v-${p.key}"></span></label>
+    <input type="range" id="sl-${p.key}" min="${p.min}" max="${p.max}" step="${p.step}">
+    <div class="desc">${p.desc}</div>
+  </div>`).join('');
+
+PARAMS.forEach(p => {
+  const sl = document.getElementById('sl-' + p.key);
+  sl.addEventListener('input', () => {
+    state[p.key] = parseFloat(sl.value);
+    document.getElementById('v-' + p.key).textContent = p.fmt(state[p.key]);
+    update();
+  });
+});
+
+function syncSliders() {
+  PARAMS.forEach(p => {
+    document.getElementById('sl-' + p.key).value = state[p.key];
+    document.getElementById('v-' + p.key).textContent = p.fmt(state[p.key]);
+  });
+}
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  Object.assign(state, DEFAULTS);
+  syncSliders();
+  update();
+});
+
+['in-s', 'in-age'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    person.s = parseFloat(document.getElementById('in-s').value);
+    person.age = parseFloat(document.getElementById('in-age').value);
+    update();
+  });
+});
+
+/* ---------- Modell ---------- */
+
+function wage(s, x) {
+  return Math.exp(state.b0 + state.rho * s + state.b1 * x + state.b2 * x * x);
+}
+
+function peakExperience() {
+  if (state.b2 >= 0) return null;
+  return -state.b1 / (2 * state.b2);
+}
+
+const euro = v => Math.round(v).toLocaleString('de-DE') + ' €';
+const pct = v => (v >= 0 ? '+' : '−') + Math.abs(v * 100).toFixed(1).replace('.', ',') + ' %';
+
+/* ---------- Chart ---------- */
+
+const LEVELS = [
+  { s: 10, color: '#0ea5e9' },
+  { s: 13, color: '#4f46e5' },
+  { s: 17, color: '#ec4899' }
+];
+const X_MAX = 45;
+
+// Nächstgrößerer "runder" Achsenschritt (1 / 2 / 2,5 / 5 · 10^k)
+function niceTick(raw) {
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const m = raw / mag;
+  const mult = m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10;
+  return mult * mag;
+}
+
+function drawChart() {
+  const canvas = document.getElementById('chart');
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || 600;
+  const cssH = canvas.clientHeight || 320;
+  canvas.width = cssW * dpr;
+  canvas.height = cssH * dpr;
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  const pad = { l: 62, r: 14, t: 16, b: 34 };
+  const plotW = cssW - pad.l - pad.r;
+  const plotH = cssH - pad.t - pad.b;
+
+  // Y-Bereich aus allen gezeichneten Kurven ableiten
+  const levels = LEVELS.concat(
+    LEVELS.some(l => l.s === person.s) ? [] : [{ s: person.s, color: '#0f172a' }]
+  );
+  let yMax = 0;
+  levels.forEach(l => {
+    for (let x = 0; x <= X_MAX; x += 1) yMax = Math.max(yMax, wage(l.s, x));
+  });
+  const tick = niceTick(yMax / 4);
+  yMax = tick * 4;
+
+  const px = x => pad.l + (x / X_MAX) * plotW;
+  const py = w => pad.t + plotH - (w / yMax) * plotH;
+
+  // Gitter + Y-Achsenbeschriftung
+  ctx.font = '11px system-ui, sans-serif';
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.fillStyle = '#64748b';
+  ctx.lineWidth = 1;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i <= 4; i++) {
+    const w = tick * i;
+    const y = py(w);
+    ctx.beginPath();
+    ctx.moveTo(pad.l, y);
+    ctx.lineTo(pad.l + plotW, y);
+    ctx.stroke();
+    ctx.fillText(Math.round(w).toLocaleString('de-DE'), pad.l - 8, y);
+  }
+
+  // X-Achsenbeschriftung
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let x = 0; x <= X_MAX; x += 10) {
+    ctx.fillText(x, px(x), pad.t + plotH + 8);
+  }
+  ctx.fillText('Berufserfahrung in Jahren', pad.l + plotW / 2, pad.t + plotH + 21);
+
+  // Verdienstgipfel
+  const peak = peakExperience();
+  if (peak !== null && peak > 0 && peak < X_MAX) {
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = '#94a3b8';
+    ctx.beginPath();
+    ctx.moveTo(px(peak), pad.t);
+    ctx.lineTo(px(peak), pad.t + plotH);
+    ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = peak > X_MAX * 0.7 ? 'right' : 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Gipfel ≈ ' + peak.toFixed(0) + ' J.', px(peak) + (peak > X_MAX * 0.7 ? -6 : 6), pad.t + 2);
+  }
+
+  // Kurven
+  levels.forEach(l => {
+    ctx.beginPath();
+    for (let x = 0; x <= X_MAX; x += 0.5) {
+      const X = px(x), Y = py(wage(l.s, x));
+      if (x === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+    }
+    ctx.strokeStyle = l.color;
+    ctx.lineWidth = l.s === person.s ? 3.5 : 2;
+    ctx.stroke();
+  });
+
+  // Punkt der Beispielperson
+  const xp = Math.max(0, person.age - person.s - 6);
+  if (xp <= X_MAX && Number.isFinite(xp) && Number.isFinite(person.s)) {
+    const lvl = levels.find(l => l.s === person.s);
+    ctx.beginPath();
+    ctx.arc(px(xp), py(wage(person.s, xp)), 5, 0, Math.PI * 2);
+    ctx.fillStyle = lvl ? lvl.color : '#0f172a';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+/* ---------- Kennzahlen ---------- */
+
+function renderStats() {
+  const msg = document.getElementById('person-msg');
+  const s = person.s, age = person.age;
+
+  if (!Number.isFinite(s) || !Number.isFinite(age)) {
+    msg.textContent = 'Bitte Bildungsjahre und Alter angeben.';
+    document.getElementById('stats').innerHTML = '';
+    return;
+  }
+
+  const xRaw = age - s - 6;
+  const x = Math.max(0, xRaw);
+  msg.textContent = xRaw < 0
+    ? `Mit ${s} Bildungsjahren beginnt das Erwerbsleben frühestens mit ${s + 6} Jahren — X wird auf 0 gesetzt.`
+    : '';
+
+  const peak = peakExperience();
+  const slope = state.b1 + 2 * state.b2 * x;
+
+  const tiles = [
+    { num: euro(wage(s, x)),                          cap: `Prognose bei S = ${s}, X = ${x}` },
+    { num: pct(Math.exp(state.rho) - 1),              cap: 'pro Bildungsjahr (exakt)' },
+    { num: peak === null ? '—' : peak.toFixed(0) + ' J.', cap: 'Verdienstgipfel X*' },
+    { num: pct(slope),                                cap: 'aktueller Zuwachs pro Erfahrungsjahr' },
+    { num: (wage(17, x) / wage(10, x)).toFixed(2).replace('.', ',') + '×', cap: '17 vs. 10 Bildungsjahre' }
+  ];
+
+  document.getElementById('stats').innerHTML = tiles
+    .map(t => `<div class="stat"><div class="num">${t.num}</div><div class="cap">${t.cap}</div></div>`).join('');
+}
+
+/* ---------- Statische Tabellen und Karten ---------- */
+
+document.getElementById('coef-body').innerHTML = COEFS
+  .map(r => `<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td><td>${r[3]}</td></tr>`).join('');
+
+document.getElementById('limits').innerHTML = LIMITS
+  .map(l => `<div class="card"><h3>${l.t}</h3><p>${l.d}</p></div>`).join('');
+
+/* ---------- Boot ---------- */
+
+function update() {
+  drawChart();
+  renderStats();
+}
+
+window.addEventListener('resize', drawChart);
+
+syncSliders();
+selectTerm(0);
+showPanel('p-idee');
+update();
+</script>
+</body>
+</html>
