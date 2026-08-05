@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFBETAS Explorer — Influential Observations in Regression</title>
+<style>
+  :root {
+    --bg: #f6f8fb;
+    --surface: #ffffff;
+    --surface2: #f1f5f9;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --muted: #64748b;
+    --accent: #2563eb;
+    --accent-dark: #1d4ed8;
+    --pos: #dc2626;   /* pulls coefficient up   */
+    --neg: #2563eb;   /* pulls coefficient down */
+    --warn: #b45309;
+    --ok: #059669;
+    --mono: ui-monospace, 'SFMono-Regular', 'Cascadia Code', Consolas, monospace;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+    padding: 1.5rem 1rem 4rem;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  header.page { margin-bottom: 1.75rem; }
+  header.page h1 { font-size: 1.75rem; letter-spacing: -0.02em; }
+  header.page p.lede { color: var(--muted); max-width: 70ch; margin-top: .35rem; }
+
+  section.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  section.card > h2 {
+    font-size: 1.05rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+    margin-bottom: .9rem;
+  }
+  h3 { font-size: 1rem; margin: 1.2rem 0 .4rem; }
+  h3:first-child { margin-top: 0; }
+
+  p + p { margin-top: .6rem; }
+  .muted { color: var(--muted); }
+  .small { font-size: .85rem; }
+  code, .mono { font-family: var(--mono); font-size: .88em; }
+  code { background: var(--surface2); padding: .1em .35em; border-radius: 4px; }
+
+  textarea {
+    width: 100%;
+    min-height: 150px;
+    font-family: var(--mono);
+    font-size: .82rem;
+    padding: .7rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    resize: vertical;
+    background: var(--surface2);
+    color: var(--text);
+  }
+
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+  .row + .row { margin-top: .7rem; }
+  .grow { flex: 1 1 220px; }
+
+  button, .btn {
+    font: inherit;
+    font-size: .88rem;
+    padding: .45rem .85rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  button:hover { background: var(--surface2); }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+  button.primary:hover { background: var(--accent-dark); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+
+  select, input[type=number], input[type=text] {
+    font: inherit;
+    font-size: .88rem;
+    padding: .4rem .5rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+  }
+  label.inline { display: inline-flex; align-items: center; gap: .35rem; font-size: .88rem; }
+
+  .field { display: flex; flex-direction: column; gap: .25rem; }
+  .field > span { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+
+  .checklist {
+    display: flex; flex-wrap: wrap; gap: .4rem;
+    max-height: 190px; overflow-y: auto;
+    padding: .5rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface2);
+  }
+  .checklist label {
+    display: inline-flex; align-items: center; gap: .35rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: .2rem .6rem;
+    font-size: .85rem;
+    cursor: pointer;
+  }
+  .checklist label.cat { border-style: dashed; }
+  .checklist label:has(input:checked) { border-color: var(--accent); background: #eff6ff; }
+
+  .msg { padding: .6rem .8rem; border-radius: 6px; font-size: .88rem; margin-top: .7rem; }
+  .msg.err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+  .msg.warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+  .msg.info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+  .hidden { display: none !important; }
+
+  /* ── stats strip ── */
+  .stats { display: flex; flex-wrap: wrap; gap: .6rem; }
+  .stat {
+    flex: 1 1 110px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .55rem .7rem;
+  }
+  .stat .k { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .stat .v { font-size: 1.15rem; font-weight: 600; font-family: var(--mono); }
+
+  /* ── tables ── */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: .85rem; }
+  th, td { padding: .4rem .55rem; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--border); }
+  th { background: var(--surface2); font-weight: 600; position: sticky; top: 0; z-index: 1; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--accent); }
+  th.sortable.active::after { content: ' \25BC'; font-size: .7em; }
+  th.sortable.active.asc::after { content: ' \25B2'; }
+  td.left, th.left { text-align: left; }
+  tbody tr:hover { background: #f8fafc; }
+  tbody tr.flagged td.idx { font-weight: 700; }
+  tbody tr.selected { outline: 2px solid var(--accent); outline-offset: -2px; }
+  td.num { font-family: var(--mono); }
+  td.cell { font-family: var(--mono); position: relative; }
+  .flag { display: inline-block; width: .5rem; height: .5rem; border-radius: 50%; background: var(--warn); margin-left: .3rem; vertical-align: middle; }
+
+  .legend { display: flex; align-items: center; gap: .4rem; font-size: .8rem; color: var(--muted); margin-top: .6rem; flex-wrap: wrap; }
+  .swatch { width: 1.6rem; height: .7rem; border-radius: 2px; border: 1px solid var(--border); }
+
+  /* ── detail panel ── */
+  #detail { margin-top: 1rem; }
+  .detail-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1rem; }
+  /* Grid items default to min-width:auto, which lets a wide table inflate its track and
+     push the whole page sideways. Pin it to 0 so .tablewrap scrolls instead. */
+  .detail-grid > * { min-width: 0; }
+  @media (max-width: 820px) { .detail-grid { grid-template-columns: 1fr; } }
+  .bar-track { position: relative; height: 1rem; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .bar-track .zero { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: #94a3b8; }
+  .bar-track .bar { position: absolute; top: 0; bottom: 0; }
+  .kbd { font-family: var(--mono); font-size: .8rem; color: var(--muted); }
+
+  details.explain { border-top: 1px solid var(--border); padding-top: .8rem; margin-top: .8rem; }
+  details.explain > summary { cursor: pointer; font-weight: 600; font-size: .92rem; }
+  details.explain > summary:hover { color: var(--accent); }
+  details.explain[open] > summary { margin-bottom: .5rem; }
+
+  ul.tips { margin: .4rem 0 .4rem 1.2rem; }
+  ul.tips li { margin-bottom: .25rem; }
+
+  .formula {
+    font-family: var(--mono);
+    background: var(--surface2);
+    border-left: 3px solid var(--accent);
+    padding: .6rem .8rem;
+    border-radius: 0 6px 6px 0;
+    overflow-x: auto;
+    font-size: .85rem;
+    margin: .6rem 0;
+  }
+
+  /* No preserveAspectRatio="none": stretching the viewBox distorts the tick labels. */
+  svg.plot { width: 100%; height: auto; aspect-ratio: 1000 / 230; display: block; }
+  .plot-bg { fill: var(--surface2); }
+
+  @media (max-width: 640px) {
+    body { padding: 1rem .6rem 3rem; }
+    .stat { flex-basis: 45%; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <h1>DFBETAS Explorer</h1>
+  <p class="lede">
+    Paste your data, fit an OLS regression, and find out <strong>which rows bend the model</strong> —
+    and <strong>which column of that row is responsible</strong>. Everything runs locally in your browser;
+    nothing is uploaded.
+  </p>
+</header>
+
+<!-- ══════════════ 1 · DATA ══════════════ -->
+<section class="card">
+  <h2>1 · Data</h2>
+  <div class="row">
+    <button id="demo1">Demo: vertical outlier</button>
+    <button id="demo2">Demo: high-leverage point</button>
+    <button id="demo3">Demo: 3 predictors, one bad row</button>
+    <button id="demoCat">Demo: with a categorical column</button>
+    <label class="btn" for="fileIn" style="display:inline-block">Load file…</label>
+    <input type="file" id="fileIn" accept=".csv,.tsv,.txt" class="hidden">
+    <button id="clearBtn">Clear</button>
+  </div>
+  <div class="row">
+    <textarea id="dataIn" spellcheck="false"
+      placeholder="Paste CSV / TSV / semicolon-separated data here. First row = column names.&#10;&#10;id,x1,x2,y&#10;1,3.2,10,14.1&#10;2,4.8,12,18.7&#10;..."></textarea>
+  </div>
+  <div class="row">
+    <label class="inline"><input type="checkbox" id="hasHeader" checked> First row contains column names</label>
+    <label class="inline">Separator
+      <select id="sep">
+        <option value="auto" selected>auto-detect</option>
+        <option value=",">comma ,</option>
+        <option value=";">semicolon ; (decimal comma)</option>
+        <option value="\t">tab</option>
+        <option value="|">pipe |</option>
+        <option value=" ">whitespace</option>
+      </select>
+    </label>
+    <button class="primary" id="parseBtn">Read data</button>
+  </div>
+  <div id="parseMsg"></div>
+</section>
+
+<!-- ══════════════ 2 · MODEL ══════════════ -->
+<section class="card hidden" id="modelCard">
+  <h2>2 · Model</h2>
+  <div class="row">
+    <div class="field grow">
+      <span>Response (y)</span>
+      <select id="ySel"></select>
+    </div>
+    <div class="field grow">
+      <span>Row label (optional)</span>
+      <select id="labelSel"></select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field grow">
+      <span>Predictors (x)</span>
+      <div class="checklist" id="xList"></div>
+    </div>
+  </div>
+  <div class="row">
+    <label class="inline"><input type="checkbox" id="intercept" checked> Include intercept</label>
+    <label class="inline">Cut-off rule
+      <select id="cutRule">
+        <option value="2sqrtn" selected>|DFBETAS| &gt; 2/&radic;n (default)</option>
+        <option value="one">|DFBETAS| &gt; 1 (small samples)</option>
+        <option value="custom">custom…</option>
+      </select>
+    </label>
+    <input type="number" id="cutVal" step="0.05" min="0" value="1" class="hidden" style="width:6rem">
+    <button class="primary" id="runBtn">Run diagnostics</button>
+  </div>
+  <div id="modelMsg"></div>
+</section>
+
+<!-- ══════════════ 3 · RESULTS ══════════════ -->
+<section class="card hidden" id="fitCard">
+  <h2>3 · Fitted model</h2>
+  <div class="stats" id="fitStats"></div>
+  <h3>Coefficients</h3>
+  <div class="tablewrap"><table id="coefTable"></table></div>
+  <div id="fitMsg"></div>
+</section>
+
+<section class="card hidden" id="diagCard">
+  <h2>4 · Influence per observation</h2>
+  <div id="diagSummary"></div>
+  <div class="row" style="margin-bottom:.7rem">
+    <label class="inline">Show
+      <select id="topN">
+        <option value="15">top 15</option>
+        <option value="30" selected>top 30</option>
+        <option value="100">top 100</option>
+        <option value="0">all rows</option>
+      </select>
+    </label>
+    <label class="inline"><input type="checkbox" id="onlyFlagged"> only flagged rows</label>
+    <button id="exportBtn">Export diagnostics as CSV</button>
+  </div>
+  <div class="tablewrap" style="max-height:60vh; overflow-y:auto">
+    <table id="diagTable"></table>
+  </div>
+  <div class="legend">
+    <span>DFBETAS colour:</span>
+    <span class="swatch" style="background:#2563eb"></span><span>strongly negative</span>
+    <span class="swatch" style="background:#ffffff"></span><span>≈ 0</span>
+    <span class="swatch" style="background:#dc2626"></span><span>strongly positive</span>
+    <span>· <span class="flag"></span> = above cut-off · click a row for the full story</span>
+  </div>
+
+  <h3>Index plot</h3>
+  <div class="row">
+    <label class="inline">Coefficient
+      <select id="plotCoef"></select>
+    </label>
+    <label class="inline" title="One huge value otherwise flattens every other row onto the zero line. Tick labels always show true values.">
+      <input type="checkbox" id="plotSqrt" checked> compress scale (signed &radic;)
+    </label>
+  </div>
+  <svg class="plot" id="indexPlot"></svg>
+
+  <div id="detail"></div>
+</section>
+
+<!-- ══════════════ EXPLAINER ══════════════ -->
+<section class="card">
+  <h2>What DFBETAS actually measures</h2>
+
+  <p>
+    Fit the model once with all <em>n</em> rows. Then delete row <em>i</em>, fit again, and look at how far
+    coefficient <em>b<sub>j</sub></em> moved. That raw movement is <strong>DFBETA</strong>. Divide it by the
+    standard error of the coefficient (estimated <em>without</em> row <em>i</em>) and you get
+    <strong>DFBETAS</strong> — a unitless number you can compare across predictors and across datasets:
+  </p>
+
+  <div class="formula">
+    DFBETAS<sub>j(i)</sub> = ( b<sub>j</sub> − b<sub>j(i)</sub> ) / ( s<sub>(i)</sub> · &radic;(X′X)<sup>−1</sup><sub>jj</sub> )
+  </div>
+
+  <p class="small muted">
+    Read it as: <em>“dropping this one row moves this one coefficient by X standard errors.”</em>
+    DFBETAS = 0.8 for <code>income</code> means that row alone shifts the income effect by 0.8 SE —
+    often enough to flip a conclusion. The sign tells you the direction the row is
+    <em>pulling</em>: positive means the coefficient is higher <em>because</em> of that row.
+  </p>
+
+  <details class="explain" open>
+    <summary>Which column of the row is to blame?</summary>
+    <p>
+      DFBETAS factors exactly into two interpretable pieces (no approximation — this is an identity):
+    </p>
+    <div class="formula">
+      DFBETAS<sub>j(i)</sub> = sign(r<sub>ij</sub>) · &radic;(partial leverage<sub>ij</sub>) · t<sub>i</sub> / &radic;(1 − h<sub>i</sub>)
+    </div>
+    <ul class="tips">
+      <li><strong>Partial leverage</strong> <span class="mono">pl<sub>ij</sub> = r<sub>ij</sub>² / Σ<sub>k</sub> r<sub>kj</sub>²</span>
+          — how unusual the row's value of predictor <em>j</em> is <em>after adjusting for all the other
+          predictors</em> (<span class="mono">r<sub>j</sub></span> = residuals of regressing column <em>j</em> on the
+          rest). This is the “which column” part: a row can be perfectly ordinary in every raw column and still have
+          huge partial leverage on one of them, because its <em>combination</em> of values is unusual.</li>
+      <li><strong>Studentized deleted residual</strong> <span class="mono">t<sub>i</sub></span> — how badly the
+          model misses this row's <em>y</em>. This part is shared by every coefficient, which is why a single wild
+          <em>y</em> value lights up the whole row.</li>
+    </ul>
+    <p class="small muted">
+      Both factors must be non-trivial to get a large DFBETAS. A row far out in x but perfectly on the line is
+      harmless (t ≈ 0). A row with a wild residual sitting in the middle of the x-cloud pulls the intercept, not the
+      slopes (pl ≈ 0 for the slopes). Click any row in the table above to see this split per coefficient,
+      plus a genuine refit without that row for verification.
+    </p>
+  </details>
+
+  <details class="explain">
+    <summary>Cut-offs — and why not to trust them blindly</summary>
+    <ul class="tips">
+      <li><span class="mono">|DFBETAS| &gt; 2/&radic;n</span> — the usual size-adjusted screening rule (Belsley,
+          Kuh &amp; Welsch). Designed to flag roughly a fixed small fraction of rows in large samples.</li>
+      <li><span class="mono">|DFBETAS| &gt; 1</span> — the pragmatic rule for small <em>n</em>, where 2/&radic;n
+          is so low that it flags a third of the data.</li>
+      <li>Cut-offs are <strong>screening devices, not tests</strong>. In a clean dataset with n = 100 you should
+          <em>expect</em> a handful of rows above 2/&radic;n. What matters is the gap: one row an order of
+          magnitude above the rest is a finding; twenty rows just over the line is normal noise.</li>
+    </ul>
+  </details>
+
+  <details class="explain">
+    <summary>How DFBETAS relates to leverage, Cook's D and DFFITS</summary>
+    <ul class="tips">
+      <li><strong>Leverage h<sub>i</sub></strong> — potential to be influential, from the x-values alone.
+          <em>y</em> never enters. Rule of thumb: <span class="mono">h<sub>i</sub> &gt; 2p/n</span>.
+          High leverage is opportunity, not guilt.</li>
+      <li><strong>Studentized deleted residual t<sub>i</sub></strong> — is the row an outlier in <em>y</em>?
+          Compare against a t-distribution with n − p − 1 df; |t| &gt; 3 is worth a look.</li>
+      <li><strong>Cook's D</strong> — one number per row for the influence on <em>all fitted values at once</em>.
+          Great for triage, but it tells you nothing about <em>which</em> coefficient moved.
+          Rules of thumb: <span class="mono">D &gt; 4/n</span> (screening) or <span class="mono">D &gt; 1</span> (strict).</li>
+      <li><strong>DFFITS</strong> — influence on that row's own fitted value;
+          <span class="mono">|DFFITS| &gt; 2&radic;(p/n)</span>.</li>
+      <li><strong>DFBETAS</strong> — the only one that is <em>per coefficient</em>. Use Cook's D to find the
+          suspects, DFBETAS to learn what they did.</li>
+    </ul>
+    <p class="small muted">
+      Note the deletion diagnostics here are computed with the exact closed-form update
+      (b − b<sub>(i)</sub> = (X′X)<sup>−1</sup>x<sub>i</sub>e<sub>i</sub> / (1 − h<sub>i</sub>)), so results are
+      identical to actually refitting n times — just faster.
+    </p>
+  </details>
+
+  <details class="explain">
+    <summary>You found an influential row. Now what?</summary>
+    <ul class="tips">
+      <li><strong>Check it first.</strong> A large share of influential points are data errors: a decimal shifted,
+          a unit mix-up, a missing-value sentinel like −999 or 9999 read as a real number.</li>
+      <li><strong>Don't delete it just because it is influential.</strong> Deleting inconvenient rows biases both
+          the estimates and every standard error you report. Influence is a property of the
+          <em>model</em> as much as the row.</li>
+      <li><strong>Ask what the row is telling you.</strong> A single point carrying the whole slope usually means
+          the predictor's range is too thin to identify the effect, or that the functional form is wrong
+          (a log or a quadratic often makes the point unremarkable).</li>
+      <li><strong>Report both fits.</strong> “With and without observation 23” is a legitimate, honest robustness
+          check — and far more informative than silently dropping it.</li>
+      <li><strong>Consider robust regression</strong> (Huber, MM-estimators) if influential rows are genuine but
+          you don't want them dominating.</li>
+      <li><strong>Watch for masking.</strong> Two similar influential rows can hide each other: delete either one
+          alone and nothing much happens. Single-row diagnostics cannot see this — if you suspect it, re-run after
+          removing the top row and see what surfaces.</li>
+    </ul>
+  </details>
+</section>
+
+<p class="small muted" style="text-align:center">
+  All computation is local. Data is kept in your browser's localStorage so a reload does not lose your work.
+</p>
+
+</div>
+
+<script>
+"use strict";
+
+/* ══════════════════════════════════════════════════════════════
+   Numeric helpers
+   ══════════════════════════════════════════════════════════════ */
+
+function gammaln(x) {
+  const c = [76.18009172947146, -86.50532032941677, 24.01409824083091,
+             -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
+  let y = x, tmp = x + 5.5;
+  tmp -= (x + 0.5) * Math.log(tmp);
+  let ser = 1.000000000190015;
+  for (let j = 0; j < 6; j++) ser += c[j] / ++y;
+  return -tmp + Math.log(2.5066282746310005 * ser / x);
+}
+
+function betacf(a, b, x) {
+  const MAXIT = 200, EPS = 3e-14, FPMIN = 1e-300;
+  const qab = a + b, qap = a + 1, qam = a - 1;
+  let c = 1, d = 1 - qab * x / qap;
+  if (Math.abs(d) < FPMIN) d = FPMIN;
+  d = 1 / d;
+  let h = d;
+  for (let m = 1; m <= MAXIT; m++) {
+    const m2 = 2 * m;
+    let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+    d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN;
+    c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN;
+    d = 1 / d; h *= d * c;
+    aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+    d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN;
+    c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN;
+    d = 1 / d;
+    const del = d * c;
+    h *= del;
+    if (Math.abs(del - 1) < EPS) break;
+  }
+  return h;
+}
+
+/** Regularized incomplete beta I_x(a,b). */
+function ibeta(a, b, x) {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const bt = Math.exp(gammaln(a + b) - gammaln(a) - gammaln(b) +
+                      a * Math.log(x) + b * Math.log(1 - x));
+  return x < (a + 1) / (a + b + 2)
+    ? bt * betacf(a, b, x) / a
+    : 1 - bt * betacf(b, a, 1 - x) / b;
+}
+
+/** Two-sided p-value of a t statistic. */
+function tPvalue(t, df) {
+  if (!isFinite(t) || df <= 0) return NaN;
+  return ibeta(df / 2, 0.5, df / (df + t * t));
+}
+
+const sum = arr => arr.reduce((a, v) => a + v, 0);
+const mean = arr => sum(arr) / arr.length;
+function sd(arr) {
+  if (arr.length < 2) return 0;
+  const m = mean(arr);
+  return Math.sqrt(sum(arr.map(v => (v - m) ** 2)) / (arr.length - 1));
+}
+
+function fmt(x, d = 3) {
+  if (x === null || x === undefined || Number.isNaN(x)) return "—";
+  if (!isFinite(x)) return x > 0 ? "∞" : "−∞";
+  const a = Math.abs(x);
+  if (a !== 0 && (a < 1e-4 || a >= 1e6)) return x.toExponential(2);
+  return x.toFixed(d);
+}
+function fmtP(p) {
+  if (Number.isNaN(p)) return "—";
+  if (p < 1e-4) return "<0.0001";
+  return p.toFixed(4);
+}
+const esc = s => String(s).replace(/[&<>"']/g, c =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/* ══════════════════════════════════════════════════════════════
+   Linear algebra — modified Gram-Schmidt QR with reorthogonalization
+   ══════════════════════════════════════════════════════════════ */
+
+class RankError extends Error {
+  constructor(col) { super("rank deficient at column " + col); this.col = col; }
+}
+
+/**
+ * @param cols array of p Float64Array(n) — the design matrix, column-major.
+ * @returns {Q, R} with Q[j] = Float64Array(n) orthonormal columns, R[i][j] upper triangular.
+ */
+function qrMGS(cols, n, p) {
+  const Q = cols.map(c => Float64Array.from(c));
+  const R = Array.from({ length: p }, () => new Float64Array(p));
+  const norm0 = cols.map(c => Math.sqrt(sum(Array.from(c, v => v * v))));
+
+  for (let j = 0; j < p; j++) {
+    for (let pass = 0; pass < 2; pass++) {          // 2nd pass = reorthogonalization
+      for (let k = 0; k < j; k++) {
+        let d = 0;
+        for (let i = 0; i < n; i++) d += Q[k][i] * Q[j][i];
+        R[k][j] += d;
+        for (let i = 0; i < n; i++) Q[j][i] -= d * Q[k][i];
+      }
+    }
+    let nrm = 0;
+    for (let i = 0; i < n; i++) nrm += Q[j][i] * Q[j][i];
+    nrm = Math.sqrt(nrm);
+    if (nrm < 1e-9 * Math.max(norm0[j], 1e-12)) throw new RankError(j);
+    R[j][j] = nrm;
+    for (let i = 0; i < n; i++) Q[j][i] /= nrm;
+  }
+  return { Q, R };
+}
+
+/** Inverse of an upper triangular matrix. */
+function invUpper(R, p) {
+  const I = Array.from({ length: p }, () => new Float64Array(p));
+  for (let j = p - 1; j >= 0; j--) {
+    I[j][j] = 1 / R[j][j];
+    for (let i = j - 1; i >= 0; i--) {
+      let s = 0;
+      for (let k = i + 1; k <= j; k++) s += R[i][k] * I[k][j];
+      I[i][j] = -s / R[i][i];
+    }
+  }
+  return I;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   OLS fit + deletion diagnostics
+   ══════════════════════════════════════════════════════════════ */
+
+/**
+ * Fits y ~ X and returns coefficients plus every single-deletion diagnostic.
+ * cols: design matrix column-major (intercept already included if wanted).
+ */
+function fitOLS(cols, y, names) {
+  const p = cols.length, n = y.length;
+  const { Q, R } = qrMGS(cols, n, p);
+  const Rinv = invUpper(R, p);
+
+  // C = (X'X)^-1 = Rinv * Rinv'
+  const C = Array.from({ length: p }, () => new Float64Array(p));
+  for (let i = 0; i < p; i++)
+    for (let j = 0; j < p; j++) {
+      let s = 0;
+      for (let k = 0; k < p; k++) s += Rinv[i][k] * Rinv[j][k];
+      C[i][j] = s;
+    }
+
+  // b = Rinv * (Q' y)
+  const qty = new Float64Array(p);
+  for (let k = 0; k < p; k++) {
+    let s = 0;
+    for (let i = 0; i < n; i++) s += Q[k][i] * y[i];
+    qty[k] = s;
+  }
+  const b = new Float64Array(p);
+  for (let j = 0; j < p; j++) {
+    let s = 0;
+    for (let k = j; k < p; k++) s += Rinv[j][k] * qty[k];
+    b[j] = s;
+  }
+
+  // fitted, residuals, leverage
+  const fitted = new Float64Array(n), e = new Float64Array(n), h = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    let f = 0, hi = 0;
+    for (let j = 0; j < p; j++) { f += cols[j][i] * b[j]; hi += Q[j][i] * Q[j][i]; }
+    fitted[i] = f;
+    e[i] = y[i] - f;
+    h[i] = Math.min(hi, 1);           // guard against 1+eps from rounding
+  }
+
+  const sse = sum(Array.from(e, v => v * v));
+  const dfRes = n - p;
+  const s2 = sse / dfRes;
+  const ybar = mean(Array.from(y));
+  const sst = sum(Array.from(y, v => (v - ybar) ** 2));
+  const hasIntercept = names[0] === "(Intercept)";
+  const r2 = sst > 0 ? 1 - sse / sst : NaN;
+  const r2adj = 1 - (1 - r2) * (n - (hasIntercept ? 1 : 0)) / dfRes;
+
+  const se = Array.from({ length: p }, (_, j) => Math.sqrt(s2 * C[j][j]));
+  const tval = Array.from({ length: p }, (_, j) => b[j] / se[j]);
+  const pval = tval.map(t => tPvalue(t, dfRes));
+
+  /* ── per-observation deletion diagnostics ── */
+  const dfDel = n - p - 1;                       // df of s_(i)
+  const dfbetas = [];   // n × p
+  const partLev = [];   // n × p  partial leverage
+  const dfbetaRaw = []; // n × p  unstandardized coefficient shift
+  const tDel = new Float64Array(n);
+  const cook = new Float64Array(n);
+  const dffits = new Float64Array(n);
+  const sDel = new Float64Array(n);
+
+  for (let i = 0; i < n; i++) {
+    const oneMinusH = Math.max(1 - h[i], 1e-12);
+    const s2i = dfDel > 0
+      ? Math.max((sse - e[i] * e[i] / oneMinusH) / dfDel, 0)
+      : NaN;
+    const si = Math.sqrt(s2i);
+    sDel[i] = si;
+
+    tDel[i] = si > 0 ? e[i] / (si * Math.sqrt(oneMinusH)) : (e[i] === 0 ? 0 : Infinity);
+    cook[i] = (e[i] * e[i] * h[i]) / (p * s2 * oneMinusH * oneMinusH);
+    dffits[i] = tDel[i] * Math.sqrt(h[i] / oneMinusH);
+
+    // v_i = C x_i = Rinv q_i   (q_i = row i of Q)
+    const rowD = new Float64Array(p), rowPL = new Float64Array(p), rowRaw = new Float64Array(p);
+    for (let j = 0; j < p; j++) {
+      let v = 0;
+      for (let k = j; k < p; k++) v += Rinv[j][k] * Q[k][i];
+      const shift = v * e[i] / oneMinusH;          // b_j - b_j(i)
+      rowRaw[j] = shift;
+      rowD[j] = si > 0 ? shift / (si * Math.sqrt(C[j][j])) : (shift === 0 ? 0 : Infinity);
+      rowPL[j] = (v * v) / C[j][j];                // partial leverage in [0,1]
+    }
+    dfbetas.push(rowD); partLev.push(rowPL); dfbetaRaw.push(rowRaw);
+  }
+
+  return { n, p, names, b, se, tval, pval, C, cols, y, fitted, e, h,
+           sse, s2, dfRes, dfDel, r2, r2adj, rmse: Math.sqrt(s2),
+           dfbetas, dfbetaRaw, partLev, tDel, cook, dffits, sDel };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Parsing
+   ══════════════════════════════════════════════════════════════ */
+
+function detectSep(text) {
+  const line = text.split(/\r?\n/).find(l => l.trim().length) || "";
+  const cands = [",", ";", "\t", "|"];
+  let best = ",", bestCount = 0;
+  for (const c of cands) {
+    const k = line.split(c).length - 1;
+    if (k > bestCount) { bestCount = k; best = c; }
+  }
+  if (bestCount === 0 && /\s{1,}/.test(line.trim())) return " ";
+  return best;
+}
+
+/** Splits one line, honouring double quotes. */
+function splitLine(line, sep) {
+  if (sep === " ") return line.trim().split(/\s+/);
+  const out = [];
+  let cur = "", inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (ch === sep && !inQ) { out.push(cur); cur = ""; }
+    else cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
+
+/** Blank cells and the usual missing-value tokens. */
+function isMissing(raw) {
+  const s = String(raw).trim().replace(/^"|"$/g, "");
+  return s === "" || /^(na|n\.a\.|nan|null|nil|none|missing|n\/a|\.|-|--|\?)$/i.test(s);
+}
+
+function toNumber(raw, decimalComma) {
+  let s = String(raw).trim().replace(/^"|"$/g, "");
+  if (isMissing(s)) return null;
+  if (decimalComma) s = s.replace(/\./g, "").replace(",", ".");
+  else if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) s = s.replace(/,/g, ""); // 1,234.56
+  s = s.replace(/\s|%| /g, "");
+  const v = Number(s);
+  return Number.isFinite(v) ? v : null;
+}
+
+/**
+ * Parses raw text into {columns: [{name, kind, values, levels}], nRows}
+ * kind: "num" | "cat"
+ */
+function parseData(text, sepChoice, hasHeader) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+  if (lines.length < 2) throw new Error("Need at least 2 non-empty lines.");
+
+  let sep = sepChoice === "auto" ? detectSep(text)
+          : sepChoice === "\\t" ? "\t" : sepChoice;
+  const decimalComma = sep === ";";
+
+  const rows = lines.map(l => splitLine(l, sep).map(c => c.trim().replace(/^"|"$/g, "")));
+  const width = Math.max(...rows.map(r => r.length));
+  const bad = rows.findIndex(r => r.length !== width);
+  if (bad >= 0 && rows.filter(r => r.length !== width).length > rows.length * 0.1)
+    throw new Error(`Inconsistent number of fields (line ${bad + 1} has ${rows[bad].length}, expected ${width}). Wrong separator?`);
+
+  const names = hasHeader
+    ? rows[0].map((h, i) => h || `V${i + 1}`)
+    : rows[0].map((_, i) => `V${i + 1}`);
+  const body = hasHeader ? rows.slice(1) : rows;
+  if (!body.length) throw new Error("No data rows found.");
+
+  const columns = names.map((name, j) => {
+    const raw = body.map(r => (r[j] === undefined ? "" : r[j]));
+    const nums = raw.map(v => toNumber(v, decimalComma));
+    // Missing markers must not count against a column being numeric — otherwise a
+    // perfectly good numeric column with two NAs is treated as a factor.
+    const present = raw.filter(v => !isMissing(v)).length;
+    const numeric = nums.filter(v => v !== null).length;
+    const isNum = present > 0 && numeric >= present * 0.95;
+    if (isNum) return { name, kind: "num", values: nums, raw, nMissing: raw.length - present };
+    const levels = [...new Set(raw.filter(v => !isMissing(v)))].sort();
+    return { name, kind: "cat", values: raw, raw, levels, nMissing: raw.length - present };
+  });
+
+  return { columns, nRows: body.length, sep, decimalComma };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   App state
+   ══════════════════════════════════════════════════════════════ */
+
+const S = {
+  parsed: null,     // output of parseData
+  used: null,       // {rowIdx, labels}
+  fit: null,
+  cut: 0,
+  sortKey: "maxabs",
+  sortAsc: false,
+  selected: null
+};
+
+const $ = id => document.getElementById(id);
+
+/* ── persistence ── */
+const LS_KEY = "dfbetas_tool_v1";
+function saveState() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      data: $("dataIn").value.slice(0, 400000),
+      hasHeader: $("hasHeader").checked,
+      sep: $("sep").value,
+      cutRule: $("cutRule").value,
+      cutVal: $("cutVal").value,
+      intercept: $("intercept").checked
+    }));
+  } catch (_) { /* quota — ignore */ }
+}
+function loadState() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return false;
+    const o = JSON.parse(raw);
+    if (!o.data) return false;
+    $("dataIn").value = o.data;
+    $("hasHeader").checked = o.hasHeader !== false;
+    $("sep").value = o.sep || "auto";
+    $("cutRule").value = o.cutRule || "2sqrtn";
+    $("cutVal").value = o.cutVal || 1;
+    $("intercept").checked = o.intercept !== false;
+    return true;
+  } catch (_) { return false; }
+}
+
+function msg(el, kind, html) {
+  $(el).innerHTML = html ? `<div class="msg ${kind}">${html}</div>` : "";
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Demo data (synthetic, seeded — reproducible)
+   ══════════════════════════════════════════════════════════════ */
+
+function lcg(seed) {
+  let s = seed >>> 0;
+  return () => { s = (1664525 * s + 1013904223) >>> 0; return s / 4294967296; };
+}
+/** Box-Muller normal from a uniform generator. */
+function normGen(rnd) {
+  return () => Math.sqrt(-2 * Math.log(rnd() || 1e-12)) * Math.cos(2 * Math.PI * rnd());
+}
+
+function demoOutlier() {
+  const rnd = lcg(7), nz = normGen(rnd), rows = ["id,x,y"];
+  for (let i = 1; i <= 24; i++) {
+    const x = 1 + 0.4 * i + 0.6 * nz();
+    let y = 3 + 1.8 * x + 1.2 * nz();
+    if (i === 13) y += 22;                       // vertical outlier, middling x
+    rows.push(`${i},${x.toFixed(2)},${y.toFixed(2)}`);
+  }
+  return rows.join("\n");
+}
+
+function demoLeverage() {
+  const rnd = lcg(21), nz = normGen(rnd), rows = ["id,x,y"];
+  for (let i = 1; i <= 24; i++) {
+    let x = 2 + 0.35 * i + 0.5 * nz();
+    let y = 5 + 1.5 * x + 1.1 * nz();
+    if (i === 24) { x = 32; y = 20; }            // far out in x AND off the line
+    rows.push(`${i},${x.toFixed(2)},${y.toFixed(2)}`);
+  }
+  return rows.join("\n");
+}
+
+function demoMulti() {
+  const rnd = lcg(99), nz = normGen(rnd), rows = ["id,size,age,rooms,price"];
+  for (let i = 1; i <= 40; i++) {
+    let size = 80 + 25 * nz();
+    let age = Math.abs(20 + 12 * nz());
+    let rooms = Math.max(1, Math.round(size / 28 + 0.4 * nz()));
+    let price = 50 + 2.4 * size - 0.8 * age + 6 * rooms + 12 * nz();
+    if (i === 17) { rooms = 11; price = 210; }   // unusual rooms *given* size
+    rows.push(`${i},${size.toFixed(1)},${age.toFixed(1)},${rooms},${price.toFixed(1)}`);
+  }
+  return rows.join("\n");
+}
+
+function demoCategorical() {
+  const rnd = lcg(404), nz = normGen(rnd), rows = ["id,region,spend,revenue"];
+  const regions = ["north", "south", "west"];
+  for (let i = 1; i <= 36; i++) {
+    const reg = regions[i % 3];
+    let spend = 10 + 4 * Math.abs(nz());
+    const base = reg === "north" ? 20 : reg === "south" ? 26 : 31;
+    let revenue = base + 3.1 * spend + 3 * nz();
+    if (i === 8) revenue += 34;                  // one region gets dragged
+    rows.push(`${i},${reg},${spend.toFixed(2)},${revenue.toFixed(2)}`);
+  }
+  return rows.join("\n");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Step 1 — read data
+   ══════════════════════════════════════════════════════════════ */
+
+function readData() {
+  const text = $("dataIn").value;
+  msg("parseMsg", "", "");
+  if (!text.trim()) { msg("parseMsg", "err", "Paste some data first."); return; }
+  let parsed;
+  try {
+    parsed = parseData(text, $("sep").value, $("hasHeader").checked);
+  } catch (err) {
+    msg("parseMsg", "err", esc(err.message));
+    $("modelCard").classList.add("hidden");
+    return;
+  }
+  S.parsed = parsed;
+  clearResults();
+
+  const numCols = parsed.columns.filter(c => c.kind === "num");
+  const sepName = { ",": "comma", ";": "semicolon", "\t": "tab", "|": "pipe", " ": "whitespace" }[parsed.sep] || parsed.sep;
+  msg("parseMsg", "info",
+    `Read <strong>${parsed.nRows}</strong> rows × <strong>${parsed.columns.length}</strong> columns ` +
+    `(separator: ${sepName}${parsed.decimalComma ? ", decimal comma" : ""}). ` +
+    `${numCols.length} numeric, ${parsed.columns.length - numCols.length} categorical/text.`);
+
+  if (!numCols.length) {
+    msg("parseMsg", "err", "No numeric column found — check the separator and the decimal mark.");
+    return;
+  }
+  buildModelUI();
+}
+
+function buildModelUI() {
+  const cols = S.parsed.columns;
+  const ySel = $("ySel"), labelSel = $("labelSel"), xList = $("xList");
+
+  ySel.innerHTML = cols.filter(c => c.kind === "num")
+    .map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join("");
+  // sensible default: last numeric column is usually the response
+  const numNames = cols.filter(c => c.kind === "num").map(c => c.name);
+  ySel.value = numNames[numNames.length - 1];
+
+  labelSel.innerHTML = `<option value="">row number</option>` +
+    cols.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join("");
+  const idCol = cols.find(c => /^(id|name|label|obs|key)$/i.test(c.name));
+  if (idCol) labelSel.value = idCol.name;
+
+  renderXList();
+  ySel.onchange = renderXList;
+  labelSel.onchange = renderXList;
+  $("modelCard").classList.remove("hidden");
+}
+
+function renderXList() {
+  const cols = S.parsed.columns;
+  const y = $("ySel").value, lab = $("labelSel").value;
+  const prev = new Set([...document.querySelectorAll("#xList input:checked")].map(i => i.value));
+  // Keep the user's picks when they only switch y on the same data, but fall back to the
+  // defaults when the columns have nothing in common — otherwise loading a new dataset
+  // silently leaves every predictor unchecked and "Run" just errors out.
+  const useDefaults = ![...prev].some(nm => cols.some(c => c.name === nm && c.name !== y));
+
+  $("xList").innerHTML = cols.filter(c => c.name !== y).map(c => {
+    const isCat = c.kind === "cat";
+    const nLev = isCat ? c.levels.length : 0;
+    const usable = !isCat || (nLev > 1 && nLev <= 15);
+    // default: all numeric columns except an obvious id / the label column
+    const def = useDefaults
+      ? (usable && c.name !== lab && !/^(id|obs|index|nr|no|name|label|key)$/i.test(c.name))
+      : prev.has(c.name);
+    const title = isCat
+      ? `categorical, ${nLev} levels${usable ? " → dummy coded" : " (too many levels)"}`
+      : "numeric";
+    return `<label class="${isCat ? "cat" : ""}" title="${esc(title)}">
+      <input type="checkbox" value="${esc(c.name)}" ${def ? "checked" : ""} ${usable ? "" : "disabled"}>
+      ${esc(c.name)}${isCat ? ` <span class="muted small">(${nLev} lvl)</span>` : ""}
+    </label>`;
+  }).join("");
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Step 2 — build design matrix and run
+   ══════════════════════════════════════════════════════════════ */
+
+function buildDesign() {
+  const P = S.parsed;
+  const yName = $("ySel").value;
+  const labName = $("labelSel").value;
+  const xNames = [...document.querySelectorAll("#xList input:checked")].map(i => i.value);
+  if (!xNames.length) throw new Error("Select at least one predictor.");
+
+  const byName = Object.fromEntries(P.columns.map(c => [c.name, c]));
+  const yCol = byName[yName];
+
+  // rows with complete data on y and every selected x
+  const keep = [];
+  for (let i = 0; i < P.nRows; i++) {
+    let ok = yCol.values[i] !== null && yCol.values[i] !== undefined;
+    for (const nm of xNames) {
+      const c = byName[nm];
+      if (c.kind === "num") { if (c.values[i] === null) ok = false; }
+      else if (isMissing(c.values[i])) ok = false;
+      if (!ok) break;
+    }
+    if (ok) keep.push(i);
+  }
+  if (keep.length < 3) throw new Error("Fewer than 3 complete rows after removing missing values.");
+
+  const y = Float64Array.from(keep.map(i => yCol.values[i]));
+  const names = [], cols = [], sourceCol = [];   // sourceCol maps design col → original column name
+
+  if ($("intercept").checked) {
+    names.push("(Intercept)");
+    cols.push(Float64Array.from(keep, () => 1));
+    sourceCol.push(null);
+  }
+  for (const nm of xNames) {
+    const c = byName[nm];
+    if (c.kind === "num") {
+      names.push(nm);
+      cols.push(Float64Array.from(keep, i => c.values[i]));
+      sourceCol.push(nm);
+    } else {
+      const levels = [...new Set(keep.map(i => c.values[i]))].sort();
+      // drop the first level as reference
+      for (let L = 1; L < levels.length; L++) {
+        names.push(`${nm}=${levels[L]}`);
+        cols.push(Float64Array.from(keep, i => (c.values[i] === levels[L] ? 1 : 0)));
+        sourceCol.push(nm);
+      }
+    }
+  }
+
+  const labels = labName
+    ? keep.map(i => String(byName[labName].raw[i]))
+    : keep.map(i => String(i + 1));
+
+  return { cols, y, names, sourceCol, keep, labels, yName, xNames, byName,
+           dropped: P.nRows - keep.length };
+}
+
+/** Nothing on screen should outlive the run it belongs to. */
+function clearResults() {
+  S.fit = null;
+  S.selected = null;
+  $("detail").innerHTML = "";
+  ["fitCard", "diagCard"].forEach(i => $(i).classList.add("hidden"));
+}
+
+function run() {
+  msg("modelMsg", "", "");
+  msg("fitMsg", "", "");
+  let D;
+  try { D = buildDesign(); }
+  catch (err) { clearResults(); msg("modelMsg", "err", esc(err.message)); return; }
+
+  const n = D.y.length, p = D.cols.length;
+  if (n <= p + 1) {
+    clearResults();
+    msg("modelMsg", "err",
+      `Need more rows than parameters + 1 to compute deletion diagnostics ` +
+      `(n = ${n}, parameters = ${p}). Drop a predictor or add data.` +
+      (D.dropped > 0 ? ` (${D.dropped} row(s) were dropped for missing values.)` : ""));
+    return;
+  }
+
+  let fit;
+  try { fit = fitOLS(D.cols, D.y, D.names); }
+  catch (err) {
+    clearResults();
+    if (err instanceof RankError) {
+      msg("modelMsg", "err",
+        `Column <code>${esc(D.names[err.col])}</code> is an exact linear combination of the ` +
+        `previous ones (perfect collinearity) — the model is not identified. Remove it and re-run.` +
+        (D.dropped > 0
+          ? ` Note that ${D.dropped} row(s) were dropped for missing values — that alone can make ` +
+            `two columns collinear on what remains.`
+          : ""));
+    } else {
+      msg("modelMsg", "err", esc(err.message));
+    }
+    return;
+  }
+
+  fit.design = D;
+  S.fit = fit;
+  S.selected = null;
+  S.cut = currentCutoff(n);
+
+  if (D.dropped > 0)
+    msg("modelMsg", "warn", `${D.dropped} row(s) dropped because of missing values.`);
+
+  renderFit();
+  renderDiagnostics();
+  renderPlotSelector();
+  $("fitCard").classList.remove("hidden");
+  $("diagCard").classList.remove("hidden");
+  saveState();
+}
+
+function currentCutoff(n) {
+  const rule = $("cutRule").value;
+  if (rule === "one") return 1;
+  if (rule === "custom") return Math.max(Number($("cutVal").value) || 0, 0);
+  return 2 / Math.sqrt(n);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Rendering — model fit
+   ══════════════════════════════════════════════════════════════ */
+
+function renderFit() {
+  const f = S.fit;
+  $("fitStats").innerHTML = [
+    ["n (used)", f.n],
+    ["parameters", f.p],
+    ["R²", fmt(f.r2, 4)],
+    ["adj. R²", fmt(f.r2adj, 4)],
+    ["residual SE", fmt(f.rmse, 4)],
+    ["df", f.dfRes]
+  ].map(([k, v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+
+  const rows = f.names.map((nm, j) => `
+    <tr>
+      <td class="left">${esc(nm)}</td>
+      <td class="num">${fmt(f.b[j], 4)}</td>
+      <td class="num">${fmt(f.se[j], 4)}</td>
+      <td class="num">${fmt(f.tval[j], 2)}</td>
+      <td class="num">${fmtP(f.pval[j])}</td>
+    </tr>`).join("");
+  $("coefTable").innerHTML =
+    `<thead><tr><th class="left">Term</th><th>Estimate</th><th>Std. error</th><th>t</th><th>p</th></tr></thead>
+     <tbody>${rows}</tbody>`;
+
+  // collinearity hint via the condition number of the scaled design
+  const cond = conditionNumber(f);
+  if (cond > 30) {
+    msg("fitMsg", "warn",
+      `Condition number ≈ ${cond.toFixed(0)}: the predictors are strongly collinear. ` +
+      `Coefficients (and therefore DFBETAS) are unstable and can swing wildly on single rows — ` +
+      `that instability is a property of the design, not necessarily of any one observation.`);
+  }
+}
+
+/** Condition number of the column-normalized design matrix (via C = (X'X)^-1). */
+function conditionNumber(f) {
+  const p = f.p;
+  const scale = f.cols.map(c => Math.sqrt(sum(Array.from(c, v => v * v))) || 1);
+  // eigen-extremes of the scaled X'X via power iteration on X'X and its inverse
+  const XtX = Array.from({ length: p }, (_, i) => Float64Array.from({ length: p }, (_, j) => {
+    let s = 0;
+    for (let k = 0; k < f.n; k++) s += f.cols[i][k] * f.cols[j][k];
+    return s / (scale[i] * scale[j]);
+  }));
+  const Cs = Array.from({ length: p }, (_, i) => Float64Array.from({ length: p }, (_, j) =>
+    f.C[i][j] * scale[i] * scale[j]));
+  const power = M => {
+    let v = new Float64Array(p).fill(1 / Math.sqrt(p)), lam = 0;
+    for (let it = 0; it < 200; it++) {
+      const w = new Float64Array(p);
+      for (let i = 0; i < p; i++) { let s = 0; for (let j = 0; j < p; j++) s += M[i][j] * v[j]; w[i] = s; }
+      const nrm = Math.sqrt(sum(Array.from(w, x => x * x)));
+      if (!nrm) return 0;
+      for (let i = 0; i < p; i++) w[i] /= nrm;
+      lam = nrm; v = w;
+    }
+    return lam;
+  };
+  const lmax = power(XtX), lmaxInv = power(Cs);
+  const lmin = lmaxInv > 0 ? 1 / lmaxInv : 0;
+  return lmin > 0 ? Math.sqrt(lmax / lmin) : Infinity;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Rendering — diagnostics table
+   ══════════════════════════════════════════════════════════════ */
+
+function maxAbsDfb(f, i) {
+  let m = 0, arg = 0;
+  for (let j = 0; j < f.p; j++) {
+    const a = Math.abs(f.dfbetas[i][j]);
+    if (a > m) { m = a; arg = j; }
+  }
+  return { m, arg };
+}
+
+function rowFlags(f, i) {
+  const n = f.n, p = f.p;
+  const { m } = maxAbsDfb(f, i);
+  return {
+    dfb: m > S.cut,
+    lev: f.h[i] > 2 * p / n,
+    res: Math.abs(f.tDel[i]) > 3,
+    cook: f.cook[i] > 4 / n,
+    fits: Math.abs(f.dffits[i]) > 2 * Math.sqrt(p / n)
+  };
+}
+
+/** Blue → white → red, saturating at 1.5× the cut-off. */
+function dfbColor(v) {
+  const t = Math.min(Math.abs(v) / Math.max(S.cut * 1.5, 1e-9), 1);
+  const a = 0.08 + 0.72 * t;
+  return v >= 0 ? `rgba(220,38,38,${a})` : `rgba(37,99,235,${a})`;
+}
+
+function renderDiagnostics() {
+  const f = S.fit, n = f.n;
+  const cutCook = 4 / n, cutLev = 2 * f.p / n, cutFits = 2 * Math.sqrt(f.p / n);
+
+  const flagged = [];
+  for (let i = 0; i < n; i++) if (rowFlags(f, i).dfb) flagged.push(i);
+
+  // which coefficient is hit most often / hardest
+  const worstPerCoef = f.names.map((nm, j) => {
+    let best = 0, bi = -1, cnt = 0;
+    for (let i = 0; i < n; i++) {
+      const a = Math.abs(f.dfbetas[i][j]);
+      if (a > S.cut) cnt++;
+      if (a > best) { best = a; bi = i; }
+    }
+    return { nm, best, bi, cnt };
+  });
+  const hottest = worstPerCoef.reduce((a, b) => (b.best > a.best ? b : a));
+
+  const label = i => f.design.labels[i];
+  let summary = `<div class="msg ${flagged.length ? "warn" : "info"}">`;
+  summary += `Cut-off <span class="mono">|DFBETAS| &gt; ${fmt(S.cut, 3)}</span>` +
+    ($("cutRule").value === "2sqrtn" ? ` (= 2/&radic;${n})` : "") + ". ";
+  if (flagged.length === 0) {
+    summary += `<strong>No observation</strong> exceeds it — no single row is driving any coefficient.`;
+  } else {
+    summary += `<strong>${flagged.length} of ${n} rows</strong> (${(100 * flagged.length / n).toFixed(1)}%) exceed it. ` +
+      `Largest single effect: row <strong>${esc(label(hottest.bi))}</strong> moves ` +
+      `<code>${esc(hottest.nm)}</code> by <strong>${fmt(hottest.best, 2)}</strong> standard errors.`;
+  }
+  summary += `</div>`;
+
+  const perCoef = worstPerCoef
+    .filter(c => c.cnt > 0)
+    .sort((a, b) => b.best - a.best)
+    .map(c => `<li><code>${esc(c.nm)}</code>: ${c.cnt} row(s) over the cut-off, worst is ` +
+              `<strong>${esc(label(c.bi))}</strong> at ${fmt(c.best, 2)}</li>`).join("");
+  if (perCoef) summary += `<p class="small" style="margin-top:.5rem">Affected coefficients:</p><ul class="tips small">${perCoef}</ul>`;
+
+  $("diagSummary").innerHTML = summary;
+
+  /* ── sort & slice ── */
+  let order = Array.from({ length: n }, (_, i) => i);
+  const keyVal = i => {
+    switch (S.sortKey) {
+      case "row": return i;
+      case "cook": return f.cook[i];
+      case "lev": return f.h[i];
+      case "res": return Math.abs(f.tDel[i]);
+      case "fits": return Math.abs(f.dffits[i]);
+      case "maxabs": return maxAbsDfb(f, i).m;
+      default: {
+        const j = Number(S.sortKey.replace("c", ""));
+        return Math.abs(f.dfbetas[i][j]);
+      }
+    }
+  };
+  order.sort((a, b) => (S.sortAsc ? keyVal(a) - keyVal(b) : keyVal(b) - keyVal(a)));
+  if ($("onlyFlagged").checked) order = order.filter(i => rowFlags(f, i).dfb);
+  const topN = Number($("topN").value);
+  const shown = topN > 0 ? order.slice(0, topN) : order;
+
+  /* ── header ── */
+  const th = (key, text, title) =>
+    `<th class="sortable ${S.sortKey === key ? "active" + (S.sortAsc ? " asc" : "") : ""}" data-key="${key}" title="${title}">${text}</th>`;
+
+  let head = `<tr><th class="left sortable ${S.sortKey === "row" ? "active" + (S.sortAsc ? " asc" : "") : ""}" data-key="row" title="original row order">Obs</th>`;
+  head += f.names.map((nm, j) =>
+    th("c" + j, "DFBETAS<br><span class='small'>" + esc(nm) + "</span>", `standardized shift in ${esc(nm)}`)).join("");
+  head += th("maxabs", "max |DFBETAS|", "largest absolute DFBETAS in this row");
+  head += th("cook", "Cook's D", `cut-off 4/n = ${fmt(cutCook, 3)}`);
+  head += th("lev", "leverage", `cut-off 2p/n = ${fmt(cutLev, 3)}`);
+  head += th("res", "stud. resid", "studentized deleted residual, |t| > 3 is notable");
+  head += th("fits", "DFFITS", `cut-off 2√(p/n) = ${fmt(cutFits, 3)}`);
+  head += `</tr>`;
+
+  /* ── body ── */
+  const body = shown.map(i => {
+    const fl = rowFlags(f, i);
+    const cells = f.names.map((_, j) => {
+      const v = f.dfbetas[i][j];
+      const over = Math.abs(v) > S.cut;
+      return `<td class="cell" style="background:${dfbColor(v)}">${fmt(v, 3)}${over ? '<span class="flag"></span>' : ""}</td>`;
+    }).join("");
+    const { m } = maxAbsDfb(f, i);
+    return `<tr data-i="${i}" class="${fl.dfb ? "flagged" : ""} ${S.selected === i ? "selected" : ""}">
+      <td class="left idx">${esc(f.design.labels[i])}</td>
+      ${cells}
+      <td class="num"><strong>${fmt(m, 3)}</strong></td>
+      <td class="num" style="${f.cook[i] > cutCook ? "color:var(--warn);font-weight:600" : ""}">${fmt(f.cook[i], 3)}</td>
+      <td class="num" style="${fl.lev ? "color:var(--warn);font-weight:600" : ""}">${fmt(f.h[i], 3)}</td>
+      <td class="num" style="${Math.abs(f.tDel[i]) > 3 ? "color:var(--warn);font-weight:600" : ""}">${fmt(f.tDel[i], 2)}</td>
+      <td class="num" style="${fl.fits ? "color:var(--warn);font-weight:600" : ""}">${fmt(f.dffits[i], 3)}</td>
+    </tr>`;
+  }).join("");
+
+  $("diagTable").innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
+
+  $("diagTable").querySelectorAll("th.sortable").forEach(el => {
+    el.onclick = () => {
+      const k = el.dataset.key;
+      if (S.sortKey === k) S.sortAsc = !S.sortAsc;
+      else { S.sortKey = k; S.sortAsc = (k === "row"); }
+      renderDiagnostics();
+    };
+  });
+  $("diagTable").querySelectorAll("tbody tr").forEach(tr => {
+    tr.onclick = () => { S.selected = Number(tr.dataset.i); renderDiagnostics(); renderDetail(); renderIndexPlot(); };
+  });
+
+  if (S.selected !== null) renderDetail();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Rendering — the "why this row" detail panel
+   ══════════════════════════════════════════════════════════════ */
+
+/** Honest verification: actually refit the model without row i. */
+function refitWithout(f, i) {
+  const cols = f.cols.map(c => Float64Array.from(
+    Array.from(c).filter((_, k) => k !== i)));
+  const y = Float64Array.from(Array.from(f.y).filter((_, k) => k !== i));
+  try { return fitOLS(cols, y, f.names); }
+  catch (_) { return null; }
+}
+
+function renderDetail() {
+  const f = S.fit, i = S.selected;
+  if (i === null || i === undefined) { $("detail").innerHTML = ""; return; }
+  const D = f.design;
+  const lab = D.labels[i];
+  const refit = refitWithout(f, i);
+
+  /* per-coefficient decomposition */
+  const coefRows = f.names.map((nm, j) => {
+    const dfb = f.dfbetas[i][j];
+    const pl = f.partLev[i][j];
+    const over = Math.abs(dfb) > S.cut;
+    const w = Math.min(Math.abs(dfb) / Math.max(S.cut * 2, 1e-9), 1) * 50;
+    const bar = `<div class="bar-track"><div class="zero"></div>
+        <div class="bar" style="background:${dfb >= 0 ? "var(--pos)" : "var(--neg)"};
+        ${dfb >= 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`}"></div></div>`;
+    return `<tr class="${over ? "flagged" : ""}">
+      <td class="left">${esc(nm)}${over ? '<span class="flag"></span>' : ""}</td>
+      <td style="width:130px">${bar}</td>
+      <td class="num"><strong>${fmt(dfb, 3)}</strong></td>
+      <td class="num">${fmt(f.b[j], 4)}</td>
+      <td class="num">${refit ? fmt(refit.b[j], 4) : "—"}</td>
+      <td class="num">${fmt(f.dfbetaRaw[i][j], 4)}</td>
+      <td class="num">${(100 * pl).toFixed(1)}%</td>
+    </tr>`;
+  }).join("");
+
+  /* raw values of this row, with z-scores per original column */
+  const valRows = [D.yName, ...D.xNames].map(nm => {
+    const c = D.byName[nm];
+    const isY = nm === D.yName;
+    if (c.kind === "num") {
+      const vals = D.keep.map(k => c.values[k]);
+      const m = mean(vals), s = sd(vals);
+      const v = c.values[D.keep[i]];
+      const z = s > 0 ? (v - m) / s : 0;
+      const extreme = Math.abs(z) > 2;
+      return `<tr>
+        <td class="left">${esc(nm)}${isY ? ' <span class="muted small">(y)</span>' : ""}</td>
+        <td class="num">${fmt(v, 3)}</td>
+        <td class="num">${fmt(m, 3)}</td>
+        <td class="num" style="${extreme ? "color:var(--warn);font-weight:600" : ""}">${fmt(z, 2)}</td>
+      </tr>`;
+    }
+    const v = c.values[D.keep[i]];
+    const share = D.keep.filter(k => c.values[k] === v).length / D.keep.length;
+    return `<tr>
+      <td class="left">${esc(nm)}</td>
+      <td class="num">${esc(v)}</td>
+      <td class="num muted">${(100 * share).toFixed(0)}% of rows</td>
+      <td class="num">—</td>
+    </tr>`;
+  }).join("");
+
+  /* narrative */
+  const { m: maxD, arg } = maxAbsDfb(f, i);
+  const worstName = f.names[arg];
+  const pl = f.partLev[i][arg];
+  const t = f.tDel[i];
+  const fl = rowFlags(f, i);
+
+  let story;
+  if (maxD <= S.cut) {
+    story = `Row <strong>${esc(lab)}</strong> stays below the cut-off on every coefficient — ` +
+            `dropping it would not meaningfully change the model.`;
+  } else {
+    const resPart = Math.abs(t) > 2.5
+      ? `the model misses its <em>${esc(D.yName)}</em> badly (studentized residual ${fmt(t, 2)})`
+      : `its residual is moderate (${fmt(t, 2)})`;
+    const levPart = pl > 0.3
+      ? `it sits far from the other rows on <em>${esc(worstName)}</em> once the other predictors are held fixed ` +
+        `(partial leverage ${(100 * pl).toFixed(0)}%)`
+      : `its partial leverage on that term is only ${(100 * pl).toFixed(0)}%, so the pull comes mostly from the residual`;
+    story = `Row <strong>${esc(lab)}</strong> shifts <code>${esc(worstName)}</code> by ` +
+            `<strong>${fmt(maxD, 2)} standard errors</strong>. Two things combine: ${resPart}, and ${levPart}.`;
+  }
+
+  const badges = [
+    fl.lev ? `high leverage (h = ${fmt(f.h[i], 3)} &gt; 2p/n)` : null,
+    Math.abs(t) > 3 ? `y-outlier (|t| = ${fmt(Math.abs(t), 2)})` : null,
+    fl.cook ? `Cook's D = ${fmt(f.cook[i], 3)} &gt; 4/n` : null,
+    fl.fits ? `DFFITS = ${fmt(f.dffits[i], 3)}` : null
+  ].filter(Boolean);
+
+  $("detail").innerHTML = `
+    <section class="card" style="border-color:var(--accent)">
+      <h2>Why row ${esc(lab)}?</h2>
+      <p>${story}</p>
+      ${badges.length ? `<p class="small muted">Also flagged as: ${badges.join(" · ")}</p>` : ""}
+      <div class="detail-grid">
+        <div>
+          <h3>Effect on each coefficient</h3>
+          <div class="tablewrap"><table>
+            <thead><tr>
+              <th class="left">Term</th><th></th><th>DFBETAS</th>
+              <th>b (all rows)</th><th>b without ${esc(lab)}</th><th>raw shift</th>
+              <th title="how unusual this row is on this term after adjusting for the other predictors">partial lev.</th>
+            </tr></thead>
+            <tbody>${coefRows}</tbody>
+          </table></div>
+          <p class="small muted" style="margin-top:.4rem">
+            “b without ${esc(lab)}” is a genuine refit of the model on the remaining ${f.n - 1} rows —
+            compare it to the closed-form raw shift in the next column.
+          </p>
+        </div>
+        <div>
+          <h3>This row's values</h3>
+          <div class="tablewrap"><table>
+            <thead><tr><th class="left">Column</th><th>value</th><th>column mean</th><th>z</th></tr></thead>
+            <tbody>${valRows}</tbody>
+          </table></div>
+          <p class="small muted" style="margin-top:.4rem">
+            z is the value's distance from its column mean in SDs. A row can look ordinary here and still be
+            influential — that is what the <em>partial leverage</em> column on the left catches: an unusual
+            <em>combination</em> rather than an unusual single value.
+          </p>
+          ${refit ? `<h3>Model with vs. without this row</h3>
+          <div class="stats">
+            <div class="stat"><div class="k">R² all</div><div class="v">${fmt(f.r2, 3)}</div></div>
+            <div class="stat"><div class="k">R² without</div><div class="v">${fmt(refit.r2, 3)}</div></div>
+            <div class="stat"><div class="k">resid. SE all</div><div class="v">${fmt(f.rmse, 3)}</div></div>
+            <div class="stat"><div class="k">resid. SE without</div><div class="v">${fmt(refit.rmse, 3)}</div></div>
+          </div>` : `<p class="msg warn">Refit without this row is not identified (a dummy level would be empty).</p>`}
+        </div>
+      </div>
+    </section>`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Index plot
+   ══════════════════════════════════════════════════════════════ */
+
+function renderPlotSelector() {
+  const f = S.fit;
+  $("plotCoef").innerHTML = f.names.map((nm, j) =>
+    `<option value="${j}">${esc(nm)}</option>`).join("");
+  // preselect the coefficient with the biggest single influence
+  let best = 0, bj = 0;
+  for (let i = 0; i < f.n; i++) for (let j = 0; j < f.p; j++) {
+    const a = Math.abs(f.dfbetas[i][j]);
+    if (a > best) { best = a; bj = j; }
+  }
+  $("plotCoef").value = bj;
+  $("plotCoef").onchange = renderIndexPlot;
+  $("plotSqrt").onchange = renderIndexPlot;
+  renderIndexPlot();
+}
+
+function renderIndexPlot() {
+  const f = S.fit;
+  if (!f) return;
+  const j = Number($("plotCoef").value);
+  const svg = $("indexPlot");
+  const W = 1000, H = 230, padL = 48, padR = 14, padT = 14, padB = 26;
+  const vals = Array.from({ length: f.n }, (_, i) => f.dfbetas[i][j]);
+  const maxAbs = Math.max(S.cut * 1.4, ...vals.map(v => Math.abs(v)).filter(isFinite)) || 1;
+  // A single huge DFBETAS otherwise squashes every other row onto the zero line. The
+  // signed square root keeps sign and ordering; the ticks still carry true values.
+  const compress = $("plotSqrt").checked;
+  const T = v => (compress ? Math.sign(v) * Math.sqrt(Math.abs(v)) : v);
+  const tMax = T(maxAbs);
+  const x = i => padL + (f.n <= 1 ? 0 : (W - padL - padR) * i / (f.n - 1));
+  const y = v => padT + (H - padT - padB) * (1 - (T(v) + tMax) / (2 * tMax));
+
+  let s = `<rect class="plot-bg" x="0" y="0" width="${W}" height="${H}" rx="6"/>`;
+  // axes & cut-off bands
+  s += `<line x1="${padL}" x2="${W - padR}" y1="${y(0)}" y2="${y(0)}" stroke="#94a3b8" stroke-width="1"/>`;
+  for (const c of [S.cut, -S.cut]) {
+    if (Math.abs(c) <= maxAbs)
+      s += `<line x1="${padL}" x2="${W - padR}" y1="${y(c)}" y2="${y(c)}" stroke="#f59e0b" stroke-width="1" stroke-dasharray="5 4"/>`;
+  }
+  // y-axis ticks — evenly spaced in the *plotted* scale, labelled with true values
+  for (const q of (compress ? [1, 0.25, 0, -0.25, -1] : [1, 0.5, 0, -0.5, -1])) {
+    const v = maxAbs * q;
+    s += `<text x="${padL - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#64748b" font-family="monospace">${fmt(v, 2)}</text>`;
+  }
+  // stems
+  vals.forEach((v, i) => {
+    if (!isFinite(v)) return;
+    const over = Math.abs(v) > S.cut;
+    const sel = S.selected === i;
+    const col = sel ? "#0f172a" : over ? (v >= 0 ? "#dc2626" : "#2563eb") : "#94a3b8";
+    s += `<line x1="${x(i)}" x2="${x(i)}" y1="${y(0)}" y2="${y(v)}" stroke="${col}" stroke-width="${sel ? 3 : over ? 2 : 1}"/>`;
+    s += `<circle cx="${x(i)}" cy="${y(v)}" r="${sel ? 5 : over ? 3.5 : 2}" fill="${col}"
+            data-i="${i}" style="cursor:pointer"><title>${esc(f.design.labels[i])}: ${fmt(v, 3)}</title></circle>`;
+  });
+  s += `<text x="${padL}" y="${H - 6}" font-size="11" fill="#64748b">observation order →</text>`;
+  s += `<text x="${W - padR}" y="${H - 6}" font-size="11" fill="#64748b" text-anchor="end">` +
+       `dashed = ±${fmt(S.cut, 3)}${compress ? " · axis compressed" : ""}</text>`;
+
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+  svg.querySelectorAll("circle").forEach(c => {
+    c.onclick = () => { S.selected = Number(c.dataset.i); renderDiagnostics(); renderDetail(); renderIndexPlot(); };
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Export
+   ══════════════════════════════════════════════════════════════ */
+
+function exportCSV() {
+  const f = S.fit;
+  if (!f) return;
+  const head = ["obs", "fitted", "residual", "studentized_deleted_residual", "leverage",
+                "cooks_D", "DFFITS",
+                ...f.names.map(nm => "DFBETAS[" + nm + "]"),
+                ...f.names.map(nm => "partial_leverage[" + nm + "]")];
+  const lines = [head.join(",")];
+  for (let i = 0; i < f.n; i++) {
+    const row = [
+      `"${String(f.design.labels[i]).replace(/"/g, '""')}"`,
+      f.fitted[i], f.e[i], f.tDel[i], f.h[i], f.cook[i], f.dffits[i],
+      ...Array.from(f.dfbetas[i]), ...Array.from(f.partLev[i])
+    ];
+    lines.push(row.map(v => (typeof v === "number" ? (isFinite(v) ? v.toPrecision(8) : "") : v)).join(","));
+  }
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "dfbetas-diagnostics.csv";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Wiring
+   ══════════════════════════════════════════════════════════════ */
+
+$("parseBtn").onclick = () => { readData(); saveState(); };
+$("runBtn").onclick = run;
+$("exportBtn").onclick = exportCSV;
+
+$("cutRule").onchange = () => {
+  $("cutVal").classList.toggle("hidden", $("cutRule").value !== "custom");
+  if (S.fit) { S.cut = currentCutoff(S.fit.n); renderDiagnostics(); renderIndexPlot(); }
+  saveState();
+};
+$("cutVal").oninput = () => {
+  if (S.fit && $("cutRule").value === "custom") {
+    S.cut = currentCutoff(S.fit.n); renderDiagnostics(); renderIndexPlot();
+  }
+  saveState();
+};
+$("topN").onchange = renderDiagnostics;
+$("onlyFlagged").onchange = renderDiagnostics;
+$("dataIn").addEventListener("input", saveState);
+$("hasHeader").onchange = saveState;
+$("sep").onchange = saveState;
+$("intercept").onchange = saveState;
+
+$("clearBtn").onclick = () => {
+  $("dataIn").value = "";
+  clearResults();
+  $("modelCard").classList.add("hidden");
+  msg("parseMsg", "", "");
+  msg("modelMsg", "", "");
+  S.parsed = null;
+  saveState();
+};
+
+function loadDemo(text) {
+  $("dataIn").value = text;
+  $("hasHeader").checked = true;
+  $("sep").value = "auto";
+  readData();
+  saveState();
+}
+$("demo1").onclick = () => loadDemo(demoOutlier());
+$("demo2").onclick = () => loadDemo(demoLeverage());
+$("demo3").onclick = () => loadDemo(demoMulti());
+$("demoCat").onclick = () => loadDemo(demoCategorical());
+
+$("fileIn").onchange = ev => {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = () => { $("dataIn").value = r.result; readData(); saveState(); };
+  r.readAsText(file);
+};
+
+/* boot */
+if (loadState()) {
+  $("cutVal").classList.toggle("hidden", $("cutRule").value !== "custom");
+  readData();
+} else {
+  loadDemo(demoLeverage());
+}
+</script>
+</body>
+</html>
