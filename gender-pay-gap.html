@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faktorzerlegung erklärt – Gender Pay Gap</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-dark: #1e40af;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --text-light: #64748b;
+    --border: #e2e8f0;
+    --explained: #0d9488;
+    --unexplained: #d97706;
+    --rest: #64748b;
+    --danger: #dc2626;
+    --code-bg: #f1f5f9;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 20px 16px 60px;
+  }
+
+  .container { max-width: 900px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 32px; }
+  header h1 { font-size: 1.9rem; line-height: 1.25; margin-bottom: 10px; }
+  header p { color: var(--text-light); max-width: 640px; margin: 0 auto; }
+
+  section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px;
+    margin-bottom: 20px;
+  }
+
+  h2 {
+    font-size: 1.2rem;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  h2 .step {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--primary);
+    background: #eff6ff;
+    padding: 3px 8px;
+    border-radius: 6px;
+    flex: none;
+  }
+  h3 { font-size: 1rem; margin: 18px 0 8px; }
+  p + p { margin-top: 10px; }
+  p, li { font-size: 0.95rem; }
+  ul, ol { margin: 8px 0 0 20px; }
+  li { margin-bottom: 6px; }
+
+  code, .formula {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: var(--code-bg);
+    border-radius: 5px;
+  }
+  code { padding: 1px 5px; font-size: 0.88em; }
+  .formula {
+    display: block;
+    padding: 14px 16px;
+    margin: 12px 0;
+    font-size: 0.9rem;
+    line-height: 1.8;
+    overflow-x: auto;
+    white-space: pre;
+    border-left: 3px solid var(--primary);
+  }
+
+  .note {
+    font-size: 0.87rem;
+    color: var(--text-light);
+    background: var(--code-bg);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 12px;
+  }
+
+  /* --- Eingaben --- */
+  .wage-row { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 4px; }
+  .field { flex: 1 1 160px; }
+  .field label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-light);
+    margin-bottom: 4px;
+  }
+  input[type=text], input[type=number] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: var(--text);
+    background: #fff;
+  }
+  input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+  input.invalid { border-color: var(--danger); background: #fef2f2; }
+  input:disabled { background: var(--code-bg); color: var(--text-light); }
+
+  .error-msg {
+    color: var(--danger);
+    font-size: 0.85rem;
+    margin-top: 8px;
+    display: none;
+  }
+  .error-msg.show { display: block; }
+
+  button {
+    font-family: inherit;
+    font-size: 0.88rem;
+    padding: 8px 14px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+  }
+  button:hover { background: var(--code-bg); }
+  button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  button.primary:hover { background: var(--primary-dark); }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+  .toggle-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 18px;
+    padding: 12px 14px;
+    background: var(--code-bg);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+  }
+  .toggle-row label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+  input[type=checkbox], input[type=radio] { accent-color: var(--primary); width: 16px; height: 16px; }
+
+  /* --- Faktor-Karten --- */
+  .factor {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .factor-head { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+  .factor-head input { font-weight: 600; }
+  .factor-head button {
+    flex: none;
+    padding: 6px 10px;
+    color: var(--text-light);
+    line-height: 1;
+  }
+  .factor-head button:hover { color: var(--danger); border-color: var(--danger); }
+  .inputs-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .factor-result {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+    font-size: 0.85rem;
+  }
+  .chip { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .dot.e { background: var(--explained); }
+  .dot.u { background: var(--unexplained); }
+  .dot.r { background: var(--rest); }
+  .num { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  /* --- Ergebnis --- */
+  .totals { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+  .total-card {
+    flex: 1 1 150px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .total-card .label { font-size: 0.78rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em; }
+  .total-card .value { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .total-card .sub { font-size: 0.82rem; color: var(--text-light); }
+
+  .stack {
+    display: flex;
+    height: 34px;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 6px;
+    background: var(--code-bg);
+  }
+  .stack div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 600;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.83rem; color: var(--text-light); }
+
+  /* Wasserfall mit Nulllinie */
+  .waterfall { margin-top: 20px; }
+  .wf-row {
+    display: grid;
+    grid-template-columns: minmax(90px, 150px) 1fr minmax(72px, auto);
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 7px;
+    font-size: 0.85rem;
+  }
+  .wf-name {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .wf-name .dot { margin: 0; }
+  .wf-name span:last-child { overflow: hidden; text-overflow: ellipsis; }
+  .wf-track {
+    position: relative;
+    height: 20px;
+    background: var(--code-bg);
+    border-radius: 4px;
+  }
+  .wf-track::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -2px;
+    bottom: -2px;
+    width: 1px;
+    background: #cbd5e1;
+  }
+  .wf-bar { position: absolute; top: 3px; height: 14px; border-radius: 3px; }
+  .wf-val { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* --- Interpretationskarten --- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+  .card {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--unexplained);
+    border-radius: 8px;
+    padding: 13px 15px;
+  }
+  .card h4 { font-size: 0.95rem; margin-bottom: 5px; }
+  .card p { font-size: 0.87rem; color: var(--text-light); }
+
+  /* --- Quiz --- */
+  .quiz-item { border: 1px solid var(--border); border-radius: 9px; padding: 14px; margin-bottom: 10px; }
+  .quiz-item .stmt { font-size: 0.93rem; margin-bottom: 10px; }
+  .quiz-item .stmt::before { content: '„'; }
+  .quiz-item .stmt::after { content: '"'; }
+  .quiz-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .quiz-btns button.picked { border-color: var(--primary); background: #eff6ff; font-weight: 600; }
+  .quiz-answer {
+    display: none;
+    margin-top: 11px;
+    padding: 11px 13px;
+    border-radius: 8px;
+    font-size: 0.87rem;
+    background: var(--code-bg);
+  }
+  .quiz-answer.show { display: block; }
+  .quiz-answer strong.ok { color: var(--explained); }
+  .quiz-answer strong.no { color: var(--unexplained); }
+
+  footer {
+    text-align: center;
+    font-size: 0.83rem;
+    color: var(--text-light);
+    margin-top: 28px;
+  }
+  a { color: var(--primary); }
+
+  @media (max-width: 620px) {
+    .inputs-grid { grid-template-columns: repeat(2, 1fr); }
+    header h1 { font-size: 1.5rem; }
+    section { padding: 16px; }
+    .wf-row { grid-template-columns: minmax(70px, 100px) 1fr auto; font-size: 0.78rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Faktorzerlegung einer Regression</h1>
+  <p>
+    Wie kommt man von einer Regression zu Sätzen wie „Teilzeit erklärt ein Viertel der
+    Lohnlücke"? Und was darf man daraus <em>nicht</em> schließen? Durchgerechnet am
+    Standardbeispiel: dem Gender Pay Gap.
+  </p>
+</header>
+
+<!-- ============ Schritt 1 ============ -->
+<section>
+  <h2><span class="step">Schritt 1</span> Die rohe Lücke</h2>
+  <p>
+    Der Ausgangspunkt ist eine schlichte Differenz zweier Durchschnitte – der
+    <strong>unbereinigte Gender Pay Gap</strong>. Er sagt noch nichts über Ursachen,
+    er misst nur den Abstand.
+  </p>
+
+  <div class="wage-row" style="margin-top:14px">
+    <div class="field">
+      <label for="wageM">Ø Bruttostundenverdienst Männer (€)</label>
+      <input type="number" id="wageM" step="0.01" min="0.01">
+    </div>
+    <div class="field">
+      <label for="wageF">Ø Bruttostundenverdienst Frauen (€)</label>
+      <input type="number" id="wageF" step="0.01" min="0.01">
+    </div>
+  </div>
+  <div class="error-msg" id="wageError">Bitte zwei positive Zahlen eingeben.</div>
+
+  <div class="formula" id="gapFormula"></div>
+
+  <div class="note">
+    <strong>Zwei Prozentangaben, zwei Bedeutungen.</strong> Die amtliche Kennzahl ist die
+    Niveau-Differenz <code>(w̄ₘ − w̄f) / w̄ₘ</code>. Zerlegt wird dagegen die Differenz der
+    <em>logarithmierten</em> Löhne, denn nur die ist additiv – man kann sie in Summanden
+    aufteilen, die sich wieder zum Ganzen addieren. Die Einheit heißt <em>Log-Punkte</em>
+    (Log-Differenz × 100). Bei kleinen Lücken sind beide Zahlen fast gleich, bei großen
+    läuft die Log-Angabe nach oben weg.
+  </div>
+</section>
+
+<!-- ============ Schritt 2 ============ -->
+<section>
+  <h2><span class="step">Schritt 2</span> Die Regression dahinter</h2>
+  <p>
+    Zerlegen kann man nur, wenn man vorher ein Modell geschätzt hat. Üblich ist eine
+    Lohnregression, getrennt für beide Gruppen:
+  </p>
+
+  <div class="formula">ln(w) = α + β₁·X₁ + β₂·X₂ + … + β<sub>k</sub>·X<sub>k</sub> + ε</div>
+
+  <ul>
+    <li><strong>X<sub>k</sub></strong> — ein Faktor: Berufserfahrung, Teilzeitanteil,
+        Führungsverantwortung, Branche, Bildung.</li>
+    <li><strong>β<sub>k</sub></strong> — die <em>Rendite</em> dieses Faktors: um wie viele
+        Log-Punkte der Lohn steigt, wenn X<sub>k</sub> um eine Einheit steigt und alle
+        anderen Faktoren im Modell konstant bleiben.</li>
+    <li><strong>α</strong> — die Konstante: das Lohnniveau bei X = 0. Sie wird gleich noch
+        wichtig, weil sie sich <em>keinem</em> Faktor zuordnen lässt.</li>
+  </ul>
+
+  <h3>Dummy oder getrennte Regressionen?</h3>
+  <p>
+    Man kann eine einzige Regression über alle Beschäftigten rechnen und einen
+    Frauen-Dummy aufnehmen. Dessen Koeffizient ist der <strong>bereinigte Gap</strong> –
+    eine einzige Zahl. Das unterstellt aber, dass Männer und Frauen für Erfahrung, Führung
+    oder Teilzeit <em>dieselbe</em> Rendite bekommen.
+  </p>
+  <p>
+    Die Faktorzerlegung nach <strong>Oaxaca-Blinder</strong> lässt diese Annahme fallen:
+    zwei getrennte Regressionen, zwei Koeffizientenvektoren β<sub>m</sub> und β<sub>f</sub>.
+    Erst dadurch entstehen die zwei Bestandteile, um die es im Folgenden geht.
+  </p>
+</section>
+
+<!-- ============ Schritt 3 ============ -->
+<section>
+  <h2><span class="step">Schritt 3</span> Die Zerlegung</h2>
+  <p>Die Gesamtlücke zerfällt in zwei Teile plus einen Rest:</p>
+
+  <div class="formula">Lücke  =  Σ (X̄ₘ,ₖ − X̄f,ₖ) · β*ₖ            ← erklärt (Ausstattung)
+       +  Σ [ X̄ₘ,ₖ·(βₘ,ₖ − β*ₖ) + X̄f,ₖ·(β*ₖ − βf,ₖ) ]   ← unerklärt (Vergütung)
+       +  (αₘ − αf)                             ← Konstante, nicht zuordenbar</div>
+
+  <ul>
+    <li><strong>Erklärt</strong> (<em>endowment effect</em>): Männer und Frauen bringen
+        unterschiedliche Merkmale mit. Unterschiedliche X̄, gleiche Bewertung.</li>
+    <li><strong>Unerklärt</strong> (<em>coefficient effect</em>): dieselben Merkmale werden
+        unterschiedlich bezahlt. Gleiche X̄, unterschiedliche β.</li>
+    <li><strong>Rest</strong>: die Differenz der Konstanten. Sie gehört zum unerklärten
+        Teil, lässt sich aber keinem einzelnen Faktor zuschreiben.</li>
+  </ul>
+
+  <div class="note">
+    <strong>β* ist eine Wahl, kein Messwert.</strong> Womit bewertet man die
+    Ausstattungsunterschiede – mit der Lohnstruktur der Männer, der der Frauen oder einer
+    gepoolten? Es gibt keine aus den Daten ableitbare Antwort. Das ist das
+    <em>Index-Problem</em>. Unten lässt es sich durchschalten: dieselben Daten, andere
+    Aufteilung.
+  </div>
+</section>
+
+<!-- ============ Rechner ============ -->
+<section>
+  <h2><span class="step">Rechner</span> Faktoren einstellen</h2>
+
+  <div class="toggle-row">
+    <label>
+      <input type="checkbox" id="equalReturns">
+      <span>Gleiche Renditen annehmen (β<sub>f</sub> = β<sub>m</sub>)</span>
+    </label>
+  </div>
+
+  <div class="toggle-row">
+    <span style="font-weight:600">Referenz β*:</span>
+    <label><input type="radio" name="ref" value="m"> Männer</label>
+    <label><input type="radio" name="ref" value="f"> Frauen</label>
+    <label><input type="radio" name="ref" value="pooled"> gepoolt (50/50)</label>
+  </div>
+
+  <div id="factorList"></div>
+
+  <div class="btn-row">
+    <button id="addFactor">+ Faktor hinzufügen</button>
+    <button id="presetA">Preset: gleiche Renditen</button>
+    <button id="presetB">Preset: mit Renditeunterschieden</button>
+  </div>
+
+  <div class="note">
+    Anteilsvariablen als Wert zwischen 0 und 1 eintragen (0,48 = 48 %), Jahre in Jahren.
+    Die β sind Log-Punkte pro Einheit: β = 0,20 bei einer Anteilsvariablen heißt „rund 20 %
+    mehr Lohn", β = 0,008 bei Erfahrung heißt „0,8 % pro Berufsjahr".
+    <strong>Die Startwerte sind nachgebaute Größenordnungen zur Veranschaulichung, keine
+    geschätzten Koeffizienten.</strong> Eingaben werden lokal im Browser gespeichert.
+  </div>
+</section>
+
+<!-- ============ Ergebnis ============ -->
+<section>
+  <h2><span class="step">Ergebnis</span> Was die Zerlegung sagt</h2>
+
+  <div class="totals" id="totals"></div>
+
+  <div class="stack" id="stack"></div>
+  <div class="legend">
+    <span class="chip"><span class="dot e"></span> erklärt</span>
+    <span class="chip"><span class="dot u"></span> unerklärt (Faktoren)</span>
+    <span class="chip"><span class="dot r"></span> Konstante</span>
+  </div>
+
+  <div class="waterfall">
+    <h3>Beitrag je Faktor (Log-Punkte)</h3>
+    <div id="waterfall"></div>
+  </div>
+
+  <div id="verbal" style="margin-top:18px"></div>
+</section>
+
+<!-- ============ Interpretation ============ -->
+<section>
+  <h2><span class="step">Interpretation</span> Sechs Fallstricke</h2>
+  <div class="cards">
+    <div class="card">
+      <h4>Unerklärt ≠ Diskriminierung</h4>
+      <p>
+        Der unerklärte Teil ist ein Residuum: alles, was das Modell nicht abbildet.
+        Fehlt ein relevanter Faktor in den Daten, landet er dort – ohne dass Diskriminierung
+        im Spiel wäre. Umgekehrt kann er Diskriminierung auch <em>unterschätzen</em>,
+        siehe nächster Punkt.
+      </p>
+    </div>
+    <div class="card">
+      <h4>Erklärt ≠ gerechtfertigt</h4>
+      <p>
+        „Erklärt" heißt nur „statistisch zurückführbar". Dass Frauen häufiger Teilzeit
+        arbeiten und in schlechter bezahlten Berufen landen, ist selbst ein Ergebnis von
+        Normen, Betreuungsinfrastruktur und Erwartungen – die Erklärung verschiebt die
+        Frage, sie beantwortet sie nicht.
+      </p>
+    </div>
+    <div class="card">
+      <h4>Bad Controls</h4>
+      <p>
+        Mehr Kontrollvariablen sind nicht automatisch besser. Kontrolliert man für einen
+        <em>Mediator</em> – etwa den Beruf, wenn der Berufszugang selbst verzerrt ist –
+        rechnet man genau den Kanal heraus, den man untersuchen wollte. Der bereinigte Gap
+        schrumpft dann, ohne dass sich in der Sache etwas geändert hätte.
+      </p>
+    </div>
+    <div class="card">
+      <h4>Referenzkategorien</h4>
+      <p>
+        Bei kategorialen Variablen (Branche, Bildungsabschluss) hängt der unerklärte
+        Beitrag einer Variablen davon ab, welche Kategorie weggelassen wurde – die
+        Konstante schluckt den Rest. Nur der <em>Gesamt</em>-Effekt ist eindeutig.
+        Abhilfe: normalisierte Effekte nach Oaxaca-Ransom / Gardeazabal-Ugidos.
+      </p>
+    </div>
+    <div class="card">
+      <h4>Selektion</h4>
+      <p>
+        Zerlegt werden nur Löhne von Erwerbstätigen. Wer gar nicht arbeitet, taucht nicht
+        auf – und wer das ist, unterscheidet sich zwischen den Gruppen systematisch.
+        Steigt die Frauenerwerbsquote, kann der gemessene Gap allein dadurch steigen.
+      </p>
+    </div>
+    <div class="card">
+      <h4>Querschnitt ≠ Lebensverlauf</h4>
+      <p>
+        Eine Momentaufnahme zeigt Erfahrungsunterschiede als gegebene Ausstattung. Woher
+        sie kommen – Erwerbsunterbrechungen nach Geburten, die <em>child penalty</em> –
+        sieht man erst im Längsschnitt. Der erklärte Teil enthält damit die Folgen
+        früherer Ungleichheit.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Quiz ============ -->
+<section>
+  <h2><span class="step">Übung</span> Interpretationstrainer</h2>
+  <p style="margin-bottom:14px">Tragfähig oder problematisch? Einschätzung anklicken.</p>
+  <div id="quiz"></div>
+</section>
+
+<footer>
+  Referenzwerte: Statistisches Bundesamt, Gender Pay Gap 2025 (unbereinigt 16 %,
+  bereinigt 6 %) ·
+  <a href="https://www.destatis.de/DE/Themen/Arbeit/Verdienste/Verdienste-GenderPayGap/_inhalt.html" target="_blank" rel="noopener">destatis.de</a><br>
+  Methode: Oaxaca (1973) und Blinder (1973).
+</footer>
+
+</div>
+
+<script>
+'use strict';
+
+// ---------- Presets ----------
+// Nachgebaute Größenordnungen, keine geschätzten Koeffizienten.
+const PRESET_A = {
+  wageM: 27.05, wageF: 22.81, equalReturns: true, ref: 'pooled',
+  factors: [
+    { name: 'Teilzeitanteil',          xm: 0.12, xf: 0.48, bm: -0.10,  bf: -0.10  },
+    { name: 'Führungsverantwortung',   xm: 0.29, xf: 0.19, bm:  0.19,  bf:  0.19  },
+    { name: 'Beruf / Branche',         xm: 0.46, xf: 0.31, bm:  0.20,  bf:  0.20  },
+    { name: 'Berufserfahrung (Jahre)', xm: 21.0, xf: 17.5, bm:  0.0076, bf: 0.0076 },
+    { name: 'Bildung (Jahre)',         xm: 13.4, xf: 13.5, bm:  0.0645, bf: 0.0645 }
+  ]
+};
+
+const PRESET_B = {
+  wageM: 27.05, wageF: 22.81, equalReturns: false, ref: 'pooled',
+  factors: [
+    { name: 'Teilzeitanteil',          xm: 0.12, xf: 0.48, bm: -0.14,  bf: -0.06   },
+    { name: 'Führungsverantwortung',   xm: 0.29, xf: 0.19, bm:  0.22,  bf:  0.16   },
+    { name: 'Beruf / Branche',         xm: 0.46, xf: 0.31, bm:  0.20,  bf:  0.20   },
+    { name: 'Berufserfahrung (Jahre)', xm: 21.0, xf: 17.5, bm:  0.0080, bf: 0.0072 },
+    { name: 'Bildung (Jahre)',         xm: 13.4, xf: 13.5, bm:  0.0650, bf: 0.0640 }
+  ]
+};
+
+const STORAGE_KEY = 'gpg-decomposition-v1';
+
+let state = load() || clone(PRESET_A);
+
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s || !Array.isArray(s.factors)) return null;
+    return s;
+  } catch (e) { return null; }
+}
+
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* z.B. privater Modus */ }
+}
+
+// ---------- Rechenkern ----------
+// Zweifach-Zerlegung nach Oaxaca-Blinder mit frei wählbarem Referenzvektor beta*.
+function compute() {
+  const wagesOk = state.wageM > 0 && state.wageF > 0;
+  const gap = wagesOk ? Math.log(state.wageM / state.wageF) : 0;
+
+  const rows = state.factors.map(f => {
+    const bf = state.equalReturns ? f.bm : f.bf;
+    let bRef;
+    if (state.ref === 'm') bRef = f.bm;
+    else if (state.ref === 'f') bRef = bf;
+    else bRef = 0.5 * (f.bm + bf);
+
+    const explained   = (f.xm - f.xf) * bRef;
+    const unexplained = f.xm * (f.bm - bRef) + f.xf * (bRef - bf);
+    return { name: f.name, explained, unexplained };
+  });
+
+  const sumE = rows.reduce((a, r) => a + r.explained, 0);
+  const sumU = rows.reduce((a, r) => a + r.unexplained, 0);
+  const rest = gap - sumE - sumU; // Differenz der Konstanten
+
+  return { wagesOk, gap, rows, sumE, sumU, rest };
+}
+
+// ---------- Formatierung ----------
+const nf = (v, d = 2) => v.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const lp = v => nf(v * 100, 1);                       // Log-Punkte
+const signed = v => (v >= 0 ? '+' : '−') + lp(Math.abs(v));
+
+function shareOf(part, total) {
+  if (!total) return '–';
+  return nf(part / total * 100, 0) + ' %';
+}
+
+// ---------- Rendering: Faktorliste (nur bei Struktur-Änderungen) ----------
+const factorList = document.getElementById('factorList');
+let resultCells = [];
+
+function renderFactors() {
+  factorList.innerHTML = '';
+  resultCells = [];
+
+  state.factors.forEach((f, i) => {
+    const card = document.createElement('div');
+    card.className = 'factor';
+
+    const head = document.createElement('div');
+    head.className = 'factor-head';
+    const nameInput = mkInput('text', f.name);
+    nameInput.addEventListener('input', () => { state.factors[i].name = nameInput.value; update(); });
+    const del = document.createElement('button');
+    del.textContent = '✕';
+    del.title = 'Faktor entfernen';
+    del.addEventListener('click', () => {
+      state.factors.splice(i, 1);
+      renderFactors();
+      update();
+    });
+    head.appendChild(nameInput);
+    head.appendChild(del);
+
+    const grid = document.createElement('div');
+    grid.className = 'inputs-grid';
+    const specs = [
+      { key: 'xm', label: 'X̄ Männer' },
+      { key: 'xf', label: 'X̄ Frauen' },
+      { key: 'bm', label: 'β Männer' },
+      { key: 'bf', label: 'β Frauen' }
+    ];
+    specs.forEach(spec => {
+      const wrap = document.createElement('div');
+      wrap.className = 'field';
+      const lab = document.createElement('label');
+      lab.textContent = spec.label;
+      const inp = mkInput('number', f[spec.key]);
+      inp.step = 'any';
+      if (spec.key === 'bf') inp.disabled = state.equalReturns;
+      inp.addEventListener('input', () => {
+        const v = parseFloat(inp.value.replace(',', '.'));
+        const bad = !isFinite(v);
+        inp.classList.toggle('invalid', bad);
+        state.factors[i][spec.key] = bad ? 0 : v;
+        update();
+      });
+      wrap.appendChild(lab);
+      wrap.appendChild(inp);
+      grid.appendChild(wrap);
+    });
+
+    const res = document.createElement('div');
+    res.className = 'factor-result';
+    resultCells.push(res);
+
+    card.appendChild(head);
+    card.appendChild(grid);
+    card.appendChild(res);
+    factorList.appendChild(card);
+  });
+}
+
+function mkInput(type, value) {
+  const inp = document.createElement('input');
+  inp.type = type;
+  inp.value = value;
+  return inp;
+}
+
+// ---------- Rendering: Ergebnisse (bei jeder Eingabe) ----------
+function renderResults(r) {
+  // Zeilenergebnisse in den Faktor-Karten
+  r.rows.forEach((row, i) => {
+    if (!resultCells[i]) return;
+    resultCells[i].innerHTML =
+      '<span class="chip"><span class="dot e"></span>erklärt <span class="num">' + signed(row.explained) + '</span> LP</span>' +
+      '<span class="chip"><span class="dot u"></span>unerklärt <span class="num">' + signed(row.unexplained) + '</span> LP</span>';
+  });
+
+  // Kennzahlen
+  const gapPct = r.wagesOk ? (1 - state.wageF / state.wageM) * 100 : 0;
+  const adjusted = r.sumU + r.rest;
+  document.getElementById('totals').innerHTML =
+    card('Rohe Lücke', lp(r.gap) + ' LP', nf(gapPct, 1) + ' % im Niveau', 'var(--text)') +
+    card('Erklärt', shareOf(r.sumE, r.gap), lp(r.sumE) + ' LP · Ausstattung', 'var(--explained)') +
+    card('Unerklärt', shareOf(adjusted, r.gap), lp(adjusted) + ' LP · „bereinigter Gap"', 'var(--unexplained)');
+
+  // Stapelbalken – Anteile nach Betrag, damit auch negative Beiträge sichtbar bleiben
+  const parts = [
+    { v: r.sumE, color: 'var(--explained)', label: 'erklärt' },
+    { v: r.sumU, color: 'var(--unexplained)', label: 'unerklärt' },
+    { v: r.rest, color: 'var(--rest)', label: 'Konstante' }
+  ];
+  const absTotal = parts.reduce((a, p) => a + Math.abs(p.v), 0);
+  document.getElementById('stack').innerHTML = absTotal
+    ? parts.map(p => {
+        const w = Math.abs(p.v) / absTotal * 100;
+        const txt = w > 14 ? p.label + ' ' + lp(p.v) : (w > 7 ? lp(p.v) : '');
+        return '<div style="width:' + w + '%;background:' + p.color +
+               (p.v < 0 ? ';opacity:.45' : '') + '">' + txt + '</div>';
+      }).join('')
+    : '';
+
+  // Wasserfall
+  const wf = [];
+  r.rows.forEach(row => {
+    wf.push({ name: row.name, v: row.explained, cls: 'e' });
+    wf.push({ name: row.name, v: row.unexplained, cls: 'u' });
+  });
+  wf.push({ name: 'Konstante', v: r.rest, cls: 'r' });
+  const maxAbs = Math.max(...wf.map(x => Math.abs(x.v)), 1e-9);
+
+  const colorOf = { e: 'var(--explained)', u: 'var(--unexplained)', r: 'var(--rest)' };
+  const labelOf = { e: 'erklärt', u: 'unerklärt', r: 'nicht zuordenbar' };
+
+  document.getElementById('waterfall').innerHTML = wf.map(x => {
+    const w = Math.abs(x.v) / maxAbs * 50; // max. halbe Breite je Seite
+    const style = x.v >= 0
+      ? 'left:50%;width:' + w + '%'
+      : 'right:50%;width:' + w + '%';
+    // Farbpunkt statt Textsuffix: die Farbe kodiert erklärt/unerklärt bereits,
+    // so bleibt die volle Spaltenbreite für den Faktornamen.
+    return '<div class="wf-row">' +
+             '<span class="wf-name" title="' + esc(x.name) + ' · ' + labelOf[x.cls] + '">' +
+               '<span class="dot ' + x.cls + '"></span><span>' + esc(x.name) + '</span>' +
+             '</span>' +
+             '<span class="wf-track"><span class="wf-bar" style="' + style + ';background:' + colorOf[x.cls] + '"></span></span>' +
+             '<span class="wf-val num">' + signed(x.v) + '</span>' +
+           '</div>';
+  }).join('');
+
+  // Fließtext
+  renderVerbal(r, adjusted);
+}
+
+function card(label, value, sub, color) {
+  return '<div class="total-card"><div class="label">' + label + '</div>' +
+         '<div class="value" style="color:' + color + '">' + value + '</div>' +
+         '<div class="sub">' + sub + '</div></div>';
+}
+
+function renderVerbal(r, adjusted) {
+  const box = document.getElementById('verbal');
+  if (!r.wagesOk || !r.gap) { box.innerHTML = ''; return; }
+
+  const sorted = r.rows.slice().sort((a, b) => Math.abs(b.explained) - Math.abs(a.explained));
+  const top = sorted.slice(0, 3).filter(x => Math.abs(x.explained) > 1e-6);
+
+  let html = '<p>Bei diesen Werten sind <strong>' + shareOf(r.sumE, r.gap) + '</strong> der Lücke ' +
+             'auf Ausstattungsunterschiede zurückzuführen, <strong>' + shareOf(adjusted, r.gap) +
+             '</strong> bleiben unerklärt.';
+  if (top.length) {
+    html += ' Größter erklärter Beitrag: ' + top.map(t =>
+      '<strong>' + esc(t.name) + '</strong> mit ' + signed(t.explained) + ' LP (' +
+      shareOf(t.explained, r.gap) + ' der Lücke)').join(', ') + '.';
+  }
+  html += '</p>';
+
+  if (Math.abs(r.sumU) < 1e-9 && Math.abs(r.rest) > 1e-9) {
+    html += '<div class="note"><strong>Beachten:</strong> Weil beide Gruppen dieselben Renditen ' +
+            'haben, ist der unerklärte Teil <em>keinem</em> Faktor zuzuordnen – er steckt ' +
+            'vollständig in der Konstanten (' + signed(r.rest) + ' LP). Genau das ist der ' +
+            'Frauen-Dummy aus einer gemeinsamen Regression.</div>';
+  }
+  if (r.rest < -1e-9) {
+    html += '<div class="note"><strong>Negative Konstante:</strong> die Faktoren erklären in ' +
+            'Summe mehr als die tatsächliche Lücke. Rechnerisch zulässig – ein Hinweis darauf, ' +
+            'dass die eingetragenen β und Mittelwerte nicht zu den beiden Durchschnittslöhnen ' +
+            'passen. In einer echten Schätzung ist diese Konsistenz automatisch gegeben.</div>';
+  }
+  box.innerHTML = html;
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+// ---------- Schritt 1: Formel ----------
+function renderGapFormula(r) {
+  const el = document.getElementById('gapFormula');
+  if (!r.wagesOk) { el.textContent = 'Bitte gültige Löhne eingeben.'; return; }
+  const pct = (1 - state.wageF / state.wageM) * 100;
+  el.innerHTML =
+    'Niveau:  (' + nf(state.wageM) + ' − ' + nf(state.wageF) + ') / ' + nf(state.wageM) +
+    '  =  ' + nf(pct, 1) + ' %\n' +
+    'Log:     ln(' + nf(state.wageM) + ' / ' + nf(state.wageF) + ')' +
+    '  =  ' + lp(r.gap) + ' Log-Punkte';
+}
+
+// ---------- Update-Zyklus ----------
+function update() {
+  const r = compute();
+  document.getElementById('wageError').classList.toggle('show', !r.wagesOk);
+  renderGapFormula(r);
+  renderResults(r);
+  save();
+}
+
+// ---------- Steuerelemente ----------
+const wageM = document.getElementById('wageM');
+const wageF = document.getElementById('wageF');
+
+[[wageM, 'wageM'], [wageF, 'wageF']].forEach(([inp, key]) => {
+  inp.addEventListener('input', () => {
+    const v = parseFloat(inp.value.replace(',', '.'));
+    const bad = !isFinite(v) || v <= 0;
+    inp.classList.toggle('invalid', bad);
+    state[key] = bad ? 0 : v;
+    update();
+  });
+});
+
+document.getElementById('equalReturns').addEventListener('change', e => {
+  state.equalReturns = e.target.checked;
+  if (state.equalReturns) state.factors.forEach(f => { f.bf = f.bm; });
+  renderFactors();
+  update();
+});
+
+document.querySelectorAll('input[name=ref]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    if (radio.checked) { state.ref = radio.value; update(); }
+  });
+});
+
+document.getElementById('addFactor').addEventListener('click', () => {
+  state.factors.push({ name: 'Neuer Faktor', xm: 0, xf: 0, bm: 0, bf: 0 });
+  renderFactors();
+  update();
+});
+
+document.getElementById('presetA').addEventListener('click', () => applyPreset(PRESET_A));
+document.getElementById('presetB').addEventListener('click', () => applyPreset(PRESET_B));
+
+function applyPreset(p) {
+  state = clone(p);
+  syncControls();
+  renderFactors();
+  update();
+}
+
+function syncControls() {
+  wageM.value = state.wageM;
+  wageF.value = state.wageF;
+  wageM.classList.remove('invalid');
+  wageF.classList.remove('invalid');
+  document.getElementById('equalReturns').checked = state.equalReturns;
+  const radio = document.querySelector('input[name=ref][value="' + state.ref + '"]');
+  if (radio) radio.checked = true;
+}
+
+// ---------- Interpretationstrainer ----------
+const QUIZ = [
+  {
+    stmt: 'Der unerklärte Teil misst, wie stark Frauen diskriminiert werden.',
+    sound: false,
+    why: 'Er ist ein Residuum. Fehlende Merkmale in den Daten landen ebenfalls dort. ' +
+         'Und wenn man für Beruf oder Teilzeit kontrolliert, wandert ein Teil der ' +
+         'Ungleichbehandlung in den erklärten Teil – die Zahl kann also in beide Richtungen danebenliegen.'
+  },
+  {
+    stmt: 'Der erklärte Teil zeigt, dass die Lücke insoweit sachlich gerechtfertigt ist.',
+    sound: false,
+    why: '„Erklärt" heißt nur „auf gemessene Merkmale zurückführbar". Dass diese Merkmale ' +
+         'ungleich verteilt sind, ist selbst erklärungsbedürftig.'
+  },
+  {
+    stmt: 'Je mehr Kontrollvariablen im Modell, desto besser die Schätzung.',
+    sound: false,
+    why: 'Nur für Variablen, die dem Geschlecht vorgelagert sind. Mediatoren wie der Beruf ' +
+         'sind bad controls: sie schließen genau den Kanal, den man messen wollte.'
+  },
+  {
+    stmt: 'Der bereinigte Gap fällt kleiner aus als der unbereinigte, weil ein Teil der Lücke auf messbare Merkmale entfällt.',
+    sound: true,
+    why: 'Das ist genau die Definition. Wichtig ist nur, dass „kleiner" keine Aussage über ' +
+         'Fairness ist, sondern über die Erklärungskraft des Modells.'
+  },
+  {
+    stmt: 'Die Aufteilung in erklärt und unerklärt hängt davon ab, wessen Lohnstruktur als Referenz dient.',
+    sound: true,
+    why: 'Das Index-Problem. Im Rechner oben verschiebt der Umschalter „Referenz β*" die ' +
+         'Aufteilung deutlich, ohne dass sich ein einziger Datenpunkt ändert.'
+  },
+  {
+    stmt: 'Wenn beide Gruppen dieselben Renditen haben, liegt der gesamte unerklärte Teil in der Konstanten.',
+    sound: true,
+    why: 'Bei β_m = β_f wird jeder faktorspezifische Vergütungsbeitrag null. Übrig bleibt die ' +
+         'Differenz der Konstanten – dieselbe Zahl, die ein Frauen-Dummy in einer gemeinsamen ' +
+         'Regression liefert.'
+  }
+];
+
+const quizBox = document.getElementById('quiz');
+QUIZ.forEach(q => {
+  const item = document.createElement('div');
+  item.className = 'quiz-item';
+
+  const stmt = document.createElement('div');
+  stmt.className = 'stmt';
+  stmt.textContent = q.stmt;
+
+  const btns = document.createElement('div');
+  btns.className = 'quiz-btns';
+  const answer = document.createElement('div');
+  answer.className = 'quiz-answer';
+
+  [['tragfähig', true], ['problematisch', false]].forEach(([label, pick]) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.addEventListener('click', () => {
+      btns.querySelectorAll('button').forEach(x => x.classList.remove('picked'));
+      b.classList.add('picked');
+      const right = pick === q.sound;
+      answer.innerHTML =
+        '<strong class="' + (right ? 'ok' : 'no') + '">' +
+        (right ? 'Richtig' : 'Nicht ganz') + ' – die Aussage ist ' +
+        (q.sound ? 'tragfähig' : 'problematisch') + '.</strong> ' + q.why;
+      answer.classList.add('show');
+    });
+    btns.appendChild(b);
+  });
+
+  item.appendChild(stmt);
+  item.appendChild(btns);
+  item.appendChild(answer);
+  quizBox.appendChild(item);
+});
+
+// ---------- Start ----------
+syncControls();
+renderFactors();
+update();
+</script>
+</body>
+</html>
