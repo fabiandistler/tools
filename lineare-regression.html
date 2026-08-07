@@ -1,0 +1,2173 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lineare Regression — interaktiv erklärt</title>
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-soft: #eef2ff;
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --accent: #0ea5e9;
+    --good: #059669;
+    --good-bg: #ecfdf5;
+    --warn: #b45309;
+    --warn-bg: #fffbeb;
+    --bad: #dc2626;
+    --bad-bg: #fef2f2;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+    padding: 1rem;
+  }
+
+  .container { max-width: 940px; margin: 0 auto; }
+
+  header { margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; margin-bottom: 0.35rem; }
+  h2 { font-size: 1.15rem; margin-bottom: 0.6rem; }
+  h3 { font-size: 0.95rem; margin-bottom: 0.3rem; }
+  p.subtitle { color: var(--text-muted); font-size: 0.95rem; }
+  p + p { margin-top: 0.7rem; }
+  h2 + p, h3 + p { margin-top: 0; }
+
+  nav.tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.25rem; }
+  nav.tabs button {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 0.5rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  nav.tabs button:hover { border-color: var(--primary); color: var(--primary); }
+  nav.tabs button.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  .note, .warn, .good {
+    border-radius: 0 0.5rem 0.5rem 0;
+    padding: 0.8rem 1rem;
+    font-size: 0.9rem;
+    margin-top: 1rem;
+  }
+  .note { background: var(--primary-soft); border-left: 3px solid var(--primary); }
+  .warn { background: var(--warn-bg); border-left: 3px solid var(--warn); }
+  .good { background: var(--good-bg); border-left: 3px solid var(--good); }
+
+  ul.tight, ol.tight { margin: 0.6rem 0 0 1.2rem; }
+  ul.tight li, ol.tight li { margin-bottom: 0.35rem; }
+
+  code, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: #f1f5f9;
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.25rem;
+    font-size: 0.88em;
+  }
+  pre {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 0.9rem 1rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    margin-top: 0.6rem;
+  }
+  pre .c { color: #64748b; }
+
+  .eq {
+    text-align: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 1rem;
+    padding: 0.9rem 0.3rem;
+    line-height: 1.9;
+  }
+
+  .formula {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+    gap: 0.35rem;
+    font-size: 1.35rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding: 1.1rem 0.5rem 0.5rem;
+  }
+  .formula .op { color: var(--text-muted); }
+  .formula .term {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+  }
+  .formula .term:hover { border-color: var(--primary); color: var(--primary); }
+  .formula .term.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .hint-center { text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+
+  .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.5rem; }
+  .controls.three { grid-template-columns: repeat(3, 1fr); }
+  .control label {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 0.88rem; font-weight: 600; margin-bottom: 0.2rem;
+  }
+  .control .val { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--primary); }
+  .control .desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.15rem; }
+  input[type="range"] { width: 100%; accent-color: var(--primary); }
+  input[type="number"], select, textarea {
+    width: 100%; padding: 0.45rem;
+    border: 1px solid var(--border); border-radius: 0.375rem;
+    font-size: 0.95rem; font-family: inherit; background: var(--surface); color: var(--text);
+  }
+  textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; min-height: 190px; resize: vertical; }
+  label.check { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+  label.check input { accent-color: var(--primary); }
+
+  button.ghost, button.solid {
+    padding: 0.45rem 0.9rem; border-radius: 0.375rem;
+    font-weight: 600; font-size: 0.85rem; cursor: pointer; font-family: inherit;
+  }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+  button.ghost:hover { border-color: var(--primary); color: var(--primary); }
+  button.ghost.on { border-color: var(--primary); color: #fff; background: var(--primary); }
+  button.solid { background: var(--primary); border: 1px solid var(--primary); color: #fff; }
+  button.solid:hover { filter: brightness(1.08); }
+  .btnrow { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.9rem; }
+
+  canvas { width: 100%; height: 320px; display: block; touch-action: none; }
+  canvas.short { height: 230px; }
+  canvas.mini { height: 165px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid4 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 0.9rem; justify-content: center;
+    font-size: 0.82rem; color: var(--text-muted); margin-top: 0.5rem;
+  }
+  .legend span::before {
+    content: ''; display: inline-block; width: 0.8rem; height: 0.2rem;
+    border-radius: 2px; margin-right: 0.35rem; vertical-align: middle; background: currentColor;
+  }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; }
+  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.7rem; text-align: center; }
+  .stat .num { font-size: 1.3rem; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; }
+  .stat .cap { font-size: 0.74rem; color: var(--text-muted); }
+
+  .msg { color: var(--warn); font-size: 0.83rem; margin-top: 0.4rem; min-height: 1.1rem; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+  th, td { text-align: left; padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-muted); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  td.num, th.num { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .table-wrap { overflow-x: auto; }
+  .sig { color: var(--good); font-weight: 700; }
+  .nsig { color: var(--text-muted); }
+
+  .bars { margin-top: 0.8rem; }
+  .bar-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.45rem; font-size: 0.84rem; }
+  .bar-row .lbl { width: 190px; flex: none; color: var(--text-muted); }
+  .bar-track { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 0.3rem; height: 1.15rem; overflow: hidden; }
+  .bar-fill { display: block; height: 100%; }
+  .bar-row .v { width: 88px; flex: none; text-align: right; font-family: ui-monospace, monospace; }
+
+  .pills { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+  footer { color: var(--text-muted); font-size: 0.8rem; margin-top: 2rem; text-align: center; }
+  footer a { color: var(--primary); }
+
+  @media (max-width: 700px) {
+    .controls, .controls.three, .grid2, .grid4 { grid-template-columns: 1fr; }
+    .formula { font-size: 1rem; }
+    h1 { font-size: 1.35rem; }
+    .bar-row .lbl { width: 120px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Lineare Regression</h1>
+  <p class="subtitle">Von der Idee über die Kleinste-Quadrate-Schätzung bis zu Inferenz, Annahmen und den typischen Fehlinterpretationen — mit Reglern zum Selbstausprobieren.</p>
+</header>
+
+<nav class="tabs" id="tabs"></nav>
+
+<!-- ============================== 1. MODELL ============================== -->
+<section class="panel" id="p-modell">
+  <div class="card">
+    <h2>Was die Regression eigentlich tut</h2>
+    <p>Eine lineare Regression beantwortet eine sehr konkrete Frage: <strong>Wie verändert sich der Erwartungswert einer Zielgröße <em>y</em>, wenn sich eine erklärende Größe <em>x</em> um eine Einheit ändert?</strong></p>
+    <p>Sie ersetzt damit die einfachste denkbare Vorhersage — „nimm immer den Mittelwert von y" — durch eine bessere: „nimm den Mittelwert von y <em>für diesen Wert von x</em>". Genau das ist die Bedeutung der Regressionsgeraden: sie ist eine Schätzung der bedingten Erwartung E[y | x].</p>
+    <div class="note">
+      <strong>„Linear" bezieht sich auf die Koeffizienten, nicht auf die Form der Kurve.</strong> <code>y = β₀ + β₁·x + β₂·x²</code> ist ein <em>lineares</em> Modell, weil β₀, β₁, β₂ linear eingehen — es zeichnet trotzdem eine Parabel. Nicht linear wäre dagegen etwas wie <code>y = β₀ · x^β₁</code>.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Das Modell</h2>
+    <div class="formula" id="formula"></div>
+    <p class="hint-center">Auf einen Term klicken, um ihn zu erklären.</p>
+    <div class="note" id="term-box"></div>
+  </div>
+
+  <div class="card">
+    <h2>Zwei Dinge, die ständig verwechselt werden</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>Modell (Wahrheit)</th><th>Schätzung (Daten)</th></tr></thead>
+        <tbody>
+          <tr><td>Koeffizient</td><td>β₁ — unbekannt, fest</td><td>β̂₁ — berechnet, zufällig</td></tr>
+          <tr><td>Abweichung</td><td>ε — Fehlerterm, nie beobachtbar</td><td>e = y − ŷ — Residuum, berechenbar</td></tr>
+          <tr><td>Streuung</td><td>σ — Fehlerstreuung</td><td>s = √(SSE/(n−k)) — Reststandardfehler</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:0.8rem;">Diese Trennung ist der Kern der gesamten Inferenz: β̂₁ ist eine <em>Zufallsvariable</em>, weil sie von der zufällig gezogenen Stichprobe abhängt. Ein anderer Datensatz aus derselben Grundgesamtheit hätte einen anderen Wert ergeben. Wie stark er schwankt, sagt der Standardfehler — siehe Tab <em>Inferenz</em>.</p>
+  </div>
+
+  <div class="card">
+    <h2>Wann ist Regression das richtige Werkzeug?</h2>
+    <ul class="tight">
+      <li><strong>Beschreiben:</strong> Wie hängen Merkmale zusammen, wenn man andere konstant hält? — funktioniert fast immer.</li>
+      <li><strong>Vorhersagen:</strong> Welchen Wert erwarte ich für eine neue Beobachtung? — funktioniert, solange sie im beobachteten Wertebereich liegt.</li>
+      <li><strong>Kausal erklären:</strong> Was passiert, wenn ich x aktiv verändere? — funktioniert <em>nur</em> unter zusätzlichen, inhaltlichen Annahmen. Der Tab <em>Fallstricke</em> zeigt, warum.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================== 2. OLS ============================== -->
+<section class="panel" id="p-ols">
+  <div class="card">
+    <h2>Die beste Gerade — von Hand gesucht</h2>
+    <p>Die Kleinste-Quadrate-Methode (Ordinary Least Squares, OLS) wählt die Gerade, für die die <strong>Summe der quadrierten senkrechten Abstände</strong> zu den Punkten minimal wird. Schieben Sie die Regler und versuchen Sie, die Fehlerquadratsumme SSE zu unterbieten — das gelingt nicht, das Minimum ist eindeutig.</p>
+    <canvas id="ols-canvas"></canvas>
+    <p class="hint-center">Punkte lassen sich <strong>ziehen</strong>. Klick auf leere Fläche fügt einen Punkt hinzu, <strong>Shift+Klick</strong> auf einen Punkt entfernt ihn.</p>
+    <div class="legend">
+      <span style="color:#4f46e5">Ihre Gerade</span>
+      <span style="color:#94a3b8">OLS-Optimum</span>
+      <span style="color:#dc2626">Residuen</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="controls">
+      <div class="control">
+        <label for="ols-b0">Achsenabschnitt β₀ <span class="val" id="ols-b0-v"></span></label>
+        <input type="range" id="ols-b0" min="-20" max="60" step="0.5">
+      </div>
+      <div class="control">
+        <label for="ols-b1">Steigung β₁ <span class="val" id="ols-b1-v"></span></label>
+        <input type="range" id="ols-b1" min="-3" max="6" step="0.05">
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="ghost on" id="ols-sq">Fehlerquadrate anzeigen</button>
+      <button class="solid" id="ols-fit">Auf OLS-Optimum setzen</button>
+      <button class="ghost" id="ols-reset">Daten zurücksetzen</button>
+    </div>
+    <div class="stats" style="margin-top:1rem;" id="ols-stats"></div>
+    <div class="bars" id="ols-bars"></div>
+  </div>
+
+  <div class="card">
+    <h2>Warum Quadrate — und nicht Beträge?</h2>
+    <ul class="tight">
+      <li><strong>Es gibt eine geschlossene Lösung.</strong> Ableiten der Quadratsumme nach β₀ und β₁, gleich null setzen, fertig — kein Suchverfahren nötig.</li>
+      <li><strong>Sie schätzt den bedingten Mittelwert.</strong> Absolutbeträge (LAD-Regression) würden den bedingten <em>Median</em> schätzen — robuster, aber eine andere Frage.</li>
+      <li><strong>Unter den Gauß-Markov-Annahmen ist OLS BLUE:</strong> unter allen linearen erwartungstreuen Schätzern hat er die kleinste Varianz.</li>
+    </ul>
+    <div class="warn">
+      Der Preis: Quadrieren gewichtet große Abweichungen stark. Ein einzelner Ausreißer kann die Gerade sichtbar verbiegen — ziehen Sie oben einen Punkt weit nach oben und beobachten Sie das OLS-Optimum.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Die Lösung in geschlossener Form</h2>
+    <div class="eq">
+      β̂₁ = Σ(xᵢ − x̄)(yᵢ − ȳ) / Σ(xᵢ − x̄)² = Cov(x, y) / Var(x)<br>
+      β̂₀ = ȳ − β̂₁ · x̄
+    </div>
+    <p>Zwei Eigenschaften folgen direkt daraus und gelten <em>immer</em>, egal wie gut das Modell passt:</p>
+    <ul class="tight">
+      <li>Die Gerade geht exakt durch den Schwerpunkt (x̄, ȳ).</li>
+      <li>Die Residuen summieren sich zu null und sind unkorreliert mit x. Ein Muster im Residuenplot ist deshalb immer ein <em>nichtlineares</em> Muster.</li>
+    </ul>
+    <p>Bei mehreren Prädiktoren schreibt man dasselbe in Matrixform: <span class="mono">β̂ = (XᵀX)⁻¹Xᵀy</span>. Ist eine Spalte von X eine exakte Linearkombination anderer Spalten, ist XᵀX nicht invertierbar — das ist perfekte Multikollinearität, etwa bei der Dummy-Falle.</p>
+  </div>
+</section>
+
+<!-- ============================== 3. GÜTE ============================== -->
+<section class="panel" id="p-guete">
+  <div class="card">
+    <h2>Wie viel Streuung erklärt das Modell?</h2>
+    <p>Vergleichen Sie zwei Modelle auf denselben Daten (den Punkten aus dem vorigen Tab — Änderungen dort wirken sich hier aus):</p>
+    <div class="grid2">
+      <div>
+        <h3>Nullmodell: nur der Mittelwert ȳ</h3>
+        <canvas id="g-null" class="short"></canvas>
+        <p class="hint-center">Abweichungen zum Mittelwert → <strong>SST</strong></p>
+      </div>
+      <div>
+        <h3>Regressionsmodell: die OLS-Gerade</h3>
+        <canvas id="g-reg" class="short"></canvas>
+        <p class="hint-center">Abweichungen zur Geraden → <strong>SSE</strong></p>
+      </div>
+    </div>
+    <div class="eq" style="margin-top:0.6rem;">
+      SST = SSR + SSE &nbsp;&nbsp;&nbsp; R² = SSR / SST = 1 − SSE / SST
+    </div>
+    <div class="bars" id="g-bars"></div>
+    <div class="stats" style="margin-top:1rem;" id="g-stats"></div>
+  </div>
+
+  <div class="card">
+    <h2>R² richtig einordnen</h2>
+    <ul class="tight">
+      <li><strong>R² ist der Anteil der Streuung von y, den das Modell erklärt.</strong> R² = 0,64 heißt: 64 % der Varianz sind gebunden, 36 % bleiben unerklärt.</li>
+      <li><strong>R² steigt mechanisch mit jeder zusätzlichen Variable</strong> — auch mit reinem Zufallsrauschen. Deshalb gibt es das korrigierte R̄², das für die Zahl der Parameter bestraft: <span class="mono">R̄² = 1 − (1−R²)·(n−1)/(n−k)</span>. Nur R̄² kann sinken, wenn eine Variable nichts beiträgt.</li>
+      <li><strong>Ein hohes R² beweist kein gutes Modell.</strong> Das Anscombe-Quartett im Tab <em>Fallstricke</em> zeigt vier völlig verschiedene Datensätze mit identischem R² = 0,67.</li>
+      <li><strong>Ein niedriges R² beweist kein schlechtes Modell.</strong> In Querschnittsdaten über Menschen sind R² von 0,2–0,4 normal. Ein Koeffizient kann präzise geschätzt und inhaltlich wichtig sein, während der größte Teil der individuellen Streuung unerklärt bleibt.</li>
+      <li><strong>Für Vorhersagegüte ist der RMSE informativer</strong>, weil er in der Einheit von y steht: „im Mittel liege ich um X daneben".</li>
+    </ul>
+    <div class="warn">
+      R² ist nur zwischen Modellen mit <em>derselben</em> abhängigen Variable vergleichbar. Ein Modell für <code>y</code> und eines für <code>log(y)</code> haben nicht vergleichbare R².
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Der Zusammenhang zur Korrelation</h2>
+    <p>In der einfachen Regression mit einem Prädiktor gilt <span class="mono">R² = r²</span>, wobei r der Pearson-Korrelationskoeffizient ist. Und die Steigung lässt sich schreiben als <span class="mono">β̂₁ = r · (s_y / s_x)</span>.</p>
+    <p>Daraus folgt die Namensgebung: Ein Punkt, der bei x eine Standardabweichung über dem Mittel liegt, liegt bei y erwartungsgemäß nur <em>r</em> Standardabweichungen über dem Mittel — er fällt zum Mittelwert zurück. Genau diese <em>Regression zur Mitte</em> beobachtete Francis Galton 1886 an Körpergrößen von Eltern und Kindern und gab dem Verfahren damit seinen Namen.</p>
+  </div>
+</section>
+
+<!-- ============================== 4. INFERENZ ============================== -->
+<section class="panel" id="p-inf">
+  <div class="card">
+    <h2>Der Koeffizient ist eine Zufallsvariable</h2>
+    <p>Hier wird eine bekannte Wahrheit simuliert: y = 5 + β₁·x + ε. Sie sehen also, was Sie in echten Daten nie sehen — den wahren Wert. Ziehen Sie mehrfach neue Stichproben und beobachten Sie, wie stark β̂₁ um den wahren Wert schwankt.</p>
+    <div class="controls three">
+      <div class="control">
+        <label for="i-n">Stichprobengröße n <span class="val" id="i-n-v"></span></label>
+        <input type="range" id="i-n" min="8" max="400" step="1" value="40">
+      </div>
+      <div class="control">
+        <label for="i-sig">Fehlerstreuung σ <span class="val" id="i-sig-v"></span></label>
+        <input type="range" id="i-sig" min="0.5" max="15" step="0.25" value="5">
+      </div>
+      <div class="control">
+        <label for="i-b1">Wahres β₁ <span class="val" id="i-b1-v"></span></label>
+        <input type="range" id="i-b1" min="-2" max="4" step="0.1" value="1.5">
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="solid" id="i-new">Neue Stichprobe ziehen</button>
+      <button class="ghost on" id="i-band">Bänder anzeigen</button>
+    </div>
+    <canvas id="i-canvas" style="margin-top:0.8rem;"></canvas>
+    <div class="legend">
+      <span style="color:#4f46e5">Geschätzte Gerade</span>
+      <span style="color:#059669">Wahre Gerade</span>
+      <span style="color:#0ea5e9">95 % Konfidenzband</span>
+      <span style="color:#94a3b8">95 % Prognoseband</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Die Regressionstabelle</h2>
+    <div class="table-wrap"><table id="i-table"></table></div>
+    <div class="stats" style="margin-top:1rem;" id="i-stats"></div>
+    <div class="note" id="i-verdict"></div>
+  </div>
+
+  <div class="card">
+    <h2>Stichprobenverteilung von β̂₁</h2>
+    <p>500 unabhängige Stichproben mit denselben Einstellungen. Die Verteilung ist um den wahren Wert zentriert (Erwartungstreue) und ihre Breite ist genau das, was der Standardfehler schätzt.</p>
+    <canvas id="i-hist" class="short"></canvas>
+    <div class="stats" style="margin-top:0.6rem;" id="i-hist-stats"></div>
+    <div class="note">
+      <strong>Beobachten Sie:</strong> n vervierfachen halbiert die Streuung (SE ∝ 1/√n). σ verdoppeln verdoppelt sie. Ein größerer Wertebereich von x hilft ebenfalls — deshalb steht Var(x) im Nenner der SE-Formel.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Was die Spalten bedeuten</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Größe</th><th>Formel</th><th>Lesart</th></tr></thead>
+        <tbody>
+          <tr><td>Standardfehler</td><td class="mono">SE(β̂₁) = s / √(Σ(xᵢ−x̄)²)</td><td>Geschätzte Streuung von β̂₁ über hypothetische Stichproben.</td></tr>
+          <tr><td>t-Wert</td><td class="mono">t = β̂₁ / SE(β̂₁)</td><td>Wie viele Standardfehler liegt die Schätzung von null entfernt?</td></tr>
+          <tr><td>p-Wert</td><td class="mono">P(|T| &gt; |t|), df = n−k</td><td>Wahrscheinlichkeit, einen mindestens so extremen Wert zu sehen, <em>wenn β₁ = 0 wäre</em>.</td></tr>
+          <tr><td>95 %-KI</td><td class="mono">β̂₁ ± t<sub>0,975</sub>·SE</td><td>Verfahren, das in 95 % aller Stichproben den wahren Wert überdeckt.</td></tr>
+          <tr><td>F-Test</td><td class="mono">F = (SSR/(k−1)) / (SSE/(n−k))</td><td>Gemeinsamer Test: erklärt <em>irgendeine</em> Variable etwas?</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="warn">
+      <strong>Drei verbreitete Fehldeutungen.</strong> (1) Der p-Wert ist <em>nicht</em> die Wahrscheinlichkeit, dass die Nullhypothese stimmt. (2) „Nicht signifikant" heißt nicht „kein Effekt", sondern „mit diesen Daten nicht von null unterscheidbar" — bei kleinem n oft trotz großem Effekt. (3) Statistische Signifikanz ist keine inhaltliche Relevanz: bei n = 100.000 wird auch ein Effekt von 0,3 % signifikant. Immer die Effektgröße samt Konfidenzintervall berichten, nicht nur Sternchen.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Konfidenzband ≠ Prognoseband</h2>
+    <ul class="tight">
+      <li>Das <strong>Konfidenzband</strong> beschreibt die Unsicherheit über den <em>bedingten Mittelwert</em> E[y|x]. Es wird mit wachsendem n beliebig schmal.</li>
+      <li>Das <strong>Prognoseband</strong> beschreibt die Unsicherheit über eine <em>einzelne neue Beobachtung</em>. Es enthält zusätzlich die Fehlerstreuung σ und bleibt deshalb auch bei n → ∞ breit.</li>
+    </ul>
+    <p>Für die Frage „wie hoch ist das mittlere Gehalt bei 10 Jahren Erfahrung?" gilt das Konfidenzband. Für „was verdient diese eine Person?" das Prognoseband. Beide sind an den Rändern des x-Bereichs breiter — die Gerade ist dort am schlechtesten bestimmt.</p>
+  </div>
+</section>
+
+<!-- ============================== 5. MULTIPLE ============================== -->
+<section class="panel" id="p-multi">
+  <div class="card">
+    <h2>Mehrere Prädiktoren: „unter sonst gleichen Bedingungen"</h2>
+    <p>In der multiplen Regression <span class="mono">y = β₀ + β₁x₁ + β₂x₂ + … + ε</span> ändert sich die Interpretation von β₁ grundlegend: es ist der Effekt von x₁ <strong>bei konstant gehaltenen übrigen Variablen</strong>. Technisch gesehen misst β₁ den Zusammenhang zwischen dem Teil von x₁ und dem Teil von y, die jeweils <em>nicht</em> durch die anderen Variablen erklärt werden (Frisch-Waugh-Lovell-Theorem).</p>
+    <p>Genau daraus entstehen die beiden wichtigsten Probleme der Praxis — und beide lassen sich hier durchspielen.</p>
+  </div>
+
+  <div class="card">
+    <h2>Simulation</h2>
+    <p>Wahres Modell: <span class="mono">y = 10 + β₁·x₁ + β₂·x₂ + ε</span>. Geschätzt werden zwei Modelle — eines mit beiden Variablen, eines <em>ohne</em> x₂.</p>
+    <div class="controls three">
+      <div class="control">
+        <label for="m-rho">Korrelation ρ(x₁, x₂) <span class="val" id="m-rho-v"></span></label>
+        <input type="range" id="m-rho" min="-0.95" max="0.95" step="0.05" value="0.6">
+        <div class="desc">Wie stark hängen die beiden Prädiktoren zusammen?</div>
+      </div>
+      <div class="control">
+        <label for="m-b1">Wahres β₁ <span class="val" id="m-b1-v"></span></label>
+        <input type="range" id="m-b1" min="-3" max="3" step="0.1" value="1">
+      </div>
+      <div class="control">
+        <label for="m-b2">Wahres β₂ <span class="val" id="m-b2-v"></span></label>
+        <input type="range" id="m-b2" min="-3" max="3" step="0.1" value="2">
+      </div>
+    </div>
+    <div class="controls" style="margin-top:1rem;">
+      <div class="control">
+        <label for="m-n">Stichprobengröße n <span class="val" id="m-n-v"></span></label>
+        <input type="range" id="m-n" min="20" max="600" step="10" value="150">
+      </div>
+      <div class="control">
+        <label for="m-sig">Fehlerstreuung σ <span class="val" id="m-sig-v"></span></label>
+        <input type="range" id="m-sig" min="0.5" max="8" step="0.25" value="2">
+      </div>
+    </div>
+    <div class="btnrow"><button class="solid" id="m-new">Neue Stichprobe ziehen</button></div>
+    <canvas id="m-canvas" class="short" style="margin-top:1rem;"></canvas>
+    <p class="hint-center">Punktschätzer mit 95 %-Konfidenzintervall, gestrichelt der wahre Wert.</p>
+  </div>
+
+  <div class="card">
+    <h2>Vollständiges Modell</h2>
+    <div class="table-wrap"><table id="m-full"></table></div>
+    <h2 style="margin-top:1.4rem;">Verkürztes Modell (x₂ weggelassen)</h2>
+    <div class="table-wrap"><table id="m-short"></table></div>
+    <div class="warn" id="m-ovb"></div>
+  </div>
+
+  <div class="card">
+    <h2>Omitted Variable Bias</h2>
+    <p>Fehlt eine relevante Variable, wird ihr Effekt der korrelierten enthaltenen Variable zugeschlagen. Die Verzerrung ist exakt bezifferbar:</p>
+    <div class="eq">E[β̂₁<sup>kurz</sup>] = β₁ + β₂ · δ &nbsp;&nbsp; mit &nbsp;&nbsp; δ = Cov(x₁,x₂)/Var(x₁)</div>
+    <p>Man braucht also <strong>beides</strong>, damit ein Bias entsteht: Die weggelassene Variable muss y beeinflussen (β₂ ≠ 0) <em>und</em> mit x₁ korrelieren (δ ≠ 0). Stellen Sie oben ρ = 0 ein — die Verzerrung verschwindet, obwohl x₂ weiter fehlt.</p>
+    <p>Das Vorzeichen ist vorhersagbar: Sind β₂ und ρ beide positiv, wird β̂₁ <em>überschätzt</em>. Haben sie unterschiedliche Vorzeichen, wird unterschätzt — bis hin zum Vorzeichenwechsel. Genau das steckt hinter Aussagen wie „nach Kontrolle für Position und Erfahrung schrumpft der Gehaltsunterschied von 18 % auf 5 %".</p>
+    <div class="note">
+      Omitted Variable Bias ist das zentrale Argument gegen kausale Interpretation von Beobachtungsdaten. Er lässt sich nicht durch mehr Daten heilen — nur durch bessere Variablen oder ein besseres Design.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Multikollinearität</h2>
+    <p>Sind Prädiktoren stark korreliert, lässt sich ihr Beitrag kaum noch trennen. Die Schätzer bleiben erwartungstreu, aber ihre Standardfehler explodieren: Koeffizienten werden groß, instabil und wechseln bei kleinen Datenänderungen das Vorzeichen.</p>
+    <div class="eq">VIF<sub>j</sub> = 1 / (1 − R²<sub>j</sub>) &nbsp;&nbsp;&nbsp; SE(β̂<sub>j</sub>) wächst mit √VIF<sub>j</sub></div>
+    <p>R²<sub>j</sub> ist dabei das Bestimmtheitsmaß aus der Regression von x<sub>j</sub> auf alle anderen Prädiktoren. Faustregeln: VIF &gt; 5 kritisch prüfen, VIF &gt; 10 handeln.</p>
+    <div class="stats" id="m-vif"></div>
+    <p style="margin-top:0.9rem;"><strong>Was tun?</strong> Variablen zusammenfassen oder eine weglassen; einen Index bilden; regularisieren (Ridge); oder — häufig die beste Antwort — nichts tun, wenn nur Vorhersage das Ziel ist. Multikollinearität schadet der Vorhersage kaum, sondern nur der Interpretation einzelner Koeffizienten.</p>
+    <div class="warn">
+      <strong>Perfekte Multikollinearität</strong> ist ein anderer Fall: dort ist XᵀX nicht invertierbar und das Modell gar nicht schätzbar. Klassiker ist die <em>Dummy-Falle</em> — nimmt man für eine Variable mit k Kategorien alle k Dummys <em>plus</em> Achsenabschnitt auf, summieren sich die Dummys zur Eins-Spalte. Eine Kategorie muss als Referenz entfallen.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Kategorien, Interaktionen, Nichtlinearität</h2>
+    <ul class="tight">
+      <li><strong>Dummy-Variablen:</strong> Eine Kategorie ist Referenz, jeder Koeffizient misst die Differenz zu ihr. Der Achsenabschnitt gehört zur Referenzgruppe.</li>
+      <li><strong>Interaktionen</strong> (<span class="mono">x₁ · x₂</span>): erlauben, dass der Effekt von x₁ vom Wert von x₂ abhängt. Achtung: Bei aufgenommener Interaktion ist β₁ nur noch der Effekt von x₁ <em>an der Stelle x₂ = 0</em> — Variablen vorher zentrieren macht das interpretierbar.</li>
+      <li><strong>Quadratische Terme</strong> (<span class="mono">x + x²</span>): erlauben Krümmung. Der Effekt ist dann <span class="mono">β₁ + 2β₂x</span> und damit selbst vom Niveau abhängig. Nie x² ohne x aufnehmen.</li>
+      <li><strong>log-Transformationen:</strong> <span class="mono">log(y)</span> → Koeffizienten als Prozenteffekte lesbar (exakt: <span class="mono">e^β − 1</span>); <span class="mono">log(x)</span> und <span class="mono">log(y)</span> gemeinsam → Elastizität.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================== 6. ANNAHMEN ============================== -->
+<section class="panel" id="p-ann">
+  <div class="card">
+    <h2>Die Annahmen — und woran man ihre Verletzung sieht</h2>
+    <p>Wählen Sie ein Szenario. Links die Daten mit OLS-Gerade, rechts der Diagnoseplot — das Werkzeug, an dem sich die Verletzung tatsächlich zeigt.</p>
+    <div class="pills" id="a-pills"></div>
+    <div class="grid2" style="margin-top:1rem;">
+      <div>
+        <h3>Daten und Anpassung</h3>
+        <canvas id="a-scatter" class="short"></canvas>
+      </div>
+      <div>
+        <h3 id="a-diag-title">Residuen vs. angepasste Werte</h3>
+        <canvas id="a-resid" class="short"></canvas>
+      </div>
+    </div>
+    <div id="a-text"></div>
+  </div>
+
+  <div class="card">
+    <h2>Was welche Annahme absichert</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Annahme</th><th>Verletzt bedeutet</th><th>Betroffen ist</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Linearität</strong> im Zusammenhang</td><td>Falsche funktionale Form</td><td>Schätzer selbst — β̂ ist verzerrt</td></tr>
+          <tr><td><strong>Exogenität</strong> E[ε|x] = 0</td><td>Weggelassene Variable, Messfehler, Simultanität</td><td>Schätzer selbst — β̂ ist verzerrt</td></tr>
+          <tr><td><strong>Homoskedastizität</strong></td><td>Fehlerstreuung hängt von x ab</td><td>Nur Standardfehler, t- und p-Werte</td></tr>
+          <tr><td><strong>Unabhängigkeit</strong> der Fehler</td><td>Zeitreihen, Panels, Cluster</td><td>Nur Standardfehler (oft massiv zu klein)</td></tr>
+          <tr><td><strong>Keine perfekte Kollinearität</strong></td><td>Modell nicht schätzbar</td><td>Rechnung bricht ab</td></tr>
+          <tr><td><strong>Normalverteilte Fehler</strong></td><td>Schiefe, schwere Ränder</td><td>Nur Tests in <em>kleinen</em> Stichproben</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <strong>Die wichtigste Unterscheidung überhaupt:</strong> Die ersten beiden Annahmen betreffen die <em>Erwartungstreue</em> — ist sie verletzt, ist die Zahl selbst falsch, und kein noch so großes n rettet sie. Die übrigen betreffen nur die <em>Präzisionsangaben</em> — die lassen sich mit robusten oder geclusterten Standardfehlern reparieren.
+    </div>
+    <div class="good">
+      <strong>Normalverteilung wird am häufigsten überbewertet.</strong> Nicht y muss normalverteilt sein, sondern höchstens die <em>Fehler</em> — und auch das nur, wenn n klein ist. Ab etwa n = 50 sorgt der zentrale Grenzwertsatz dafür, dass t-Tests auch bei schiefen Fehlern brauchbar bleiben.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Einflussreiche Beobachtungen</h2>
+    <p>Drei verschiedene Dinge werden oft in einen Topf geworfen:</p>
+    <ul class="tight">
+      <li><strong>Ausreißer</strong> — ungewöhnlicher y-Wert bei normalem x. Erhöht vor allem die Fehlerstreuung.</li>
+      <li><strong>Hebelpunkt (Leverage)</strong> — extremer x-Wert. Gefährlich, weil er die Gerade drehen <em>kann</em>. Kennzahl: h<sub>ii</sub>, auffällig ab 2k/n.</li>
+      <li><strong>Einflussreiche Beobachtung</strong> — beides zusammen: Sie verändert das Ergebnis tatsächlich. Kennzahlen: Cook's D (Gesamteinfluss) und DFBETAS (Einfluss auf einen einzelnen Koeffizienten, auffällig ab 2/√n).</li>
+    </ul>
+    <p>Nur die dritte Gruppe ist ein Problem. Und die richtige Reaktion ist fast nie „löschen", sondern: nachsehen, ob ein Datenfehler vorliegt, sonst Ergebnis mit und ohne die Beobachtung berichten.</p>
+  </div>
+
+  <div class="card">
+    <h2>Diagnose-Checkliste</h2>
+    <ol class="tight">
+      <li><strong>Residuen vs. angepasste Werte</strong> — der wichtigste Plot. Erwartet: strukturloses Band um null. Trichter → Heteroskedastizität, Bogen → Nichtlinearität.</li>
+      <li><strong>Q-Q-Plot der Residuen</strong> — Abweichungen an den Enden zeigen schwere Ränder.</li>
+      <li><strong>Scale-Location-Plot</strong> (√|standardisierte Residuen| vs. Fit) — Heteroskedastizität deutlicher als im Rohplot.</li>
+      <li><strong>Residuen vs. Zeit/Index</strong> — bei zeitlicher Ordnung Pflicht (Durbin-Watson ≈ 2 bedeutet keine Autokorrelation).</li>
+      <li><strong>Einflussdiagnostik</strong> — Cook's D, Leverage, DFBETAS.</li>
+      <li><strong>VIF</strong> für alle Prädiktoren.</li>
+    </ol>
+    <div class="good">
+      <strong>Im Zweifel robust rechnen.</strong> Heteroskedastie-robuste Standardfehler (HC3) kosten bei korrekt spezifiziertem Modell fast nichts und retten bei Verletzung viel. Bei gruppierten Daten geclusterte Standardfehler auf der Ebene, auf der die Zuordnung stattfindet.
+    </div>
+  </div>
+</section>
+
+<!-- ============================== 7. FALLSTRICKE ============================== -->
+<section class="panel" id="p-fallen">
+  <div class="card">
+    <h2>Anscombe-Quartett: gleiche Statistik, andere Welt</h2>
+    <p>Vier Datensätze, die in fast jeder Kennzahl übereinstimmen: gleicher Mittelwert von x und y, gleiche Varianzen, gleiche Regressionsgerade <span class="mono">ŷ = 3,00 + 0,500·x</span>, gleiches R² = 0,67, gleicher t-Wert. Nur das Bild verrät den Unterschied.</p>
+    <div class="grid4" id="ans-grid"></div>
+    <div class="warn">
+      Die Lehre ist nicht „Kennzahlen sind nutzlos", sondern: <strong>immer zuerst plotten</strong>. Fall II braucht einen quadratischen Term, Fall III eine robuste Methode oder die Prüfung des Ausreißers, Fall IV ist überhaupt nicht schätzbar — die Steigung hängt an einer einzigen Beobachtung.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Simpson-Paradox</h2>
+    <p>Derselbe Datensatz, zweimal ausgewertet: einmal ohne, einmal mit Berücksichtigung der Gruppe. Das Vorzeichen des Effekts dreht sich.</p>
+    <canvas id="simp-canvas" class="short"></canvas>
+    <div class="btnrow"><button class="ghost" id="simp-toggle">Gruppen einfärben</button></div>
+    <p style="margin-top:0.8rem;">Ein realistisches Beispiel: Innerhalb jeder Abteilung steigt das Gehalt mit den Jahren im Unternehmen — im Gesamtvergleich sinkt es scheinbar, weil die gut bezahlten Abteilungen im Schnitt jüngere Belegschaften haben. Beide Zahlen sind rechnerisch korrekt; nur eine beantwortet die gestellte Frage.</p>
+    <div class="note">
+      Welche Auswertung richtig ist, entscheidet <em>nicht</em> die Statistik, sondern das inhaltliche Modell: Ist die Gruppe eine <strong>Störgröße</strong> (beeinflusst x und y), muss man für sie kontrollieren. Ist sie ein <strong>Mediator</strong> (liegt kausal <em>zwischen</em> x und y), zerstört Kontrollieren genau den Effekt, den man messen wollte.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Korrelation, Kausalität und der Griff zur Kontrollvariable</h2>
+    <p>Ein signifikanter Koeffizient bedeutet: In diesen Daten gehen x und y systematisch zusammen. Er bedeutet nicht, dass eine Änderung von x eine Änderung von y bewirkt. Drei Alternativen sind immer im Spiel:</p>
+    <ul class="tight">
+      <li><strong>Umgekehrte Kausalität</strong> — y beeinflusst x. (Mehr Beratungsstunden bei kritischen Projekten: Beratung sieht so aus, als verschlechtere sie das Ergebnis.)</li>
+      <li><strong>Gemeinsame Ursache</strong> — eine dritte Variable treibt beide. Das ist der Omitted Variable Bias aus dem vorigen Tab.</li>
+      <li><strong>Selektion</strong> — die Stichprobe ist nicht zufällig entstanden. Wer nur Bewerber betrachtet, die eingestellt wurden, misst systematisch verzerrt.</li>
+    </ul>
+    <div class="warn">
+      <strong>Mehr Kontrollvariablen sind nicht automatisch besser.</strong> Kontrolliert man einen <em>Collider</em> — eine Variable, die von x <em>und</em> y beeinflusst wird —, entsteht eine Scheinkorrelation, wo vorher keine war. Welche Variablen ins Modell gehören, folgt aus dem angenommenen Kausalmodell, nicht aus dem Modellfit.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Weitere klassische Fehler</h2>
+    <ul class="tight">
+      <li><strong>Extrapolation</strong> — Vorhersagen außerhalb des beobachteten x-Bereichs. Das Modell hat dort keine Information; die Gerade läuft trotzdem weiter.</li>
+      <li><strong>Achsenabschnitt überinterpretieren</strong> — β₀ ist der Erwartungswert bei x = 0. Liegt x = 0 außerhalb der Daten (z. B. „Körpergröße 0"), ist er reine Rechengröße. Zentrieren macht ihn interpretierbar.</li>
+      <li><strong>Stufenweise Variablenauswahl</strong> (Stepwise) — verzerrt Koeffizienten und p-Werte systematisch, weil dieselben Daten für Auswahl und Test benutzt werden.</li>
+      <li><strong>p-Hacking</strong> — genügend Spezifikationen durchprobieren, bis eine signifikant ist. Bei 20 Tests ist im Schnitt einer zufällig signifikant.</li>
+      <li><strong>In-Sample-Güte als Vorhersagegüte verkaufen</strong> — R² auf den Trainingsdaten ist optimistisch. Für Vorhersage zählt Kreuzvalidierung.</li>
+      <li><strong>Ökologischer Fehlschluss</strong> — Zusammenhänge auf Aggregatebene (Abteilungen, Länder) auf Individuen übertragen.</li>
+      <li><strong>Kennzahl-Fetisch</strong> — Sternchen berichten statt Effektgröße und Konfidenzintervall.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================== 8. EIGENE DATEN ============================== -->
+<section class="panel" id="p-daten">
+  <div class="card">
+    <h2>Eigene Daten rechnen</h2>
+    <p>Daten einfügen (CSV, Semikolon oder Tabulator; erste Zeile Spaltennamen; Dezimaltrennzeichen Punkt oder Komma). Alles läuft lokal im Browser — es werden keine Daten übertragen.</p>
+    <textarea id="d-input" spellcheck="false"></textarea>
+    <div class="btnrow">
+      <button class="solid" id="d-parse">Daten einlesen</button>
+      <button class="ghost" id="d-demo">Beispieldaten laden</button>
+    </div>
+    <div class="msg" id="d-msg"></div>
+  </div>
+
+  <div class="card" id="d-config" style="display:none;">
+    <h2>Modell festlegen</h2>
+    <div class="controls">
+      <div class="control">
+        <label for="d-y">Zielvariable y</label>
+        <select id="d-y"></select>
+      </div>
+      <div class="control">
+        <label>Prädiktoren x</label>
+        <div id="d-x" style="display:flex; flex-direction:column; gap:0.3rem; margin-top:0.2rem;"></div>
+      </div>
+    </div>
+    <div class="btnrow"><button class="solid" id="d-run">Regression rechnen</button></div>
+  </div>
+
+  <div id="d-out"></div>
+</section>
+
+<!-- ============================== 9. SPICKZETTEL ============================== -->
+<section class="panel" id="p-spick">
+  <div class="card">
+    <h2>Formelsammlung</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Größe</th><th>Formel</th><th>Bedeutung</th></tr></thead>
+        <tbody>
+          <tr><td>Steigung (einfach)</td><td class="mono">β̂₁ = Σ(xᵢ−x̄)(yᵢ−ȳ) / Σ(xᵢ−x̄)²</td><td>Cov(x,y)/Var(x)</td></tr>
+          <tr><td>Achsenabschnitt</td><td class="mono">β̂₀ = ȳ − β̂₁x̄</td><td>Gerade durch (x̄, ȳ)</td></tr>
+          <tr><td>Matrixform</td><td class="mono">β̂ = (XᵀX)⁻¹Xᵀy</td><td>beliebig viele Prädiktoren</td></tr>
+          <tr><td>Residuum</td><td class="mono">eᵢ = yᵢ − ŷᵢ</td><td>beobachtet minus angepasst</td></tr>
+          <tr><td>SST / SSR / SSE</td><td class="mono">Σ(yᵢ−ȳ)² / Σ(ŷᵢ−ȳ)² / Σeᵢ²</td><td>gesamt = erklärt + Rest</td></tr>
+          <tr><td>R²</td><td class="mono">1 − SSE/SST</td><td>erklärter Varianzanteil</td></tr>
+          <tr><td>Korrigiertes R̄²</td><td class="mono">1 − (1−R²)(n−1)/(n−k)</td><td>bestraft Parameterzahl</td></tr>
+          <tr><td>Reststandardfehler</td><td class="mono">s = √(SSE/(n−k))</td><td>Schätzung von σ</td></tr>
+          <tr><td>RMSE</td><td class="mono">√(SSE/n)</td><td>mittlerer Fehler in Einheiten von y</td></tr>
+          <tr><td>SE der Steigung</td><td class="mono">s / √(Σ(xᵢ−x̄)²)</td><td>Präzision von β̂₁</td></tr>
+          <tr><td>t-Statistik</td><td class="mono">β̂ⱼ / SE(β̂ⱼ)</td><td>df = n − k</td></tr>
+          <tr><td>Konfidenzintervall</td><td class="mono">β̂ⱼ ± t₀,₉₇₅ · SE(β̂ⱼ)</td><td>95 % Überdeckung</td></tr>
+          <tr><td>F-Statistik</td><td class="mono">(SSR/(k−1)) / (SSE/(n−k))</td><td>Gesamtsignifikanz</td></tr>
+          <tr><td>VIF</td><td class="mono">1/(1−R²ⱼ)</td><td>Multikollinearität</td></tr>
+          <tr><td>Leverage-Schwelle</td><td class="mono">hᵢᵢ &gt; 2k/n</td><td>Hebelpunkt</td></tr>
+          <tr><td>Cook's D</td><td class="mono">D &gt; 4/n</td><td>einflussreiche Beobachtung</td></tr>
+          <tr><td>Prozenteffekt bei log(y)</td><td class="mono">(e^β − 1)·100</td><td>exakt statt Faustregel</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:0.7rem; font-size:0.85rem; color:var(--text-muted);">k zählt dabei alle geschätzten Koeffizienten einschließlich des Achsenabschnitts.</p>
+  </div>
+
+  <div class="card">
+    <h2>Arbeitsablauf für eine belastbare Analyse</h2>
+    <ol class="tight">
+      <li><strong>Frage präzisieren:</strong> beschreiben, vorhersagen oder kausal erklären? Davon hängt alles Weitere ab.</li>
+      <li><strong>Daten ansehen</strong> — Verteilungen, fehlende Werte, Ausreißer, Streudiagramme. Vor jedem Modell.</li>
+      <li><strong>Modell aus der Sache heraus spezifizieren</strong>, nicht aus dem Fit heraus: Welche Variablen gehören inhaltlich hinein, welche sind Collider?</li>
+      <li><strong>Schätzen</strong> und Koeffizienten in Fachsprache übersetzen („pro zusätzlichem Jahr … bei gleicher Position").</li>
+      <li><strong>Diagnostik</strong> — Residuenplots, Einflussdiagnostik, VIF.</li>
+      <li><strong>Robustheit prüfen:</strong> alternative Spezifikationen, mit/ohne einflussreiche Fälle, robuste Standardfehler.</li>
+      <li><strong>Berichten</strong> mit Effektgröße, Konfidenzintervall, n und den Annahmen — nicht mit Sternchen allein.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>Umsetzung in R und Python</h2>
+    <pre><span class="c"># --- R ---</span>
+m &lt;- lm(gehalt ~ erfahrung + ausbildung + geschlecht, data = df)
+summary(m)                       <span class="c"># Koeffizienten, SE, t, p, R2, F</span>
+confint(m)                       <span class="c"># Konfidenzintervalle</span>
+par(mfrow = c(2, 2)); plot(m)    <span class="c"># die vier Standard-Diagnoseplots</span>
+car::vif(m)                      <span class="c"># Multikollinearitaet</span>
+lmtest::coeftest(m, vcov = sandwich::vcovHC(m, type = "HC3"))   <span class="c"># robuste SE</span>
+predict(m, newdata = neu, interval = "prediction")              <span class="c"># Prognoseband</span></pre>
+    <pre><span class="c"># --- Python (statsmodels) ---</span>
+import statsmodels.formula.api as smf
+m = smf.ols("gehalt ~ erfahrung + ausbildung + C(geschlecht)", data=df).fit()
+print(m.summary())
+m_rob = m.get_robustcov_results(cov_type="HC3")   <span class="c"># robuste SE</span>
+m.conf_int()
+
+from statsmodels.stats.outliers_influence import variance_inflation_factor, OLSInfluence
+OLSInfluence(m).cooks_distance[0]                 <span class="c"># Cook's D</span></pre>
+    <p style="margin-top:0.8rem; font-size:0.86rem; color:var(--text-muted);">Für reine Vorhersage ist <code>scikit-learn</code> bequemer, liefert aber bewusst keine Standardfehler und p-Werte. Für Inferenz führt kein Weg an <code>statsmodels</code> beziehungsweise <code>lm()</code> vorbei.</p>
+  </div>
+</section>
+
+<footer>
+  Interaktives Lernwerkzeug — alle Berechnungen laufen im Browser.
+  <a href="index.html">Zurück zur Toolübersicht</a>
+</footer>
+
+</div>
+
+<script>
+/* ==========================================================================
+   Hilfsfunktionen
+   ========================================================================== */
+
+const fmt = (v, d = 2) => {
+  if (!isFinite(v)) return '—';
+  let s = v.toFixed(d);
+  if (/^-0(\.0*)?$/.test(s)) s = s.slice(1);   /* kein „-0" auf den Achsen */
+  return s.replace('.', ',');
+};
+const fmtP = p => {
+  if (!isFinite(p)) return '—';
+  if (p < 0.001) return '&lt; 0,001';
+  return fmt(p, 3);
+};
+const sum = a => a.reduce((s, v) => s + v, 0);
+const mean = a => sum(a) / a.length;
+const variance = a => { const m = mean(a); return sum(a.map(v => (v - m) ** 2)) / (a.length - 1); };
+const sd = a => Math.sqrt(variance(a));
+
+/* Reproduzierbarer Zufallsgenerator */
+function rng(seed) {
+  let s = seed >>> 0;
+  return function () {
+    s |= 0; s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function gauss(rnd) {
+  let u = 0, v = 0;
+  while (u === 0) u = rnd();
+  while (v === 0) v = rnd();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+/* ==========================================================================
+   Verteilungen: t und F über die unvollständige Betafunktion
+   ========================================================================== */
+
+function logGamma(x) {
+  const g = [676.5203681218851, -1259.1392167224028, 771.32342877765313,
+    -176.61502916214059, 12.507343278686905, -0.13857109526572012,
+    9.9843695780195716e-6, 1.5056327351493116e-7];
+  if (x < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * x)) - logGamma(1 - x);
+  x -= 1;
+  let a = 0.99999999999980993;
+  const t = x + 7.5;
+  for (let i = 0; i < 8; i++) a += g[i] / (x + i + 1);
+  return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+}
+
+function betacf(a, b, x) {
+  const MAXIT = 300, EPS = 3e-12, FPMIN = 1e-300;
+  const qab = a + b, qap = a + 1, qam = a - 1;
+  let c = 1, d = 1 - qab * x / qap;
+  if (Math.abs(d) < FPMIN) d = FPMIN;
+  d = 1 / d;
+  let h = d;
+  for (let m = 1; m <= MAXIT; m++) {
+    const m2 = 2 * m;
+    let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+    d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN;
+    c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN;
+    d = 1 / d; h *= d * c;
+    aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+    d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN;
+    c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN;
+    d = 1 / d;
+    const del = d * c;
+    h *= del;
+    if (Math.abs(del - 1) < EPS) break;
+  }
+  return h;
+}
+
+function betai(a, b, x) {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const bt = Math.exp(logGamma(a + b) - logGamma(a) - logGamma(b)
+    + a * Math.log(x) + b * Math.log(1 - x));
+  return x < (a + 1) / (a + b + 2)
+    ? bt * betacf(a, b, x) / a
+    : 1 - bt * betacf(b, a, 1 - x) / b;
+}
+
+/* zweiseitiger p-Wert der t-Verteilung */
+function tTest(t, df) {
+  if (df <= 0 || !isFinite(t)) return NaN;
+  return betai(df / 2, 0.5, df / (df + t * t));
+}
+/* Quantil t_{1-alpha/2} über Bisektion */
+function tCrit(df, alpha = 0.05) {
+  if (df <= 0) return NaN;
+  let lo = 0, hi = 200;
+  for (let i = 0; i < 80; i++) {
+    const mid = (lo + hi) / 2;
+    if (tTest(mid, df) > alpha) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+/* P(F > f) */
+function fTest(f, d1, d2) {
+  if (!isFinite(f) || f <= 0) return NaN;
+  return betai(d2 / 2, d1 / 2, d2 / (d2 + d1 * f));
+}
+
+/* ==========================================================================
+   Lineare Algebra und OLS
+   ========================================================================== */
+
+function matInv(A) {
+  const n = A.length;
+  const M = A.map((row, i) => row.concat(Array.from({ length: n }, (_, j) => (i === j ? 1 : 0))));
+  for (let col = 0; col < n; col++) {
+    let piv = col;
+    for (let r = col + 1; r < n; r++) if (Math.abs(M[r][col]) > Math.abs(M[piv][col])) piv = r;
+    if (Math.abs(M[piv][col]) < 1e-12) return null;
+    [M[col], M[piv]] = [M[piv], M[col]];
+    const p = M[col][col];
+    for (let j = 0; j < 2 * n; j++) M[col][j] /= p;
+    for (let r = 0; r < n; r++) {
+      if (r === col) continue;
+      const f = M[r][col];
+      if (f === 0) continue;
+      for (let j = 0; j < 2 * n; j++) M[r][j] -= f * M[col][j];
+    }
+  }
+  return M.map(row => row.slice(n));
+}
+
+/**
+ * OLS mit Achsenabschnitt.
+ * cols: Array von Prädiktorspalten (jeweils Array der Länge n)
+ */
+function ols(cols, y) {
+  const n = y.length;
+  const k = cols.length + 1;
+  const X = [];
+  for (let i = 0; i < n; i++) X.push([1, ...cols.map(c => c[i])]);
+
+  const XtX = Array.from({ length: k }, () => new Array(k).fill(0));
+  const Xty = new Array(k).fill(0);
+  for (let i = 0; i < n; i++) {
+    for (let a = 0; a < k; a++) {
+      Xty[a] += X[i][a] * y[i];
+      for (let b = a; b < k; b++) XtX[a][b] += X[i][a] * X[i][b];
+    }
+  }
+  for (let a = 0; a < k; a++) for (let b = 0; b < a; b++) XtX[a][b] = XtX[b][a];
+
+  const inv = matInv(XtX);
+  if (!inv) return null;
+
+  const beta = inv.map(row => row.reduce((s, v, j) => s + v * Xty[j], 0));
+  const fitted = X.map(row => row.reduce((s, v, j) => s + v * beta[j], 0));
+  const resid = y.map((v, i) => v - fitted[i]);
+
+  const ybar = mean(y);
+  const sse = sum(resid.map(e => e * e));
+  const sst = sum(y.map(v => (v - ybar) ** 2));
+  const ssr = sst - sse;
+  const dfRes = n - k;
+  const s2 = dfRes > 0 ? sse / dfRes : NaN;
+  const se = beta.map((_, j) => Math.sqrt(s2 * inv[j][j]));
+  const tv = beta.map((b, j) => b / se[j]);
+  const pv = tv.map(t => tTest(Math.abs(t), dfRes));
+  const tc = tCrit(dfRes);
+  const r2 = sst > 0 ? 1 - sse / sst : NaN;
+  const adj = dfRes > 0 && sst > 0 ? 1 - (1 - r2) * (n - 1) / dfRes : NaN;
+  const F = k > 1 && dfRes > 0 ? (ssr / (k - 1)) / s2 : NaN;
+
+  /* Hebelwerte h_ii = x_i' (X'X)^-1 x_i */
+  const lev = X.map(row => {
+    let h = 0;
+    for (let a = 0; a < k; a++) for (let b = 0; b < k; b++) h += row[a] * inv[a][b] * row[b];
+    return h;
+  });
+  const cook = resid.map((e, i) =>
+    (e * e * lev[i]) / (k * s2 * (1 - lev[i]) ** 2));
+
+  return {
+    n, k, beta, se, t: tv, p: pv, tc, fitted, resid, lev, cook,
+    sse, sst, ssr, r2, adj, s: Math.sqrt(s2),
+    rmse: Math.sqrt(sse / n), F, dfRes, pF: fTest(F, k - 1, dfRes), inv
+  };
+}
+
+/* Einfache Regression, schnell */
+function ols1(xs, ys) {
+  const mx = mean(xs), my = mean(ys);
+  let sxy = 0, sxx = 0;
+  for (let i = 0; i < xs.length; i++) { sxy += (xs[i] - mx) * (ys[i] - my); sxx += (xs[i] - mx) ** 2; }
+  const b1 = sxx === 0 ? 0 : sxy / sxx;
+  return { b0: my - b1 * mx, b1, mx, my, sxx };
+}
+
+function sseFor(pts, b0, b1) {
+  return sum(pts.map(p => (p.y - (b0 + b1 * p.x)) ** 2));
+}
+
+function corr(a, b) {
+  const ma = mean(a), mb = mean(b);
+  let num = 0, da = 0, db = 0;
+  for (let i = 0; i < a.length; i++) {
+    num += (a[i] - ma) * (b[i] - mb);
+    da += (a[i] - ma) ** 2;
+    db += (b[i] - mb) ** 2;
+  }
+  return num / Math.sqrt(da * db);
+}
+
+/* ==========================================================================
+   Zeichen-Hilfen
+   ========================================================================== */
+
+const COL = {
+  primary: '#4f46e5', accent: '#0ea5e9', good: '#059669',
+  bad: '#dc2626', muted: '#94a3b8', grid: '#e2e8f0', text: '#475569'
+};
+
+function niceRange(vals, padFrac = 0.08) {
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (!isFinite(lo) || !isFinite(hi)) { lo = 0; hi = 1; }
+  if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
+  const pad = (hi - lo) * padFrac;
+  return [lo - pad, hi + pad];
+}
+
+function newPlot(cv, o) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = cv.getBoundingClientRect();
+  const w = Math.max(rect.width, 120);
+  const h = Math.max(rect.height, 100);
+  cv.width = w * dpr; cv.height = h * dpr;
+  const c = cv.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, w, h);
+  const pad = Object.assign({ l: 46, r: 14, t: 14, b: 34 }, o.pad || {});
+  const [xmin, xmax] = o.x, [ymin, ymax] = o.y;
+  const P = {
+    c, w, h, pad, xmin, xmax, ymin, ymax,
+    X: x => pad.l + (x - xmin) / (xmax - xmin) * (w - pad.l - pad.r),
+    Y: y => h - pad.b - (y - ymin) / (ymax - ymin) * (h - pad.t - pad.b),
+    iX: px => xmin + (px - pad.l) / (w - pad.l - pad.r) * (xmax - xmin),
+    iY: py => ymin + (h - pad.b - py) / (h - pad.t - pad.b) * (ymax - ymin)
+  };
+  P.clip = fn => { c.save(); c.beginPath(); c.rect(pad.l, pad.t, w - pad.l - pad.r, h - pad.t - pad.b); c.clip(); fn(); c.restore(); };
+  P.axes = (xlab, ylab, dec = 0) => {
+    c.strokeStyle = COL.grid; c.lineWidth = 1;
+    c.fillStyle = COL.text; c.font = '11px system-ui, sans-serif';
+    const ticks = 5;
+    c.textBaseline = 'top';
+    for (let i = 0; i <= ticks; i++) {
+      const v = xmin + (xmax - xmin) * i / ticks, px = P.X(v);
+      c.beginPath(); c.moveTo(px, pad.t); c.lineTo(px, h - pad.b); c.stroke();
+      /* Randbeschriftungen ausrichten, damit sie nicht abgeschnitten werden */
+      c.textAlign = i === 0 ? 'left' : (i === ticks ? 'right' : 'center');
+      c.fillText(fmt(v, dec), px, h - pad.b + 6);
+    }
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    for (let i = 0; i <= ticks; i++) {
+      const v = ymin + (ymax - ymin) * i / ticks, py = P.Y(v);
+      c.beginPath(); c.moveTo(pad.l, py); c.lineTo(w - pad.r, py); c.stroke();
+      c.fillText(fmt(v, dec), pad.l - 6, py);
+    }
+    c.strokeStyle = '#cbd5e1';
+    c.beginPath(); c.moveTo(pad.l, pad.t); c.lineTo(pad.l, h - pad.b); c.lineTo(w - pad.r, h - pad.b); c.stroke();
+    c.fillStyle = COL.text; c.font = '11px system-ui, sans-serif';
+    if (xlab) { c.textAlign = 'right'; c.textBaseline = 'bottom'; c.fillText(xlab, w - pad.r, h - 2); }
+    if (ylab) {
+      /* mittig an der Achse, damit die Beschriftung nicht mit dem obersten Tick kollidiert */
+      c.save();
+      c.translate(10, (pad.t + h - pad.b) / 2);
+      c.rotate(-Math.PI / 2);
+      c.font = '10px system-ui, sans-serif';
+      c.textAlign = 'center'; c.textBaseline = 'top';
+      c.fillText(ylab, 0, 0);
+      c.restore();
+    }
+  };
+  P.line = (x1, y1, x2, y2, color, width = 2, dash = null) => {
+    c.save(); c.strokeStyle = color; c.lineWidth = width;
+    if (dash) c.setLineDash(dash);
+    c.beginPath(); c.moveTo(P.X(x1), P.Y(y1)); c.lineTo(P.X(x2), P.Y(y2)); c.stroke(); c.restore();
+  };
+  P.fnLine = (f, color, width = 2, dash = null) => {
+    c.save(); c.strokeStyle = color; c.lineWidth = width;
+    if (dash) c.setLineDash(dash);
+    c.beginPath();
+    for (let i = 0; i <= 120; i++) {
+      const x = xmin + (xmax - xmin) * i / 120;
+      const px = P.X(x), py = P.Y(f(x));
+      i === 0 ? c.moveTo(px, py) : c.lineTo(px, py);
+    }
+    c.stroke(); c.restore();
+  };
+  P.dot = (x, y, color, r = 4, stroke = '#fff') => {
+    c.beginPath(); c.arc(P.X(x), P.Y(y), r, 0, 2 * Math.PI);
+    c.fillStyle = color; c.fill();
+    if (stroke) { c.lineWidth = 1.2; c.strokeStyle = stroke; c.stroke(); }
+  };
+  P.band = (f1, f2, color) => {
+    c.save(); c.fillStyle = color; c.beginPath();
+    for (let i = 0; i <= 100; i++) {
+      const x = xmin + (xmax - xmin) * i / 100;
+      i === 0 ? c.moveTo(P.X(x), P.Y(f1(x))) : c.lineTo(P.X(x), P.Y(f1(x)));
+    }
+    for (let i = 100; i >= 0; i--) {
+      const x = xmin + (xmax - xmin) * i / 100;
+      c.lineTo(P.X(x), P.Y(f2(x)));
+    }
+    c.closePath(); c.fill(); c.restore();
+  };
+  return P;
+}
+
+/* ==========================================================================
+   Tabs
+   ========================================================================== */
+
+const TABS = [
+  ['p-modell', 'Modell'],
+  ['p-ols', 'Kleinste Quadrate'],
+  ['p-guete', 'Anpassungsgüte'],
+  ['p-inf', 'Inferenz'],
+  ['p-multi', 'Multiple Regression'],
+  ['p-ann', 'Annahmen &amp; Diagnostik'],
+  ['p-fallen', 'Fallstricke'],
+  ['p-daten', 'Eigene Daten'],
+  ['p-spick', 'Spickzettel']
+];
+
+const tabsEl = document.getElementById('tabs');
+tabsEl.innerHTML = TABS.map(([id, label]) => `<button data-t="${id}">${label}</button>`).join('');
+
+const redrawHooks = {};
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === id));
+  tabsEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.t === id));
+  if (redrawHooks[id]) redrawHooks[id]();
+}
+tabsEl.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b) showPanel(b.dataset.t);
+});
+
+/* ==========================================================================
+   1. Modell — anklickbare Formel
+   ========================================================================== */
+
+const TERMS = [
+  {
+    t: 'yᵢ', title: 'Die Zielvariable',
+    d: 'Was erklärt werden soll — Gehalt, Absatz, Bearbeitungsdauer. Sie muss metrisch sein; für binäre Ziele nimmt man logistische Regression. Der Index i steht für die einzelne Beobachtung.'
+  },
+  {
+    t: 'β₀', title: 'Der Achsenabschnitt',
+    d: 'Erwarteter Wert von y, wenn alle Prädiktoren null sind. Oft ohne inhaltliche Bedeutung, weil x = 0 außerhalb der Daten liegt. Er sorgt aber dafür, dass die Residuen im Mittel null sind — weglassen sollte man ihn praktisch nie.'
+  },
+  {
+    t: 'β₁', title: 'Der Steigungskoeffizient',
+    d: 'Die eigentlich interessante Zahl: um wie viele Einheiten sich y im Mittel ändert, wenn x um eine Einheit steigt — bei mehreren Prädiktoren unter Konstanthaltung der übrigen. Sein Vorzeichen gibt die Richtung, sein Betrag die Stärke, seine Einheit ist [y] pro [x].'
+  },
+  {
+    t: 'xᵢ', title: 'Die erklärende Variable',
+    d: 'Prädiktor, Regressor, unabhängige Variable — dasselbe Ding. Kann metrisch sein, aber auch eine 0/1-Dummy-Variable für eine Kategorie oder eine Transformation wie log(x) oder x².'
+  },
+  {
+    t: 'εᵢ', title: 'Der Fehlerterm',
+    d: 'Alles, was y beeinflusst und nicht im Modell steht: weggelassene Faktoren, Messfehler, echte Zufälligkeit. Er ist nie beobachtbar — beobachtbar ist nur das Residuum e = y − ŷ. Sämtliche Annahmen der Regression sind Annahmen über ε.'
+  }
+];
+
+const formulaEl = document.getElementById('formula');
+formulaEl.innerHTML = [
+  '<span class="term" data-i="0">yᵢ</span>',
+  '<span class="op">=</span>',
+  '<span class="term" data-i="1">β₀</span>',
+  '<span class="op">+</span>',
+  '<span class="term" data-i="2">β₁</span>',
+  '<span class="op">·</span>',
+  '<span class="term" data-i="3">xᵢ</span>',
+  '<span class="op">+</span>',
+  '<span class="term" data-i="4">εᵢ</span>'
+].join('');
+
+function selectTerm(i) {
+  formulaEl.querySelectorAll('.term').forEach(el => el.classList.toggle('active', +el.dataset.i === i));
+  document.getElementById('term-box').innerHTML = `<strong>${TERMS[i].t} — ${TERMS[i].title}:</strong> ${TERMS[i].d}`;
+}
+formulaEl.addEventListener('click', e => {
+  const t = e.target.closest('.term');
+  if (t) selectTerm(+t.dataset.i);
+});
+
+/* ==========================================================================
+   2. Kleinste Quadrate — Werkstatt mit ziehbaren Punkten
+   ========================================================================== */
+
+const WS_DEFAULT = [
+  [1, 24], [2, 31], [3, 28], [4, 39], [5, 42], [6, 40],
+  [7, 51], [8, 55], [9, 52], [10, 63], [11, 61], [12, 70]
+].map(([x, y]) => ({ x, y }));
+
+const ws = {
+  pts: WS_DEFAULT.map(p => ({ ...p })),
+  b0: 20, b1: 3,
+  squares: true,
+  drag: -1
+};
+let wsPlot = null;
+
+const $ = id => document.getElementById(id);
+
+function wsFit() { return ols1(ws.pts.map(p => p.x), ws.pts.map(p => p.y)); }
+
+function drawWorkshop() {
+  const cv = $('ols-canvas');
+  const xs = ws.pts.map(p => p.x), ys = ws.pts.map(p => p.y);
+  const f = wsFit();
+  const yAll = ys.concat(xs.map(x => ws.b0 + ws.b1 * x));
+  const P = newPlot(cv, { x: niceRange(xs.concat([0]), 0.1), y: niceRange(yAll, 0.12) });
+  wsPlot = P;
+  P.axes('x', 'y');
+
+  /* Residuenquadrate: als echte Quadrate in Pixeln, damit die Fläche stimmt */
+  if (ws.squares) {
+    P.clip(() => {
+      P.c.save();
+      P.c.fillStyle = 'rgba(220,38,38,0.13)';
+      P.c.strokeStyle = 'rgba(220,38,38,0.4)';
+      P.c.lineWidth = 1;
+      ws.pts.forEach(p => {
+        const yh = ws.b0 + ws.b1 * p.x;
+        const py = P.Y(p.y), pyh = P.Y(yh);
+        const side = pyh - py;                 /* Vorzeichenbehaftet */
+        const x0 = P.X(p.x);
+        P.c.beginPath();
+        P.c.rect(side > 0 ? x0 : x0 + side, Math.min(py, pyh), Math.abs(side), Math.abs(side));
+        P.c.fill(); P.c.stroke();
+      });
+      P.c.restore();
+    });
+  }
+
+  /* OLS-Optimum */
+  P.fnLine(x => f.b0 + f.b1 * x, COL.muted, 2, [6, 4]);
+
+  /* Residuenlinien */
+  ws.pts.forEach(p => {
+    const yh = ws.b0 + ws.b1 * p.x;
+    P.line(p.x, p.y, p.x, yh, 'rgba(220,38,38,0.85)', 1.5);
+  });
+
+  /* Nutzergerade */
+  P.fnLine(x => ws.b0 + ws.b1 * x, COL.primary, 2.5);
+
+  /* Schwerpunkt */
+  P.dot(f.mx, f.my, '#fff', 5, COL.muted);
+  ws.pts.forEach(p => P.dot(p.x, p.y, COL.primary, 5.5));
+}
+
+function renderWorkshopStats() {
+  const f = wsFit();
+  const sseUser = sseFor(ws.pts, ws.b0, ws.b1);
+  const sseMin = sseFor(ws.pts, f.b0, f.b1);
+  const ys = ws.pts.map(p => p.y);
+  const sst = sum(ys.map(v => (v - mean(ys)) ** 2));
+
+  $('ols-stats').innerHTML = [
+    { n: fmt(sseUser, 1), c: 'SSE Ihrer Gerade' },
+    { n: fmt(sseMin, 1), c: 'SSE im OLS-Optimum' },
+    { n: fmt(f.b0, 2), c: 'OLS β̂₀' },
+    { n: fmt(f.b1, 3), c: 'OLS β̂₁' },
+    { n: fmt(sst > 0 ? 1 - sseMin / sst : NaN, 3), c: 'R² im Optimum' }
+  ].map(t => `<div class="stat"><div class="num">${t.n}</div><div class="cap">${t.c}</div></div>`).join('');
+
+  const rel = sseMin > 0 ? Math.min(sseUser / sseMin, 6) : 1;
+  const gap = sseUser - sseMin;
+  $('ols-bars').innerHTML = `
+    <div class="bar-row">
+      <span class="lbl">Ihre Gerade</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${(rel / 6 * 100).toFixed(1)}%; background:${gap < 1e-6 ? COL.good : COL.primary}"></span></span>
+      <span class="v">${fmt(sseUser, 1)}</span>
+    </div>
+    <div class="bar-row">
+      <span class="lbl">Minimum (OLS)</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${(1 / 6 * 100).toFixed(1)}%; background:${COL.good}"></span></span>
+      <span class="v">${fmt(sseMin, 1)}</span>
+    </div>
+    <p class="hint-center" style="margin-top:0.4rem;">${gap < 0.5
+      ? 'Sie sind praktisch im Optimum — weniger geht nicht.'
+      : `Ihre Gerade verschenkt ${fmt(gap, 1)} Einheiten Fehlerquadratsumme (${fmt(sseUser / sseMin, 2)}× das Minimum).`}</p>`;
+}
+
+function updateWorkshop() {
+  $('ols-b0-v').textContent = fmt(ws.b0, 1);
+  $('ols-b1-v').textContent = fmt(ws.b1, 2);
+  $('ols-b0').value = ws.b0;
+  $('ols-b1').value = ws.b1;
+  drawWorkshop();
+  renderWorkshopStats();
+  drawGuete();
+}
+
+$('ols-b0').addEventListener('input', e => { ws.b0 = +e.target.value; updateWorkshop(); });
+$('ols-b1').addEventListener('input', e => { ws.b1 = +e.target.value; updateWorkshop(); });
+$('ols-sq').addEventListener('click', e => {
+  ws.squares = !ws.squares;
+  e.target.classList.toggle('on', ws.squares);
+  drawWorkshop();
+});
+$('ols-fit').addEventListener('click', () => {
+  const f = wsFit();
+  ws.b0 = Math.round(f.b0 * 2) / 2;
+  ws.b1 = Math.round(f.b1 * 20) / 20;
+  updateWorkshop();
+});
+$('ols-reset').addEventListener('click', () => {
+  ws.pts = WS_DEFAULT.map(p => ({ ...p }));
+  ws.b0 = 20; ws.b1 = 3;
+  updateWorkshop();
+});
+
+/* Ziehen, Hinzufügen, Entfernen */
+(function () {
+  const cv = $('ols-canvas');
+  const hit = (px, py) => {
+    if (!wsPlot) return -1;
+    let best = -1, bd = 14;
+    ws.pts.forEach((p, i) => {
+      const d = Math.hypot(wsPlot.X(p.x) - px, wsPlot.Y(p.y) - py);
+      if (d < bd) { bd = d; best = i; }
+    });
+    return best;
+  };
+  const pos = e => {
+    const r = cv.getBoundingClientRect();
+    return [e.clientX - r.left, e.clientY - r.top];
+  };
+  cv.addEventListener('pointerdown', e => {
+    const [px, py] = pos(e);
+    const i = hit(px, py);
+    if (i >= 0) {
+      if (e.shiftKey) {
+        if (ws.pts.length > 3) { ws.pts.splice(i, 1); updateWorkshop(); }
+        return;
+      }
+      ws.drag = i;
+      cv.setPointerCapture(e.pointerId);
+    } else if (wsPlot && px > wsPlot.pad.l && px < wsPlot.w - wsPlot.pad.r
+      && py > wsPlot.pad.t && py < wsPlot.h - wsPlot.pad.b) {
+      ws.pts.push({ x: +wsPlot.iX(px).toFixed(2), y: +wsPlot.iY(py).toFixed(2) });
+      updateWorkshop();
+    }
+  });
+  cv.addEventListener('pointermove', e => {
+    if (ws.drag < 0 || !wsPlot) return;
+    const [px, py] = pos(e);
+    ws.pts[ws.drag] = { x: +wsPlot.iX(px).toFixed(2), y: +wsPlot.iY(py).toFixed(2) };
+    updateWorkshop();
+  });
+  const stop = () => { ws.drag = -1; };
+  cv.addEventListener('pointerup', stop);
+  cv.addEventListener('pointercancel', stop);
+})();
+
+/* ==========================================================================
+   3. Anpassungsgüte
+   ========================================================================== */
+
+function drawGuete() {
+  const xs = ws.pts.map(p => p.x), ys = ws.pts.map(p => p.y);
+  const f = wsFit();
+  const ybar = mean(ys);
+  const xr = niceRange(xs, 0.1);
+  const yr = niceRange(ys, 0.12);
+
+  const pNull = newPlot($('g-null'), { x: xr, y: yr, pad: { l: 44, r: 12, t: 12, b: 30 } });
+  pNull.axes('x', 'y');
+  ws.pts.forEach(p => pNull.line(p.x, p.y, p.x, ybar, 'rgba(180,83,9,0.75)', 1.5));
+  pNull.fnLine(() => ybar, '#b45309', 2.2);
+  ws.pts.forEach(p => pNull.dot(p.x, p.y, COL.primary, 4.5));
+
+  const pReg = newPlot($('g-reg'), { x: xr, y: yr, pad: { l: 44, r: 12, t: 12, b: 30 } });
+  pReg.axes('x', 'y');
+  ws.pts.forEach(p => pReg.line(p.x, p.y, p.x, f.b0 + f.b1 * p.x, 'rgba(220,38,38,0.75)', 1.5));
+  pReg.fnLine(x => f.b0 + f.b1 * x, COL.primary, 2.2);
+  ws.pts.forEach(p => pReg.dot(p.x, p.y, COL.primary, 4.5));
+
+  const sse = sseFor(ws.pts, f.b0, f.b1);
+  const sst = sum(ys.map(v => (v - ybar) ** 2));
+  const ssr = sst - sse;
+  const n = ws.pts.length;
+  const r2 = sst > 0 ? 1 - sse / sst : NaN;
+  const adj = n > 2 ? 1 - (1 - r2) * (n - 1) / (n - 2) : NaN;
+
+  const pct = v => sst > 0 ? (v / sst * 100) : 0;
+  $('g-bars').innerHTML = `
+    <div class="bar-row">
+      <span class="lbl">SST — Gesamtstreuung</span>
+      <span class="bar-track"><span class="bar-fill" style="width:100%; background:#cbd5e1"></span></span>
+      <span class="v">${fmt(sst, 1)}</span>
+    </div>
+    <div class="bar-row">
+      <span class="lbl">SSR — erklärt</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${pct(ssr).toFixed(1)}%; background:${COL.good}"></span></span>
+      <span class="v">${fmt(ssr, 1)}</span>
+    </div>
+    <div class="bar-row">
+      <span class="lbl">SSE — unerklärt</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${pct(sse).toFixed(1)}%; background:${COL.bad}"></span></span>
+      <span class="v">${fmt(sse, 1)}</span>
+    </div>`;
+
+  $('g-stats').innerHTML = [
+    { n: fmt(r2, 3), c: 'R²' },
+    { n: fmt(adj, 3), c: 'korrigiertes R̄²' },
+    { n: fmt(corr(xs, ys), 3), c: 'Korrelation r' },
+    { n: fmt(Math.sqrt(sse / n), 2), c: 'RMSE (Einheiten von y)' },
+    { n: fmt(n > 2 ? Math.sqrt(sse / (n - 2)) : NaN, 2), c: 'Reststandardfehler s' }
+  ].map(t => `<div class="stat"><div class="num">${t.n}</div><div class="cap">${t.c}</div></div>`).join('');
+}
+
+/* ==========================================================================
+   4. Inferenz
+   ========================================================================== */
+
+const inf = { n: 40, sigma: 5, b1: 1.5, seed: 12345, bands: true, B0: 5, xmax: 20 };
+
+function infSample(seed) {
+  const rnd = rng(seed);
+  const xs = [], ys = [];
+  for (let i = 0; i < inf.n; i++) {
+    const x = rnd() * inf.xmax;
+    xs.push(x);
+    ys.push(inf.B0 + inf.b1 * x + gauss(rnd) * inf.sigma);
+  }
+  return { xs, ys };
+}
+
+function drawInf() {
+  const { xs, ys } = infSample(inf.seed);
+  const m = ols([xs], ys);
+  const f = ols1(xs, ys);
+  const n = xs.length;
+  const tc = m.tc;
+
+  const seMean = x => m.s * Math.sqrt(1 / n + (x - f.mx) ** 2 / f.sxx);
+  const sePred = x => m.s * Math.sqrt(1 + 1 / n + (x - f.mx) ** 2 / f.sxx);
+  const yhat = x => f.b0 + f.b1 * x;
+
+  const yr = niceRange(ys.concat([inf.B0, inf.B0 + inf.b1 * inf.xmax]), 0.12);
+  const P = newPlot($('i-canvas'), { x: [0, inf.xmax], y: yr });
+  P.axes('x', 'y');
+
+  if (inf.bands) {
+    P.clip(() => {
+      P.band(x => yhat(x) + tc * sePred(x), x => yhat(x) - tc * sePred(x), 'rgba(148,163,184,0.20)');
+      P.band(x => yhat(x) + tc * seMean(x), x => yhat(x) - tc * seMean(x), 'rgba(14,165,233,0.25)');
+    });
+  }
+  P.clip(() => xs.forEach((x, i) => P.dot(x, ys[i], 'rgba(79,70,229,0.75)', 3.5, null)));
+  P.fnLine(yhat, COL.primary, 2.5);
+  /* Wahre Gerade zuletzt, damit sie auch bei fast identischer Lage sichtbar bleibt */
+  P.fnLine(x => inf.B0 + inf.b1 * x, COL.good, 2, [7, 5]);
+
+  /* Tabelle */
+  const rows = [
+    ['β₀ (Achsenabschnitt)', m.beta[0], m.se[0], m.t[0], m.p[0], inf.B0],
+    ['β₁ (Steigung von x)', m.beta[1], m.se[1], m.t[1], m.p[1], inf.b1]
+  ];
+  $('i-table').innerHTML = `
+    <thead><tr><th>Term</th><th class="num">Schätzung</th><th class="num">Std.-Fehler</th>
+    <th class="num">t</th><th class="num">p</th><th class="num">95 %-KI</th><th class="num">wahr</th></tr></thead>
+    <tbody>${rows.map(r => {
+      const lo = r[1] - tc * r[2], hi = r[1] + tc * r[2];
+      const covered = r[5] >= lo && r[5] <= hi;
+      return `<tr>
+        <td>${r[0]}</td>
+        <td class="num">${fmt(r[1], 3)}</td>
+        <td class="num">${fmt(r[2], 3)}</td>
+        <td class="num">${fmt(r[3], 2)}</td>
+        <td class="num ${r[4] < 0.05 ? 'sig' : 'nsig'}">${fmtP(r[4])}</td>
+        <td class="num">[${fmt(lo, 2)}; ${fmt(hi, 2)}]</td>
+        <td class="num" style="color:${covered ? COL.good : COL.bad}">${fmt(r[5], 2)}</td>
+      </tr>`;
+    }).join('')}</tbody>`;
+
+  $('i-stats').innerHTML = [
+    { n: fmt(m.r2, 3), c: 'R²' },
+    { n: fmt(m.adj, 3), c: 'korrigiertes R̄²' },
+    { n: fmt(m.s, 2), c: 's (wahr: ' + fmt(inf.sigma, 2) + ')' },
+    { n: fmt(m.F, 1), c: 'F(1, ' + m.dfRes + ')' },
+    { n: fmtP(m.pF), c: 'p des F-Tests' }
+  ].map(t => `<div class="stat"><div class="num">${t.n}</div><div class="cap">${t.c}</div></div>`).join('');
+
+  const lo = m.beta[1] - tc * m.se[1], hi = m.beta[1] + tc * m.se[1];
+  const cov = inf.b1 >= lo && inf.b1 <= hi;
+  $('i-verdict').innerHTML =
+    `<strong>Lesart dieser Stichprobe:</strong> Die Steigung wird auf ${fmt(m.beta[1], 3)} geschätzt, der wahre Wert ist ${fmt(inf.b1, 2)}. `
+    + `Das 95 %-Konfidenzintervall [${fmt(lo, 2)}; ${fmt(hi, 2)}] ${cov ? 'überdeckt' : '<span style="color:#dc2626">verfehlt</span>'} den wahren Wert `
+    + `${cov ? '' : '— das passiert erwartungsgemäß in 5 % aller Stichproben. '}`
+    + `Der Test auf β₁ = 0 ist ${m.p[1] < 0.05 ? 'signifikant' : '<em>nicht</em> signifikant'} (p = ${fmtP(m.p[1])}).`;
+
+  drawInfHist();
+}
+
+function drawInfHist() {
+  const B = 500;
+  const est = [];
+  for (let b = 0; b < B; b++) {
+    const rnd = rng(inf.seed * 7919 + b * 104729);
+    const xs = [], ys = [];
+    for (let i = 0; i < inf.n; i++) {
+      const x = rnd() * inf.xmax;
+      xs.push(x);
+      ys.push(inf.B0 + inf.b1 * x + gauss(rnd) * inf.sigma);
+    }
+    est.push(ols1(xs, ys).b1);
+  }
+  est.sort((a, b) => a - b);
+  const lo = est[Math.floor(B * 0.005)], hi = est[Math.floor(B * 0.995)];
+  const span = Math.max(hi - lo, 1e-6);
+  const bins = 34;
+  const counts = new Array(bins).fill(0);
+  est.forEach(v => {
+    const k = Math.floor((v - lo) / span * bins);
+    if (k >= 0 && k < bins) counts[k]++;
+  });
+  const maxC = Math.max(...counts);
+
+  const P = newPlot($('i-hist'), { x: [lo, hi], y: [0, maxC * 1.15], pad: { l: 46, r: 16, t: 12, b: 32 } });
+  P.axes('β̂₁', 'Häufigkeit', 2);
+  const bw = (P.X(hi) - P.X(lo)) / bins;
+  P.c.fillStyle = 'rgba(79,70,229,0.55)';
+  counts.forEach((cnt, i) => {
+    const x0 = P.X(lo + span * i / bins);
+    const y0 = P.Y(cnt);
+    P.c.fillRect(x0 + 0.5, y0, Math.max(bw - 1, 1), P.Y(0) - y0);
+  });
+  P.line(inf.b1, 0, inf.b1, maxC * 1.15, COL.good, 2.5, [6, 4]);
+
+  const m = mean(est), s = sd(est);
+  $('i-hist-stats').innerHTML = [
+    { n: fmt(m, 3), c: 'Mittel der 500 Schätzungen' },
+    { n: fmt(inf.b1, 3), c: 'wahres β₁' },
+    { n: fmt(s, 3), c: 'tatsächliche Streuung' },
+    { n: fmt(inf.sigma / Math.sqrt(inf.n * (inf.xmax ** 2 / 12)), 3), c: 'theoretischer SE' }
+  ].map(t => `<div class="stat"><div class="num">${t.n}</div><div class="cap">${t.c}</div></div>`).join('');
+}
+
+function syncInf() {
+  $('i-n-v').textContent = inf.n;
+  $('i-sig-v').textContent = fmt(inf.sigma, 2);
+  $('i-b1-v').textContent = fmt(inf.b1, 2);
+  drawInf();
+}
+$('i-n').addEventListener('input', e => { inf.n = +e.target.value; syncInf(); });
+$('i-sig').addEventListener('input', e => { inf.sigma = +e.target.value; syncInf(); });
+$('i-b1').addEventListener('input', e => { inf.b1 = +e.target.value; syncInf(); });
+$('i-new').addEventListener('click', () => { inf.seed = (Math.random() * 1e9) | 0; drawInf(); });
+$('i-band').addEventListener('click', e => {
+  inf.bands = !inf.bands;
+  e.target.classList.toggle('on', inf.bands);
+  drawInf();
+});
+
+/* ==========================================================================
+   5. Multiple Regression / Omitted Variable Bias
+   ========================================================================== */
+
+const mu = { rho: 0.6, b1: 1, b2: 2, n: 150, sigma: 2, seed: 777 };
+
+function muSample() {
+  const rnd = rng(mu.seed);
+  const x1 = [], x2 = [], y = [];
+  const r = mu.rho;
+  for (let i = 0; i < mu.n; i++) {
+    const a = gauss(rnd), b = gauss(rnd);
+    const v1 = a;
+    const v2 = r * a + Math.sqrt(Math.max(1 - r * r, 0)) * b;
+    x1.push(v1); x2.push(v2);
+    y.push(10 + mu.b1 * v1 + mu.b2 * v2 + gauss(rnd) * mu.sigma);
+  }
+  return { x1, x2, y };
+}
+
+function coefTable(m, names, truth) {
+  return `
+    <thead><tr><th>Term</th><th class="num">Schätzung</th><th class="num">Std.-Fehler</th>
+    <th class="num">t</th><th class="num">p</th><th class="num">95 %-KI</th>${truth ? '<th class="num">wahr</th>' : ''}</tr></thead>
+    <tbody>${names.map((nm, j) => {
+      const lo = m.beta[j] - m.tc * m.se[j], hi = m.beta[j] + m.tc * m.se[j];
+      return `<tr>
+        <td>${nm}</td>
+        <td class="num">${fmt(m.beta[j], 3)}</td>
+        <td class="num">${fmt(m.se[j], 3)}</td>
+        <td class="num">${fmt(m.t[j], 2)}</td>
+        <td class="num ${m.p[j] < 0.05 ? 'sig' : 'nsig'}">${fmtP(m.p[j])}</td>
+        <td class="num">[${fmt(lo, 2)}; ${fmt(hi, 2)}]</td>
+        ${truth ? `<td class="num">${truth[j] === null ? '—' : fmt(truth[j], 2)}</td>` : ''}
+      </tr>`;
+    }).join('')}</tbody>`;
+}
+
+function drawMulti() {
+  const { x1, x2, y } = muSample();
+  const full = ols([x1, x2], y);
+  const short = ols([x1], y);
+  if (!full || !short) return;
+
+  $('m-full').innerHTML = coefTable(full, ['Achsenabschnitt', 'x₁', 'x₂'], [10, mu.b1, mu.b2])
+    + `<tfoot><tr><td colspan="7" style="font-size:0.8rem;color:var(--text-muted);border:0;padding-top:0.6rem;">
+       R² = ${fmt(full.r2, 3)} · R̄² = ${fmt(full.adj, 3)} · s = ${fmt(full.s, 2)} · F(2, ${full.dfRes}) = ${fmt(full.F, 1)}</td></tr></tfoot>`;
+
+  const delta = corr(x1, x2) * sd(x2) / sd(x1);
+
+  $('m-short').innerHTML = coefTable(short, ['Achsenabschnitt', 'x₁'], [10, mu.b1])
+    + `<tfoot><tr><td colspan="7" style="font-size:0.8rem;color:var(--text-muted);border:0;padding-top:0.6rem;">
+       R² = ${fmt(short.r2, 3)} · s = ${fmt(short.s, 2)}</td></tr></tfoot>`;
+
+  const shift = short.beta[1] - full.beta[1];
+  const predicted = full.beta[2] * delta;
+  $('m-ovb').innerHTML = `
+    <strong>Verzerrung durch die weggelassene Variable.</strong>
+    Wahres β₁ = ${fmt(mu.b1, 2)}. Mit x₂ im Modell: β̂₁ = ${fmt(full.beta[1], 3)}.
+    Ohne x₂: β̂₁ = ${fmt(short.beta[1], 3)} — eine Verschiebung um ${shift >= 0 ? '+' : ''}${fmt(shift, 3)}.
+    <br><br>
+    Diese Verschiebung ist kein Zufall, sondern in jeder einzelnen Stichprobe exakt berechenbar:
+    <span class="mono">β̂₂ · δ̂ = ${fmt(full.beta[2], 3)} · ${fmt(delta, 3)} = ${fmt(predicted, 3)}</span>,
+    wobei δ̂ die Steigung aus der Regression von x₂ auf x₁ ist. Im Erwartungswert entspricht das
+    β₂ · δ = ${fmt(mu.b2, 2)} · ${fmt(mu.rho, 2)} = ${fmt(mu.b2 * mu.rho, 2)}.
+    ${Math.abs(mu.rho) < 0.03
+      ? '<br><br>Bei ρ ≈ 0 ist δ̂ ≈ 0 — das Weglassen von x₂ verschiebt den Koeffizienten kaum, obwohl die Variable weiterhin fehlt. '
+        + 'Was dann noch zum wahren Wert fehlt, ist reines Stichprobenrauschen, kein Bias: es verschwindet, wenn Sie n erhöhen.'
+      : ''}`;
+
+  /* VIF */
+  const r12 = corr(x1, x2);
+  const vif = 1 / Math.max(1 - r12 * r12, 1e-9);
+  $('m-vif').innerHTML = [
+    { n: fmt(r12, 3), c: 'tatsächliche Korrelation r(x₁,x₂)' },
+    { n: fmt(vif, 2), c: 'VIF beider Prädiktoren' },
+    { n: fmt(Math.sqrt(vif), 2) + '×', c: 'Aufblähung des Standardfehlers' },
+    { n: fmt(full.se[1], 3), c: 'SE(β̂₁) im vollen Modell' }
+  ].map(t => `<div class="stat"><div class="num">${t.n}</div><div class="cap">${t.c}</div></div>`).join('');
+
+  /* Koeffizientenplot */
+  const items = [
+    { lab: 'β̂₁ (voll)', est: full.beta[1], se: full.se[1], tc: full.tc, truth: mu.b1, col: COL.primary },
+    { lab: 'β̂₂ (voll)', est: full.beta[2], se: full.se[2], tc: full.tc, truth: mu.b2, col: COL.accent },
+    { lab: 'β̂₁ (verkürzt)', est: short.beta[1], se: short.se[1], tc: short.tc, truth: mu.b1, col: COL.bad }
+  ];
+  const all = items.flatMap(it => [it.est - it.tc * it.se, it.est + it.tc * it.se, it.truth]);
+  const P = newPlot($('m-canvas'), {
+    x: niceRange(all, 0.15), y: [0.4, items.length + 0.6], pad: { l: 118, r: 16, t: 14, b: 34 }
+  });
+  P.c.strokeStyle = COL.grid;
+  P.c.font = '11px system-ui, sans-serif';
+  P.c.fillStyle = COL.text;
+  const ticks = 5;
+  P.c.textAlign = 'center'; P.c.textBaseline = 'top';
+  for (let i = 0; i <= ticks; i++) {
+    const v = P.xmin + (P.xmax - P.xmin) * i / ticks;
+    P.c.beginPath(); P.c.moveTo(P.X(v), P.pad.t); P.c.lineTo(P.X(v), P.h - P.pad.b); P.c.stroke();
+    P.c.fillText(fmt(v, 1), P.X(v), P.h - P.pad.b + 6);
+  }
+  items.forEach((it, idx) => {
+    const yy = items.length - idx;
+    P.c.textAlign = 'right'; P.c.textBaseline = 'middle';
+    P.c.fillStyle = COL.text;
+    P.c.fillText(it.lab, P.pad.l - 8, P.Y(yy));
+    P.line(it.truth, yy - 0.32, it.truth, yy + 0.32, COL.good, 2, [4, 3]);
+    P.line(it.est - it.tc * it.se, yy, it.est + it.tc * it.se, yy, it.col, 2.5);
+    P.dot(it.est, yy, it.col, 5.5);
+  });
+}
+
+function syncMulti() {
+  $('m-rho-v').textContent = fmt(mu.rho, 2);
+  $('m-b1-v').textContent = fmt(mu.b1, 1);
+  $('m-b2-v').textContent = fmt(mu.b2, 1);
+  $('m-n-v').textContent = mu.n;
+  $('m-sig-v').textContent = fmt(mu.sigma, 2);
+  drawMulti();
+}
+['m-rho', 'm-b1', 'm-b2', 'm-n', 'm-sig'].forEach(id => {
+  $(id).addEventListener('input', e => {
+    const key = { 'm-rho': 'rho', 'm-b1': 'b1', 'm-b2': 'b2', 'm-n': 'n', 'm-sig': 'sigma' }[id];
+    mu[key] = +e.target.value;
+    syncMulti();
+  });
+});
+$('m-new').addEventListener('click', () => { mu.seed = (Math.random() * 1e9) | 0; drawMulti(); });
+
+/* ==========================================================================
+   6. Annahmen und Diagnostik
+   ========================================================================== */
+
+const SCEN = {
+  ok: {
+    label: 'Alles in Ordnung',
+    gen: rnd => gen(rnd, x => 4 + 1.2 * x, () => 3),
+    title: 'Referenzfall',
+    ok: true,
+    text: `<p>So sieht es aus, wenn nichts verletzt ist: Die Punkte streuen gleichmäßig um die Gerade, und im Residuenplot liegt ein strukturloses waagerechtes Band um null — keine Krümmung, kein Trichter, keine Ausreißer.</p>
+           <p>Dieses Bild ist der Vergleichsmaßstab für alle folgenden Szenarien. Wichtig: <em>Kein Muster</em> ist genau das, was man sehen will. Wer im Residuenplot etwas „Interessantes" entdeckt, hat in der Regel ein Problem gefunden.</p>`
+  },
+  nonlin: {
+    label: 'Nichtlinearität',
+    gen: rnd => gen(rnd, x => 2 + 5 * x - 0.28 * x * x, () => 2.2),
+    title: 'Falsche funktionale Form',
+    text: `<p><strong>Verletzt:</strong> Linearität. Der wahre Zusammenhang ist gekrümmt, die Gerade kann ihm nicht folgen.</p>
+           <p><strong>Erkennbar an:</strong> dem deutlichen Bogen im Residuenplot — erst systematisch negativ, dann positiv, dann wieder negativ. Im Streudiagramm selbst fällt das oft weniger auf als im Residuenplot, weil dort die Steigung das Bild dominiert.</p>
+           <p><strong>Folge:</strong> Die Schätzung ist <em>verzerrt</em>. β̂₁ ist keine sinnvolle Antwort auf irgendeine Frage — der Effekt hängt vom Niveau von x ab. Vorhersagen an den Rändern sind grob falsch.</p>
+           <p><strong>Abhilfe:</strong> quadratischen Term oder Splines aufnehmen, x oder y logarithmieren, oder das Modell in Segmente teilen.</p>`
+  },
+  hetero: {
+    label: 'Heteroskedastizität',
+    gen: rnd => gen(rnd, x => 5 + 1.5 * x, x => 0.6 + 0.55 * x),
+    title: 'Nicht konstante Fehlerstreuung',
+    text: `<p><strong>Verletzt:</strong> Homoskedastizität. Die Streuung wächst mit x — typisch für Geld- und Zeitgrößen: absolute Abweichungen sind bei hohen Werten größer.</p>
+           <p><strong>Erkennbar an:</strong> dem Trichter im Residuenplot. Der Scale-Location-Plot macht es noch deutlicher.</p>
+           <p><strong>Folge:</strong> β̂ bleibt <em>erwartungstreu</em> — die Punktschätzung ist also weiter brauchbar. Falsch werden die Standardfehler und damit alle t-Werte, p-Werte und Konfidenzintervalle. Meist sind sie zu klein, man findet also zu viel Signifikanz.</p>
+           <p><strong>Abhilfe:</strong> robuste Standardfehler (HC3) — der Standardweg. Alternativ log(y) modellieren, was die Trichterform oft ganz beseitigt, oder gewichtete Kleinste Quadrate.</p>`
+  },
+  outlier: {
+    label: 'Ausreißer',
+    gen: rnd => { const d = gen(rnd, x => 5 + 1.5 * x, () => 2.5); d.ys[Math.floor(d.ys.length / 2)] += 32; d.mark = Math.floor(d.ys.length / 2); return d; },
+    title: 'Ausreißer in y',
+    text: `<p><strong>Betrifft:</strong> keine Annahme direkt, aber die Praxistauglichkeit. Ein Punkt mit stark abweichendem y bei unauffälligem x.</p>
+           <p><strong>Erkennbar an:</strong> einem einzelnen weit entfernten Residuum. Standardisierte Residuen über |3| sind ein üblicher Alarmwert.</p>
+           <p><strong>Folge:</strong> Weil OLS quadriert, zieht der Punkt die Gerade zu sich — die gestrichelte rote Linie zeigt die Anpassung ohne ihn. Vor allem aber bläht er die geschätzte Fehlerstreuung s auf: dadurch werden alle Standardfehler größer und echte Effekte verlieren an Signifikanz. Die Steigung selbst verschiebt sich hier wenig, weil der Punkt in der Mitte des x-Bereichs liegt und die Gerade dort nur anhebt, statt sie zu drehen.</p>
+           <p><strong>Abhilfe:</strong> zuerst prüfen, ob es ein Datenfehler ist. Sonst Ergebnis mit und ohne den Punkt berichten oder robuste Regression rechnen — nicht stillschweigend löschen.</p>`
+  },
+  leverage: {
+    label: 'Hebelpunkt',
+    gen: rnd => { const d = gen(rnd, x => 5 + 1.5 * x, () => 2.5, 0, 16); d.xs.push(34); d.ys.push(12); d.mark = d.xs.length - 1; return d; },
+    title: 'Einflussreicher Hebelpunkt',
+    text: `<p><strong>Betrifft:</strong> die Stabilität des gesamten Ergebnisses. Der Punkt liegt weit außerhalb des x-Bereichs der übrigen Daten — und dort entscheidet er praktisch allein über die Steigung.</p>
+           <p><strong>Erkennbar an:</strong> Hebelwerten h<sub>ii</sub> über 2k/n und einer sehr großen Cook's Distance — hier ein Vielfaches des Grenzwerts, während alle übrigen Beobachtungen unauffällig sind.</p>
+           <p><strong>Folge:</strong> Die gestrichelte rote Linie zeigt die Anpassung ohne diesen einen Punkt. Der Unterschied zwischen beiden Geraden ist die ganze Aussage des Modells.</p>
+           <p><strong>Die Tücke:</strong> Läge derselbe Punkt zufällig auf der Verlängerung des Trends, wäre sein Residuum klein und er fiele im Residuenplot überhaupt nicht auf — die Gerade wäre trotzdem an ihm verankert. Hoher Hebel heißt „kann viel bewirken", nicht „bewirkt viel". Deshalb reicht der Residuenplot allein nicht; Hebelwerte, Cook's D und DFBETAS gehören dazu.</p>
+           <p><strong>Abhilfe:</strong> Cook's D und DFBETAS immer prüfen. Ein Ergebnis, das an einer einzigen Beobachtung hängt, ist kein Ergebnis, sondern eine Beobachtung.</p>`
+  },
+  autocorr: {
+    label: 'Autokorrelation',
+    diag: 'index',
+    gen: rnd => {
+      const xs = [], ys = [];
+      let e = 0;
+      for (let i = 0; i < 60; i++) {
+        const x = i * 0.35;
+        e = 0.86 * e + gauss(rnd) * 2.2;
+        xs.push(x); ys.push(5 + 1.2 * x + e);
+      }
+      return { xs, ys };
+    },
+    title: 'Abhängige Fehler über die Zeit',
+    text: `<p><strong>Verletzt:</strong> Unabhängigkeit der Fehler. Typisch bei Zeitreihen, Panels und geclusterten Daten (mehrere Beobachtungen pro Person, Team, Standort).</p>
+           <p><strong>Erkennbar an:</strong> dem Residuenplot <em>gegen die Beobachtungsreihenfolge</em>: die Residuen wandern in langen Wellen, statt zufällig zu springen. Formaler Test: Durbin-Watson, Werte deutlich unter 2 zeigen positive Autokorrelation.</p>
+           <p><strong>Folge:</strong> β̂ bleibt erwartungstreu, aber die Standardfehler sind massiv zu klein — der effektive Informationsgehalt ist viel geringer als n vermuten lässt. Scheinsignifikanz ist die Regel, nicht die Ausnahme.</p>
+           <p><strong>Abhilfe:</strong> HAC-Standardfehler (Newey-West), geclusterte Standardfehler auf der richtigen Ebene, verzögerte Variablen im Modell oder gleich ein Zeitreihen-/Mehrebenenmodell.</p>`
+  },
+  skew: {
+    label: 'Schiefe Fehler',
+    gen: rnd => {
+      const xs = [], ys = [];
+      for (let i = 0; i < 40; i++) {
+        const x = rnd() * 16;
+        const u = -Math.log(1 - rnd()) * 4 - 4;   /* exponentiell, zentriert */
+        xs.push(x); ys.push(5 + 1.5 * x + u);
+      }
+      return { xs, ys };
+    },
+    title: 'Nicht normalverteilte Fehler',
+    text: `<p><strong>Verletzt:</strong> Normalverteilung der Fehler. Hier sind sie rechtsschief — viele kleine negative, wenige große positive Abweichungen.</p>
+           <p><strong>Erkennbar an:</strong> dem Q-Q-Plot der Residuen; im Residuenplot sieht man die Asymmetrie als ungleiche Verteilung ober- und unterhalb der Nulllinie.</p>
+           <p><strong>Folge:</strong> Am wenigsten dramatisch von allen Verletzungen. β̂ bleibt erwartungstreu, und dank zentralem Grenzwertsatz sind t- und F-Tests ab etwa n = 50 näherungsweise korrekt. Nur bei kleinen Stichproben oder sehr schweren Rändern wird es kritisch.</p>
+           <p><strong>Abhilfe:</strong> meist nichts. Bei kleinem n Bootstrap-Konfidenzintervalle; bei stark schiefer Zielgröße oft log(y) — das ist dann aber eine inhaltliche Modelländerung, keine kosmetische.</p>`
+  }
+};
+
+function gen(rnd, f, sigF, xmin = 0, xmax = 16, n = 45) {
+  const xs = [], ys = [];
+  for (let i = 0; i < n; i++) {
+    const x = xmin + rnd() * (xmax - xmin);
+    xs.push(x);
+    ys.push(f(x) + gauss(rnd) * sigF(x));
+  }
+  return { xs, ys };
+}
+
+let curScen = 'ok';
+$('a-pills').innerHTML = Object.entries(SCEN)
+  .map(([k, s]) => `<button class="ghost${k === 'ok' ? ' on' : ''}" data-s="${k}">${s.label}</button>`).join('');
+$('a-pills').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  curScen = b.dataset.s;
+  $('a-pills').querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.s === curScen));
+  drawScen();
+});
+
+function drawScen() {
+  const s = SCEN[curScen];
+  const d = s.gen(rng(4242));
+  const { xs, ys } = d;
+  const f = ols1(xs, ys);
+  const fitted = xs.map(x => f.b0 + f.b1 * x);
+  const res = ys.map((y, i) => y - fitted[i]);
+
+  const P = newPlot($('a-scatter'), { x: niceRange(xs, 0.08), y: niceRange(ys, 0.1), pad: { l: 48, r: 14, t: 12, b: 32 } });
+  P.axes('x', 'y');
+  P.fnLine(x => f.b0 + f.b1 * x, COL.primary, 2.4);
+  if (d.mark !== undefined) {
+    const xs2 = xs.filter((_, i) => i !== d.mark), ys2 = ys.filter((_, i) => i !== d.mark);
+    const f2 = ols1(xs2, ys2);
+    P.fnLine(x => f2.b0 + f2.b1 * x, COL.bad, 2, [6, 4]);
+  }
+  P.clip(() => xs.forEach((x, i) => {
+    P.dot(x, ys[i], i === d.mark ? COL.bad : 'rgba(79,70,229,0.72)', i === d.mark ? 6 : 4, i === d.mark ? '#fff' : null);
+  }));
+
+  const byIndex = s.diag === 'index';
+  $('a-diag-title').textContent = byIndex ? 'Residuen vs. Beobachtungsreihenfolge' : 'Residuen vs. angepasste Werte';
+  const xv = byIndex ? xs.map((_, i) => i) : fitted;
+  const R = newPlot($('a-resid'), {
+    x: niceRange(xv, 0.06),
+    y: niceRange(res.concat([-Math.max(...res.map(Math.abs)), Math.max(...res.map(Math.abs))]), 0.12),
+    pad: { l: 48, r: 14, t: 12, b: 32 }
+  });
+  R.axes(byIndex ? 'Beobachtung i' : 'ŷ', 'Residuum');
+  R.line(R.xmin, 0, R.xmax, 0, '#94a3b8', 1.6);
+  if (byIndex) {
+    R.c.save(); R.c.strokeStyle = 'rgba(79,70,229,0.35)'; R.c.lineWidth = 1.2; R.c.beginPath();
+    xv.forEach((v, i) => i === 0 ? R.c.moveTo(R.X(v), R.Y(res[i])) : R.c.lineTo(R.X(v), R.Y(res[i])));
+    R.c.stroke(); R.c.restore();
+  }
+  R.clip(() => xv.forEach((v, i) => {
+    R.dot(v, res[i], i === d.mark ? COL.bad : 'rgba(79,70,229,0.72)', i === d.mark ? 6 : 4, i === d.mark ? '#fff' : null);
+  }));
+
+  const m = ols([xs], ys);
+  const maxLev = Math.max(...m.lev), maxCook = Math.max(...m.cook);
+  $('a-text').innerHTML = `
+    <div class="${s.ok ? 'good' : 'warn'}"><strong>${s.title}.</strong></div>
+    ${s.text}
+    <div class="stats" style="margin-top:1rem;">
+      ${[
+        { n: fmt(m.beta[1], 3), c: 'geschätzte Steigung β̂₁' },
+        { n: fmt(m.r2, 3), c: 'R²' },
+        { n: fmt(maxLev, 3), c: `max. Hebelwert (Screening ab ${fmt(4 / xs.length, 3)})` },
+        { n: fmt(maxCook, 3), c: `max. Cook's D (Screening ab ${fmt(4 / xs.length, 3)})` }
+      ].map(t => `<div class="stat"><div class="num">${t.n}</div><div class="cap">${t.c}</div></div>`).join('')}
+    </div>`;
+}
+
+/* ==========================================================================
+   7. Fallstricke — Anscombe und Simpson
+   ========================================================================== */
+
+const ANSCOMBE = [
+  {
+    n: 'I — der Normalfall',
+    x: [10, 8, 13, 9, 11, 14, 6, 4, 12, 7, 5],
+    y: [8.04, 6.95, 7.58, 8.81, 8.33, 9.96, 7.24, 4.26, 10.84, 4.82, 5.68],
+    c: 'Genau das, wofür lineare Regression gedacht ist.'
+  },
+  {
+    n: 'II — gekrümmt',
+    x: [10, 8, 13, 9, 11, 14, 6, 4, 12, 7, 5],
+    y: [9.14, 8.14, 8.74, 8.77, 9.26, 8.10, 6.13, 3.10, 9.13, 7.26, 4.74],
+    c: 'Perfekte Parabel. Die Gerade ist systematisch falsch.'
+  },
+  {
+    n: 'III — ein Ausreißer',
+    x: [10, 8, 13, 9, 11, 14, 6, 4, 12, 7, 5],
+    y: [7.46, 6.77, 12.74, 7.11, 7.81, 8.84, 6.08, 5.39, 8.15, 6.42, 5.73],
+    c: 'Zehn Punkte auf einer exakten Geraden, einer daneben.'
+  },
+  {
+    n: 'IV — ein Hebelpunkt',
+    x: [8, 8, 8, 8, 8, 8, 8, 19, 8, 8, 8],
+    y: [6.58, 5.76, 7.71, 8.84, 8.47, 7.04, 5.25, 12.50, 5.56, 7.91, 6.89],
+    c: 'Die Steigung stammt aus einer einzigen Beobachtung.'
+  }
+];
+
+$('ans-grid').innerHTML = ANSCOMBE.map((a, i) => `
+  <div>
+    <h3>${a.n}</h3>
+    <canvas class="mini" id="ans-${i}"></canvas>
+    <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.3rem;">${a.c}</p>
+  </div>`).join('');
+
+function drawAnscombe() {
+  ANSCOMBE.forEach((a, i) => {
+    const f = ols1(a.x, a.y);
+    const P = newPlot($('ans-' + i), { x: [2, 20], y: [2, 14], pad: { l: 30, r: 10, t: 10, b: 26 } });
+    P.axes('', '', 0);
+    P.fnLine(x => f.b0 + f.b1 * x, COL.primary, 2);
+    P.clip(() => a.x.forEach((x, j) => P.dot(x, a.y[j], COL.bad, 4)));
+  });
+}
+
+/* Simpson-Paradox */
+const simp = (() => {
+  const rnd = rng(20240);
+  const groups = [];
+  const centers = [[3, 62], [6, 52], [9, 42]];
+  centers.forEach(([cx, cy], g) => {
+    const pts = [];
+    for (let i = 0; i < 22; i++) {
+      const x = cx + (rnd() - 0.5) * 3.2;
+      const y = cy + 1.5 * (x - cx) + gauss(rnd) * 1.6;
+      pts.push({ x, y, g });
+    }
+    groups.push(pts);
+  });
+  return groups;
+})();
+let simpColored = false;
+
+function drawSimpson() {
+  const all = simp.flat();
+  const xs = all.map(p => p.x), ys = all.map(p => p.y);
+  const f = ols1(xs, ys);
+  const P = newPlot($('simp-canvas'), { x: niceRange(xs, 0.08), y: niceRange(ys, 0.1) });
+  P.axes('Jahre im Unternehmen', 'Gehaltsindex');
+  const gcol = ['#0ea5e9', '#4f46e5', '#ec4899'];
+  if (simpColored) {
+    simp.forEach((pts, g) => {
+      const fg = ols1(pts.map(p => p.x), pts.map(p => p.y));
+      const x0 = Math.min(...pts.map(p => p.x)), x1 = Math.max(...pts.map(p => p.x));
+      P.line(x0, fg.b0 + fg.b1 * x0, x1, fg.b0 + fg.b1 * x1, gcol[g], 2.6);
+    });
+  }
+  P.fnLine(x => f.b0 + f.b1 * x, simpColored ? '#94a3b8' : COL.primary, 2.6, simpColored ? [6, 4] : null);
+  P.clip(() => all.forEach(p => P.dot(p.x, p.y, simpColored ? gcol[p.g] : 'rgba(79,70,229,0.7)', 4)));
+
+  const within = mean(simp.map(pts => ols1(pts.map(p => p.x), pts.map(p => p.y)).b1));
+  $('simp-toggle').textContent = simpColored ? 'Gruppen ausblenden' : 'Gruppen einfärben';
+  $('simp-toggle').classList.toggle('on', simpColored);
+  const box = $('simp-canvas').parentElement.querySelector('.simp-stats')
+    || (() => { const d = document.createElement('div'); d.className = 'stats simp-stats'; d.style.marginTop = '0.9rem'; $('simp-canvas').after(d); return d; })();
+  box.innerHTML = [
+    { n: fmt(f.b1, 2), c: 'Steigung insgesamt' },
+    { n: fmt(within, 2), c: 'Steigung innerhalb der Abteilungen' },
+    { n: f.b1 * within < 0 ? 'ja' : 'nein', c: 'Vorzeichen dreht sich' }
+  ].map(t => `<div class="stat"><div class="num">${t.n}</div><div class="cap">${t.c}</div></div>`).join('');
+}
+$('simp-toggle').addEventListener('click', () => { simpColored = !simpColored; drawSimpson(); });
+
+/* ==========================================================================
+   8. Eigene Daten
+   ========================================================================== */
+
+function demoCSV() {
+  const rnd = rng(98765);
+  const rows = ['erfahrung;ausbildung;fuehrung;gehalt'];
+  for (let i = 0; i < 60; i++) {
+    const erf = Math.round(rnd() * 30);
+    const aus = 10 + Math.round(rnd() * 9);
+    const fue = Math.round(rnd() * 12);
+    const gehalt = 28000 + 1150 * erf - 14 * erf * erf + 2600 * aus + 1900 * fue + gauss(rnd) * 6000;
+    rows.push(`${erf};${aus};${fue};${Math.round(gehalt)}`);
+  }
+  return rows.join('\n');
+}
+
+function parseTable(txt) {
+  const lines = txt.trim().split(/\r?\n/).filter(l => l.trim() !== '');
+  if (lines.length < 3) throw new Error('Zu wenige Zeilen.');
+  const sep = ['\t', ';', ','].map(s => ({ s, c: (lines[0].match(new RegExp('\\' + s, 'g')) || []).length }))
+    .sort((a, b) => b.c - a.c)[0];
+  if (sep.c === 0) throw new Error('Kein Trennzeichen erkannt (Tabulator, Semikolon oder Komma).');
+  const split = l => l.split(sep.s).map(v => v.trim());
+  const num = v => {
+    const cleaned = sep.s === ',' ? v : v.replace(',', '.');
+    const f = parseFloat(cleaned);
+    return cleaned !== '' && isFinite(f) ? f : NaN;
+  };
+  let head = split(lines[0]);
+  let start = 1;
+  if (head.every(h => isFinite(num(h)))) {
+    head = head.map((_, i) => 'V' + (i + 1));
+    start = 0;
+  }
+  const cols = head.map(() => []);
+  let dropped = 0;
+  for (let i = start; i < lines.length; i++) {
+    const parts = split(lines[i]);
+    if (parts.length !== head.length) { dropped++; continue; }
+    const vals = parts.map(num);
+    if (vals.some(v => !isFinite(v))) { dropped++; continue; }
+    vals.forEach((v, j) => cols[j].push(v));
+  }
+  if (cols[0].length < 3) throw new Error('Zu wenige vollständige numerische Zeilen.');
+  return { head, cols, n: cols[0].length, dropped };
+}
+
+let dataset = null;
+
+function loadData(txt) {
+  try {
+    dataset = parseTable(txt);
+    $('d-msg').style.color = 'var(--good)';
+    $('d-msg').textContent = `${dataset.n} Zeilen, ${dataset.head.length} Spalten eingelesen.`
+      + (dataset.dropped ? ` ${dataset.dropped} Zeile(n) mit fehlenden oder nicht numerischen Werten übersprungen.` : '');
+    $('d-config').style.display = '';
+    $('d-y').innerHTML = dataset.head.map((h, i) => `<option value="${i}">${h}</option>`).join('');
+    $('d-y').value = dataset.head.length - 1;
+    renderXChecks();
+    $('d-out').innerHTML = '';
+  } catch (err) {
+    dataset = null;
+    $('d-msg').style.color = 'var(--bad)';
+    $('d-msg').textContent = 'Fehler: ' + err.message;
+    $('d-config').style.display = 'none';
+    $('d-out').innerHTML = '';
+  }
+}
+
+function renderXChecks() {
+  const yi = +$('d-y').value;
+  $('d-x').innerHTML = dataset.head.map((h, i) =>
+    i === yi ? '' : `<label class="check"><input type="checkbox" value="${i}" checked> ${h}</label>`
+  ).join('');
+}
+
+$('d-y').addEventListener('change', renderXChecks);
+$('d-parse').addEventListener('click', () => loadData($('d-input').value));
+$('d-demo').addEventListener('click', () => { $('d-input').value = demoCSV(); loadData($('d-input').value); });
+
+$('d-run').addEventListener('click', () => {
+  const yi = +$('d-y').value;
+  const xi = [...$('d-x').querySelectorAll('input:checked')].map(c => +c.value);
+  const out = $('d-out');
+  if (xi.length === 0) { out.innerHTML = '<div class="card"><div class="warn">Mindestens einen Prädiktor auswählen.</div></div>'; return; }
+  const y = dataset.cols[yi];
+  const cols = xi.map(i => dataset.cols[i]);
+  if (y.length <= cols.length + 1) {
+    out.innerHTML = '<div class="card"><div class="warn">Zu wenige Beobachtungen für die Zahl der Prädiktoren.</div></div>';
+    return;
+  }
+  const m = ols(cols, y);
+  if (!m) {
+    out.innerHTML = '<div class="card"><div class="warn">Das Modell ist nicht schätzbar — vermutlich perfekte Multikollinearität: eine Spalte ist konstant oder eine exakte Linearkombination anderer Spalten.</div></div>';
+    return;
+  }
+  const names = ['Achsenabschnitt', ...xi.map(i => dataset.head[i])];
+
+  /* VIF */
+  const vifs = cols.map((cj, j) => {
+    const others = cols.filter((_, k) => k !== j);
+    if (others.length === 0) return 1;
+    const mj = ols(others, cj);
+    return mj && mj.r2 < 1 ? 1 / (1 - mj.r2) : Infinity;
+  });
+
+  const thrLev = 2 * m.k / m.n, thrCook = 4 / m.n;
+  const flagged = m.cook.map((c, i) => ({ i, c, h: m.lev[i], r: m.resid[i] }))
+    .filter(o => o.c > thrCook || o.h > thrLev)
+    .sort((a, b) => b.c - a.c).slice(0, 6);
+
+  out.innerHTML = `
+    <div class="card">
+      <h2>Ergebnis</h2>
+      <p style="font-size:0.9rem;color:var(--text-muted);">
+        <span class="mono">${dataset.head[yi]} ~ ${xi.map(i => dataset.head[i]).join(' + ')}</span> · n = ${m.n} · df = ${m.dfRes}
+      </p>
+      <div class="table-wrap" style="margin-top:0.8rem;"><table>
+        ${coefTable(m, names)}
+      </table></div>
+      <div class="stats" style="margin-top:1rem;">
+        ${[
+          { n: fmt(m.r2, 3), c: 'R²' },
+          { n: fmt(m.adj, 3), c: 'korrigiertes R̄²' },
+          { n: fmt(m.s, 2), c: 'Reststandardfehler s' },
+          { n: fmt(m.rmse, 2), c: 'RMSE' },
+          { n: fmt(m.F, 2), c: `F(${m.k - 1}, ${m.dfRes})` },
+          { n: fmtP(m.pF), c: 'p des F-Tests' }
+        ].map(t => `<div class="stat"><div class="num">${t.n}</div><div class="cap">${t.c}</div></div>`).join('')}
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Interpretation</h2>
+      <ul class="tight">
+        ${xi.map((i, j) => {
+          const b = m.beta[j + 1], p = m.p[j + 1];
+          const lo = b - m.tc * m.se[j + 1], hi = b + m.tc * m.se[j + 1];
+          return `<li><strong>${dataset.head[i]}:</strong> Steigt <span class="mono">${dataset.head[i]}</span> um eine Einheit,
+            ändert sich <span class="mono">${dataset.head[yi]}</span> im Mittel um <strong>${fmt(b, 3)}</strong>
+            (95 %-KI ${fmt(lo, 2)} bis ${fmt(hi, 2)}), bei Konstanthaltung der übrigen Variablen —
+            ${p < 0.05 ? 'statistisch signifikant' : '<em>nicht</em> signifikant von null unterscheidbar'} (p = ${fmtP(p)}).</li>`;
+        }).join('')}
+      </ul>
+      <p style="margin-top:0.8rem;">Das Modell erklärt <strong>${fmt(m.r2 * 100, 1)} %</strong> der Streuung von
+      <span class="mono">${dataset.head[yi]}</span>. Typische Abweichung einer Einzelvorhersage: rund ${fmt(m.s, 2)} Einheiten.</p>
+    </div>
+
+    <div class="card">
+      <h2>Diagnostik</h2>
+      <div class="grid2">
+        <div><h3>Residuen vs. angepasste Werte</h3><canvas id="d-rp" class="short"></canvas></div>
+        <div><h3>Q-Q-Plot der Residuen</h3><canvas id="d-qq" class="short"></canvas></div>
+      </div>
+      <h3 style="margin-top:1.2rem;">Multikollinearität</h3>
+      <div class="stats">
+        ${vifs.map((v, j) => `<div class="stat"><div class="num" style="color:${v > 10 ? COL.bad : v > 5 ? '#b45309' : COL.primary}">${fmt(v, 2)}</div><div class="cap">VIF ${dataset.head[xi[j]]}</div></div>`).join('')}
+      </div>
+      <h3 style="margin-top:1.2rem;">Auffällige Beobachtungen</h3>
+      ${flagged.length === 0
+        ? `<p style="font-size:0.9rem;color:var(--text-muted);">Keine Beobachtung überschreitet die Grenzwerte (Cook's D &gt; ${fmt(thrCook, 3)}, Hebelwert &gt; ${fmt(thrLev, 3)}).</p>`
+        : `<div class="table-wrap"><table>
+            <thead><tr><th class="num">Zeile</th><th class="num">Residuum</th><th class="num">Hebelwert</th><th class="num">Cook's D</th></tr></thead>
+            <tbody>${flagged.map(o => `<tr>
+              <td class="num">${o.i + 1}</td>
+              <td class="num">${fmt(o.r, 2)}</td>
+              <td class="num" style="${o.h > thrLev ? 'color:' + COL.bad : ''}">${fmt(o.h, 3)}</td>
+              <td class="num" style="${o.c > thrCook ? 'color:' + COL.bad : ''}">${fmt(o.c, 3)}</td>
+            </tr>`).join('')}</tbody></table></div>
+           <p style="font-size:0.82rem;color:var(--text-muted);margin-top:0.5rem;">Grenzwerte: Cook's D &gt; ${fmt(thrCook, 3)}, Hebelwert &gt; ${fmt(thrLev, 3)}. Auffällig heißt prüfenswert, nicht löschen.</p>`}
+    </div>`;
+
+  /* Residuenplot */
+  const RP = newPlot($('d-rp'), {
+    x: niceRange(m.fitted, 0.06), y: niceRange(m.resid, 0.12), pad: { l: 64, r: 16, t: 12, b: 32 }
+  });
+  RP.axes('ŷ', 'Residuum');
+  RP.line(RP.xmin, 0, RP.xmax, 0, '#94a3b8', 1.6);
+  RP.clip(() => m.fitted.forEach((v, i) => RP.dot(v, m.resid[i], 'rgba(79,70,229,0.7)', 3.6, null)));
+
+  /* Q-Q-Plot */
+  const sorted = m.resid.slice().sort((a, b) => a - b);
+  const sr = sd(m.resid);
+  const theo = sorted.map((_, i) => normQuantile((i + 0.5) / sorted.length) * sr);
+  const QQ = newPlot($('d-qq'), {
+    x: niceRange(theo, 0.08), y: niceRange(sorted, 0.08), pad: { l: 64, r: 16, t: 12, b: 32 }
+  });
+  QQ.axes('theoretisch', 'beobachtet');
+  const lim = Math.min(QQ.xmax, QQ.ymax), lim0 = Math.max(QQ.xmin, QQ.ymin);
+  QQ.line(lim0, lim0, lim, lim, '#94a3b8', 1.6, [5, 4]);
+  QQ.clip(() => theo.forEach((t, i) => QQ.dot(t, sorted[i], 'rgba(14,165,233,0.75)', 3.4, null)));
+});
+
+/* Normalquantil (Acklam-Approximation) */
+function normQuantile(p) {
+  const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
+    1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+  const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,
+    6.680131188771972e+01, -1.328068155288572e+01];
+  const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
+    -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+  const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00,
+    3.754408661907416e+00];
+  const pl = 0.02425;
+  let q, r;
+  if (p < pl) {
+    q = Math.sqrt(-2 * Math.log(p));
+    return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  }
+  if (p > 1 - pl) return -normQuantile(1 - p);
+  q = p - 0.5; r = q * q;
+  return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+    (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+}
+
+/* ==========================================================================
+   Start
+   ========================================================================== */
+
+redrawHooks['p-ols'] = updateWorkshop;
+redrawHooks['p-guete'] = drawGuete;
+redrawHooks['p-inf'] = drawInf;
+redrawHooks['p-multi'] = drawMulti;
+redrawHooks['p-ann'] = drawScen;
+redrawHooks['p-fallen'] = () => { drawAnscombe(); drawSimpson(); };
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const active = document.querySelector('.panel.active');
+    if (active && redrawHooks[active.id]) redrawHooks[active.id]();
+  }, 120);
+});
+
+selectTerm(2);
+$('d-input').value = demoCSV();
+$('ols-b0').value = ws.b0;
+$('ols-b1').value = ws.b1;
+$('i-n').value = inf.n;
+$('i-sig').value = inf.sigma;
+$('i-b1').value = inf.b1;
+$('m-rho').value = mu.rho;
+$('m-b1').value = mu.b1;
+$('m-b2').value = mu.b2;
+$('m-n').value = mu.n;
+$('m-sig').value = mu.sigma;
+$('i-n-v').textContent = inf.n;
+$('i-sig-v').textContent = fmt(inf.sigma, 2);
+$('i-b1-v').textContent = fmt(inf.b1, 2);
+$('m-rho-v').textContent = fmt(mu.rho, 2);
+$('m-b1-v').textContent = fmt(mu.b1, 1);
+$('m-b2-v').textContent = fmt(mu.b2, 1);
+$('m-n-v').textContent = mu.n;
+$('m-sig-v').textContent = fmt(mu.sigma, 2);
+
+showPanel('p-modell');
+</script>
+</body>
+</html>
