@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spielwahrscheinlichkeiten — Würfel, Karten, Kämpfe</title>
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-soft: #eef2ff;
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --accent: #0ea5e9;
+    --good: #059669;
+    --good-bg: #ecfdf5;
+    --warn: #b45309;
+    --warn-bg: #fffbeb;
+    --bad: #dc2626;
+    --bad-bg: #fef2f2;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+    padding: 1rem;
+  }
+
+  .container { max-width: 940px; margin: 0 auto; }
+
+  header { margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; margin-bottom: 0.35rem; }
+  h2 { font-size: 1.15rem; margin-bottom: 0.6rem; }
+  h3 { font-size: 0.95rem; margin-bottom: 0.3rem; }
+  p.subtitle { color: var(--text-muted); font-size: 0.95rem; }
+  p + p { margin-top: 0.7rem; }
+  h2 + p, h3 + p { margin-top: 0; }
+
+  nav.tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.25rem; }
+  nav.tabs button {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 0.5rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  nav.tabs button:hover { border-color: var(--primary); color: var(--primary); }
+  nav.tabs button.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  .note, .warn, .good {
+    border-radius: 0 0.5rem 0.5rem 0;
+    padding: 0.8rem 1rem;
+    font-size: 0.9rem;
+    margin-top: 1rem;
+  }
+  .note { background: var(--primary-soft); border-left: 3px solid var(--primary); }
+  .warn { background: var(--warn-bg); border-left: 3px solid var(--warn); }
+  .good { background: var(--good-bg); border-left: 3px solid var(--good); }
+
+  ul.tight, ol.tight { margin: 0.6rem 0 0 1.2rem; }
+  ul.tight li, ol.tight li { margin-bottom: 0.35rem; }
+
+  code, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: #f1f5f9;
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.25rem;
+    font-size: 0.88em;
+  }
+
+  .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.5rem; }
+  .controls.three { grid-template-columns: repeat(3, 1fr); }
+  .control label {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 0.88rem; font-weight: 600; margin-bottom: 0.2rem;
+  }
+  .control .val { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--primary); }
+  .control .desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.15rem; }
+  input[type="range"] { width: 100%; accent-color: var(--primary); }
+  input[type="number"], input[type="text"], select {
+    width: 100%; padding: 0.45rem;
+    border: 1px solid var(--border); border-radius: 0.375rem;
+    font-size: 0.95rem; font-family: inherit; background: var(--surface); color: var(--text);
+  }
+  input[type="text"].dice { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  label.check { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+  label.check input { accent-color: var(--primary); }
+
+  button.ghost, button.solid {
+    padding: 0.45rem 0.9rem; border-radius: 0.375rem;
+    font-weight: 600; font-size: 0.85rem; cursor: pointer; font-family: inherit;
+  }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+  button.ghost:hover { border-color: var(--primary); color: var(--primary); }
+  button.ghost.on { border-color: var(--primary); color: #fff; background: var(--primary); }
+  button.solid { background: var(--primary); border: 1px solid var(--primary); color: #fff; }
+  button.solid:hover { filter: brightness(1.08); }
+  button.mini {
+    padding: 0.2rem 0.5rem; font-size: 0.8rem; border-radius: 0.3rem;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
+    cursor: pointer; font-family: inherit; font-weight: 600;
+  }
+  button.mini:hover { border-color: var(--primary); color: var(--primary); }
+  .btnrow { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.9rem; }
+  .pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+
+  canvas { width: 100%; height: 300px; display: block; touch-action: none; }
+  canvas.short { height: 230px; }
+  canvas.tall { height: 380px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.7rem; text-align: center; }
+  .stat .num { font-size: 1.3rem; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; }
+  .stat .cap { font-size: 0.74rem; color: var(--text-muted); }
+
+  .bigp {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-top: 0.9rem;
+  }
+  .bigp .box {
+    border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.8rem; text-align: center;
+    background: var(--bg);
+  }
+  .bigp .box.hi { background: var(--primary-soft); border-color: var(--primary); }
+  .bigp .box .p { font-size: 1.55rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--primary); }
+  .bigp .box .q { font-size: 0.78rem; color: var(--text-muted); }
+  .bigp .box .odds { font-size: 0.74rem; color: var(--text-muted); margin-top: 0.15rem; }
+
+  .msg { color: var(--bad); font-size: 0.83rem; margin-top: 0.4rem; min-height: 1.1rem; }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 0.9rem; justify-content: center;
+    font-size: 0.82rem; color: var(--text-muted); margin-top: 0.5rem;
+  }
+  .legend span::before {
+    content: ''; display: inline-block; width: 0.8rem; height: 0.55rem;
+    border-radius: 2px; margin-right: 0.35rem; vertical-align: middle; background: currentColor;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+  th, td { text-align: left; padding: 0.4rem 0.4rem; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-muted); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  td.num, th.num { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .table-wrap { overflow-x: auto; max-height: 320px; overflow-y: auto; }
+
+  .chipgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: 0.5rem; margin-top: 0.8rem; }
+  .chip {
+    border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.5rem 0.3rem;
+    text-align: center; background: var(--surface);
+  }
+  .chip .n { font-size: 1.1rem; font-weight: 700; }
+  .chip .cnt { font-family: ui-monospace, monospace; font-size: 0.95rem; color: var(--primary); }
+  .chip .row { display: flex; gap: 0.25rem; justify-content: center; margin-top: 0.3rem; }
+  .chip .row button { flex: 1; padding: 0.1rem 0; }
+
+  footer { color: var(--text-muted); font-size: 0.8rem; margin-top: 2rem; text-align: center; }
+
+  @media (max-width: 700px) {
+    .controls, .controls.three, .grid2 { grid-template-columns: 1fr; }
+    .bigp { grid-template-columns: 1fr; }
+    h1 { font-size: 1.35rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Spielwahrscheinlichkeiten</h1>
+  <p class="subtitle">Würfelpools, Ziehwahrscheinlichkeiten und Kampfausgänge — exakt gerechnet statt simuliert. Für alle Momente am Spieltisch, in denen „das kommt bestimmt gleich" auf harte Zahlen trifft.</p>
+</header>
+
+<nav class="tabs" id="tabs"></nav>
+
+<!-- ============================== WÜRFEL ============================== -->
+<section class="panel" id="p-wuerfel">
+  <div class="card">
+    <h2>Würfelpool</h2>
+    <p>Schreibweise wie am Tisch: <code>2W6</code>, <code>W20</code>, <code>3W6+2</code>, <code>4W6 höchste 3</code>. Statt <code>W</code> geht auch <code>d</code>.</p>
+    <div class="controls" style="margin-top:0.9rem">
+      <div class="control">
+        <label for="d1">Pool A</label>
+        <input type="text" class="dice" id="d1" value="2W6" spellcheck="false">
+        <div class="desc" id="d1desc">&nbsp;</div>
+      </div>
+      <div class="control">
+        <label for="d2">
+          <span>Pool B (Vergleich)</span>
+          <label class="check" style="font-weight:600"><input type="checkbox" id="cmpOn"> aktiv</label>
+        </label>
+        <input type="text" class="dice" id="d2" value="1W12" spellcheck="false" disabled>
+        <div class="desc" id="d2desc">&nbsp;</div>
+      </div>
+    </div>
+    <div class="pills">
+      <button class="mini" data-preset="2W6">2W6 — Catan, Backgammon</button>
+      <button class="mini" data-preset="1W20">1W20 — D&amp;D-Probe</button>
+      <button class="mini" data-preset="3W6">3W6 — klassisches Attribut</button>
+      <button class="mini" data-preset="4W6 höchste 3">4W6 höchste 3 — D&amp;D 5e</button>
+      <button class="mini" data-preset="2W10+3">2W10+3</button>
+      <button class="mini" data-preset="6W6">6W6</button>
+    </div>
+    <div class="msg" id="diceMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Verteilung</h2>
+    <canvas id="diceChart"></canvas>
+    <div class="legend" id="diceLegend"></div>
+    <div class="stats" id="diceStats"></div>
+  </div>
+
+  <div class="card">
+    <h2>Die Frage, die man wirklich hat</h2>
+    <div class="control">
+      <label for="thr"><span>Schwellenwert</span><span class="val" id="thrVal">7</span></label>
+      <input type="range" id="thr" min="0" max="12" step="1" value="7">
+    </div>
+    <div class="bigp" id="thrBoxes"></div>
+    <div class="note">
+      <strong>Chancen statt Prozent:</strong> „ungefähr 1 zu 6" bleibt am Spieltisch eher hängen als „16,7 %". Beide Angaben stehen deshalb nebeneinander.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Vollständige Tabelle</h2>
+    <div class="table-wrap">
+      <table id="diceTable"></table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== KARTEN ============================== -->
+<section class="panel" id="p-karten">
+  <div class="card">
+    <h2>Ziehen ohne Zurücklegen</h2>
+    <p>Die Frage hinter jedem Deckbau: <strong>Wie wahrscheinlich habe ich das, was ich brauche, auch auf der Hand?</strong> Karten werden nicht zurückgelegt — jede gezogene Karte verändert das Restdeck.</p>
+    <div class="controls three" style="margin-top:0.9rem">
+      <div class="control">
+        <label for="deckN"><span>Karten im Deck</span></label>
+        <input type="number" id="deckN" min="1" max="500" value="60">
+      </div>
+      <div class="control">
+        <label for="deckK"><span>davon „gute" Karten</span></label>
+        <input type="number" id="deckK" min="0" max="500" value="4">
+      </div>
+      <div class="control">
+        <label for="deckH"><span>Karten auf der Hand</span></label>
+        <input type="number" id="deckH" min="1" max="500" value="7">
+      </div>
+    </div>
+    <div class="pills">
+      <button class="mini" data-deck="32,4,10">Skatblatt 32 — 4 Buben, 10 Karten</button>
+      <button class="mini" data-deck="52,4,5">52er Blatt — 4 Asse, 5 Karten</button>
+      <button class="mini" data-deck="60,4,7">60er Deck — 4 Kopien, Starthand 7</button>
+      <button class="mini" data-deck="40,17,7">40er Deck — 17 Länder, Starthand 7</button>
+    </div>
+    <div class="msg" id="deckMsg"></div>
+    <div class="bigp" id="deckBoxes"></div>
+  </div>
+
+  <div class="card">
+    <h2>Wie viele Treffer landen auf der Hand?</h2>
+    <canvas id="deckChart" class="short"></canvas>
+    <p class="subtitle" style="text-align:center;margin-top:0.4rem">Wahrscheinlichkeit für genau <em>x</em> Treffer</p>
+    <div class="stats" id="deckStats"></div>
+  </div>
+
+  <div class="card">
+    <h2>Wahrscheinlichkeit bis Zug N</h2>
+    <p>Die Starthand ist nur der Anfang: mit jedem Zug kommt eine Karte dazu. Die Kurve zeigt, wie die Chance auf <em>mindestens einen</em> Treffer wächst.</p>
+    <canvas id="drawChart" class="short"></canvas>
+    <div class="note" id="drawNote"></div>
+  </div>
+</section>
+
+<!-- ============================== KAMPF ============================== -->
+<section class="panel" id="p-kampf">
+  <div class="card">
+    <h2>Angriff und Verteidigung</h2>
+    <p>Nach Risiko-Regeln: Der Angreifer würfelt mit bis zu drei Würfeln, muss aber immer eine Armee zurücklassen. Der Verteidiger würfelt mit bis zu zwei. Die höchsten Würfel werden paarweise verglichen — <strong>bei Gleichstand gewinnt die Verteidigung</strong>.</p>
+    <div class="controls" style="margin-top:0.9rem">
+      <div class="control">
+        <label for="atk"><span>Armeen des Angreifers</span><span class="val" id="atkVal">10</span></label>
+        <input type="range" id="atk" min="2" max="30" step="1" value="10">
+        <div class="desc">Eine davon bleibt immer im Ausgangsgebiet zurück.</div>
+      </div>
+      <div class="control">
+        <label for="def"><span>Armeen des Verteidigers</span><span class="val" id="defVal">8</span></label>
+        <input type="range" id="def" min="1" max="30" step="1" value="8">
+      </div>
+    </div>
+    <div class="bigp" id="battleBoxes"></div>
+  </div>
+
+  <div class="card">
+    <h2>Eine einzelne Kampfrunde</h2>
+    <p>Bei der aktuellen Aufstellung stehen sich <span id="diceSetup" class="mono"></span> gegenüber. Das sind die exakten Ausgänge dieser einen Runde:</p>
+    <div id="roundBars" style="margin-top:0.8rem"></div>
+    <div class="note">
+      Der Klassiker <span class="mono">3 gegen 2</span> geht in <strong>2890 von 7776</strong> Fällen komplett an den Angreifer, in <strong>2275</strong> komplett an die Verteidigung und in <strong>2611</strong> Fällen verliert jede Seite eine Armee. Über viele Runden hinweg dreht sich der Vorteil trotzdem zum Angreifer — weil er mit drei Würfeln antritt.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Siegwahrscheinlichkeit über alle Aufstellungen</h2>
+    <p>Zeile = Angreifer, Spalte = Verteidiger. Der Punkt markiert die aktuelle Einstellung.</p>
+    <canvas id="heatChart" class="tall"></canvas>
+    <div class="legend">
+      <span style="color:#dc2626">Verteidigung hält</span>
+      <span style="color:#94a3b8">50 : 50</span>
+      <span style="color:#059669">Angriff gewinnt</span>
+    </div>
+    <div class="note">
+      <strong>Faustregel:</strong> Gleich viele Armeen auf beiden Seiten reichen dem Angreifer nicht. Erst mit <em>rund einem Drittel mehr</em> kippt die Rechnung zu seinen Gunsten — und weil eine Armee zurückbleiben muss, zählt bei kleinen Stapeln jede einzelne doppelt.
+    </div>
+  </div>
+</section>
+
+<!-- ============================== CATAN ============================== -->
+<section class="panel" id="p-catan">
+  <div class="card">
+    <h2>Die Zahlenchips</h2>
+    <p>Zwei Würfel erzeugen keine Gleichverteilung: Für die 7 gibt es sechs Kombinationen, für die 2 nur eine. Genau deshalb tragen die Chips ihre Punkte.</p>
+    <canvas id="catanChart" class="short"></canvas>
+    <div class="legend">
+      <span style="color:#4f46e5">erwartet</span>
+      <span style="color:#0ea5e9">beobachtet</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Eigene Würfe eintragen</h2>
+    <p>Das Gefühl „die 6 kam heute Abend nie" lässt sich prüfen. Trage die Würfe ein und sieh nach, ob die Abweichung wirklich auffällig ist.</p>
+    <div class="chipgrid" id="catanChips"></div>
+    <div class="btnrow">
+      <button class="ghost" id="catanReset">Alles zurücksetzen</button>
+      <button class="ghost" id="catanDemo">Beispiel: „die 6 blieb aus"</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Ist die Abweichung auffällig?</h2>
+    <div class="stats" id="catanStats"></div>
+    <div id="catanVerdict"></div>
+    <div class="note">
+      <strong>Warum das Gefühl täuscht:</strong> Bei 36 Würfen erwartet man die 7 sechsmal — dass sie stattdessen zwei- oder zehnmal fällt, ist völlig normal. Die Erinnerung merkt sich aber nur die Runden, in denen die eigene Siedlung leer ausging. Erst ab mehreren hundert Würfen wird eine echte Schieflage überhaupt messbar.
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SPICKZETTEL ============================== -->
+<section class="panel" id="p-spick">
+  <div class="card">
+    <h2>Was hier eigentlich gerechnet wird</h2>
+    <h3>Würfelsummen</h3>
+    <p>Die Verteilung mehrerer Würfel entsteht durch <strong>Faltung</strong>: Die Verteilung von <code>2W6</code> ist die von <code>1W6</code>, kombiniert mit sich selbst. Deshalb wächst die Mitte und die Ränder werden dünn — bei vielen Würfeln nähert sich das Ergebnis einer Glockenkurve.</p>
+    <p>Bei <code>4W6 höchste 3</code> hilft Faltung nicht mehr, weil die Würfel nicht mehr unabhängig zur Summe beitragen. Hier wird über alle Augenzahlen abgezählt, welche Würfel welchen Wert zeigen und welche davon in die Wertung kommen — exakt, nicht simuliert.</p>
+
+    <h3>Karten</h3>
+    <p>Ziehen ohne Zurücklegen führt auf die <strong>hypergeometrische Verteilung</strong>. Für <em>N</em> Karten, davon <em>K</em> Treffer, bei <em>n</em> gezogenen Karten:</p>
+    <p style="text-align:center;font-family:ui-monospace,monospace;padding:0.6rem 0">P(X = x) = C(K,x) · C(N−K, n−x) / C(N,n)</p>
+    <p>Praktisch wichtiger ist meist die Gegenwahrscheinlichkeit: <code>P(mindestens 1) = 1 − C(N−K, n) / C(N, n)</code> — also „eins minus die Chance, komplett leer auszugehen".</p>
+
+    <h3>Kämpfe</h3>
+    <p>Eine Kampfrunde wird vollständig ausgezählt (bei drei gegen zwei Würfel sind das 6⁵ = 7776 Fälle). Der ganze Kampf ist dann eine <strong>Markow-Kette</strong>: Jeder Zustand ist ein Paar aus verbleibenden Armeen, und weil jede Runde mindestens eine Armee kostet, lässt er sich exakt bis zum Ende durchrechnen.</p>
+
+    <h3>Auffällige Abweichungen</h3>
+    <p>Der Chi-Quadrat-Test vergleicht beobachtete mit erwarteten Häufigkeiten. Der p-Wert beantwortet dabei genau eine Frage: <em>Wie wahrscheinlich wäre eine mindestens so große Abweichung, wenn die Würfel in Ordnung sind?</em> Ein kleiner p-Wert heißt nicht „die Würfel sind gezinkt", sondern „das wäre mit fairen Würfeln ungewöhnlich".</p>
+  </div>
+
+  <div class="card">
+    <h2>Faustregeln für den Spieltisch</h2>
+    <ul class="tight">
+      <li><strong>2W6:</strong> Die 7 fällt in 1 von 6 Würfen. Die 6 oder die 8 einzeln jeweils in etwa 1 von 7.</li>
+      <li><strong>Mindestens einer von vieren</strong> in einem 60-Karten-Deck liegt auf einer Starthand von 7 Karten mit rund 40 % — also seltener, als die meisten schätzen.</li>
+      <li><strong>1W20:</strong> Jede einzelne Zahl fällt mit 5 %. Eine 20 kommt in 20 Würfen im Schnitt einmal — aber in 20 Würfen gar keine zu sehen, passiert immer noch in gut einem Drittel der Fälle.</li>
+      <li><strong>Angriff im Risiko-Stil:</strong> Gleichstand reicht nicht. Wer sicher durchkommen will, braucht spürbar mehr Armeen als der Verteidiger.</li>
+      <li><strong>Kleine Stichproben:</strong> Ein Spieleabend umfasst selten mehr als 100 Würfe. Was in dieser Zahl an Abweichung auftritt, ist fast immer Zufall.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>Alle Werte exakt berechnet — keine Simulation, keine Netzwerkzugriffe.</footer>
+
+</div>
+
+<script>
+"use strict";
+
+/* ==========================================================================
+   Kleine Helfer
+   ========================================================================== */
+
+const $ = id => document.getElementById(id);
+const COL = {
+  a: '#4f46e5', aSoft: 'rgba(79,70,229,0.22)',
+  b: '#0ea5e9', bSoft: 'rgba(14,165,233,0.30)',
+  hi: '#059669',
+  grid: '#eef2f7',
+  text: '#64748b',
+  axis: '#cbd5e1'
+};
+
+function fmt(x, d = 2) {
+  if (!isFinite(x)) return '–';
+  return x.toFixed(d).replace('.', ',');
+}
+function pct(p, d = 1) {
+  if (!isFinite(p)) return '–';
+  if (p > 0 && p < 0.0005) return '< 0,1 %';
+  if (p < 1 && p > 0.9995) return '> 99,9 %';
+  return fmt(p * 100, d) + ' %';
+}
+/* „1 zu N" — am Spieltisch griffiger als eine Prozentzahl */
+function odds(p) {
+  if (p <= 0) return 'unmöglich';
+  if (p >= 1) return 'sicher';
+  const n = 1 / p;
+  return 'etwa 1 zu ' + (n < 10 ? fmt(n, 1) : Math.round(n));
+}
+
+/* Canvas mit devicePixelRatio-Skalierung — wie in lineare-regression.html */
+function setupCanvas(cv) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = cv.getBoundingClientRect();
+  const w = Math.max(rect.width, 140);
+  const h = Math.max(rect.height, 100);
+  cv.width = Math.round(w * dpr);
+  cv.height = Math.round(h * dpr);
+  const c = cv.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, w, h);
+  return { c, w, h };
+}
+
+/* ==========================================================================
+   Mathematik
+   ========================================================================== */
+
+function binom(n, k) {
+  if (k < 0 || k > n) return 0;
+  k = Math.min(k, n - k);
+  let r = 1;
+  for (let i = 0; i < k; i++) r = r * (n - i) / (i + 1);
+  return r;
+}
+
+/* Log-Gammafunktion (Lanczos) — für große Binomialkoeffizienten ohne Überlauf */
+function lgamma(x) {
+  const g = [676.5203681218851, -1259.1392167224028, 771.32342877765313,
+    -176.61502916214059, 12.507343278686905, -0.13857109526572012,
+    9.9843695780195716e-6, 1.5056327351493116e-7];
+  if (x < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * x)) - lgamma(1 - x);
+  x -= 1;
+  let a = 0.99999999999980993;
+  const t = x + 7.5;
+  for (let i = 0; i < 8; i++) a += g[i] / (x + i + 1);
+  return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+}
+function lbinom(n, k) {
+  if (k < 0 || k > n) return -Infinity;
+  return lgamma(n + 1) - lgamma(k + 1) - lgamma(n - k + 1);
+}
+
+/* Regularisierte obere unvollständige Gammafunktion Q(a,x) — für den p-Wert */
+function gammaQ(a, x) {
+  if (x <= 0) return 1;
+  if (x < a + 1) {
+    let ap = a, sum = 1 / a, del = sum;
+    for (let i = 0; i < 500; i++) {
+      ap++; del *= x / ap; sum += del;
+      if (Math.abs(del) < Math.abs(sum) * 1e-15) break;
+    }
+    return 1 - sum * Math.exp(-x + a * Math.log(x) - lgamma(a));
+  }
+  let b = x + 1 - a, c = 1e300, d = 1 / b, h = d;
+  for (let i = 1; i <= 500; i++) {
+    const an = -i * (i - a);
+    b += 2;
+    d = an * d + b; if (Math.abs(d) < 1e-300) d = 1e-300;
+    c = b + an / c; if (Math.abs(c) < 1e-300) c = 1e-300;
+    d = 1 / d;
+    const del = d * c;
+    h *= del;
+    if (Math.abs(del - 1) < 1e-15) break;
+  }
+  return h * Math.exp(-x + a * Math.log(x) - lgamma(a));
+}
+const chi2P = (chi2, df) => gammaQ(df / 2, chi2 / 2);
+
+/* --- Würfel ------------------------------------------------------------- */
+
+/* Summe von n Würfeln mit s Seiten, per Faltung. dist[k] = P(Summe = k) */
+function sumDist(n, s) {
+  let d = [1];
+  for (let i = 0; i < n; i++) {
+    const out = new Array(d.length + s).fill(0);
+    for (let a = 0; a < d.length; a++) {
+      const p = d[a];
+      if (p === 0) continue;
+      for (let f = 1; f <= s; f++) out[a + f] += p / s;
+    }
+    d = out;
+  }
+  return d;
+}
+
+/*
+  Summe der k höchsten (bzw. niedrigsten) von n Würfeln mit s Seiten.
+  Die Augenzahlen werden von der wertvollsten zur unwichtigsten durchlaufen;
+  pro Augenzahl wird abgezählt, wie viele der verbliebenen Würfel sie zeigen.
+  Wer zuerst kommt, füllt die Wertungsplätze — das ist genau die Regel
+  „behalte die k besten".
+*/
+function keepDist(n, s, k, high) {
+  const maxSum = k * s;
+  const width = maxSum + 1;
+  const mk = () => {
+    const a = [];
+    for (let du = 0; du <= n; du++) {
+      const row = [];
+      for (let ku = 0; ku <= k; ku++) row.push(new Float64Array(width));
+      a.push(row);
+    }
+    return a;
+  };
+  let st = mk();
+  st[0][0][0] = 1;
+  for (let step = 0; step < s; step++) {
+    const v = high ? s - step : step + 1;
+    const nx = mk();
+    for (let du = 0; du <= n; du++) {
+      for (let ku = 0; ku <= k; ku++) {
+        const row = st[du][ku];
+        for (let sum = 0; sum < width; sum++) {
+          const wt = row[sum];
+          if (wt === 0) continue;
+          for (let c = 0; du + c <= n; c++) {
+            const kept = Math.min(c, k - ku);
+            nx[du + c][ku + kept][sum + kept * v] += wt * binom(n - du, c);
+          }
+        }
+      }
+    }
+    st = nx;
+  }
+  const total = Math.pow(s, n);
+  const out = new Array(width).fill(0);
+  for (let ku = 0; ku <= k; ku++) {
+    const row = st[n][ku];
+    for (let sum = 0; sum < width; sum++) out[sum] += row[sum] / total;
+  }
+  return out;
+}
+
+const MAX_DICE = 40, MAX_SIDES = 200, MAX_KEEP_DICE = 12, MAX_KEEP_SIDES = 20;
+
+/*
+  Notation parsen: "2W6", "w20", "3d6+2", "4W6 höchste 3", "5W6 niedrigste 2".
+  Der Würfelteil steht immer vorn, deshalb markiert das erste w/d die Grenze.
+*/
+function parseDice(raw) {
+  const t = String(raw).toLowerCase().replace(/\s+/g, '');
+  if (!t) throw new Error('Bitte einen Würfelpool eingeben.');
+  const i = t.search(/[wd]/);
+  if (i < 0) throw new Error('Es fehlt das W — zum Beispiel 2W6.');
+  const nStr = t.slice(0, i);
+  if (nStr && !/^\d+$/.test(nStr)) throw new Error('Vor dem W darf nur eine Anzahl stehen.');
+  const n = nStr === '' ? 1 : parseInt(nStr, 10);
+
+  let rest = t.slice(i + 1);
+  const sm = rest.match(/^(\d+)/);
+  if (!sm) throw new Error('Nach dem W fehlt die Seitenzahl — zum Beispiel 2W6.');
+  const s = parseInt(sm[1], 10);
+  rest = rest.slice(sm[1].length);
+
+  let keep = null;
+  let km = rest.match(/(?:höchste|hoechste|beste[n]?|h)(\d+)/);
+  if (km) { keep = { k: parseInt(km[1], 10), high: true }; rest = rest.replace(km[0], ''); }
+  else {
+    km = rest.match(/(?:niedrigste|schlechteste[n]?|kleinste|l)(\d+)/);
+    if (km) { keep = { k: parseInt(km[1], 10), high: false }; rest = rest.replace(km[0], ''); }
+  }
+
+  let mod = 0;
+  const mm = rest.match(/^([+-])(\d+)$/);
+  if (mm) { mod = (mm[1] === '-' ? -1 : 1) * parseInt(mm[2], 10); rest = ''; }
+
+  if (rest !== '') throw new Error('„' + rest + '" wird nicht verstanden.');
+  if (n < 1) throw new Error('Mindestens ein Würfel.');
+  if (s < 2) throw new Error('Ein Würfel braucht mindestens zwei Seiten.');
+  if (keep && (keep.k < 1 || keep.k > n)) throw new Error('Es lassen sich nur 1 bis ' + n + ' Würfel behalten.');
+  if (keep) {
+    if (n > MAX_KEEP_DICE || s > MAX_KEEP_SIDES)
+      throw new Error('Mit „höchste/niedrigste" sind höchstens ' + MAX_KEEP_DICE + ' Würfel mit je ' + MAX_KEEP_SIDES + ' Seiten drin.');
+  } else if (n > MAX_DICE || s > MAX_SIDES) {
+    throw new Error('Höchstens ' + MAX_DICE + ' Würfel mit je ' + MAX_SIDES + ' Seiten.');
+  }
+  return { n, s, mod, keep };
+}
+
+function diceLabel(p) {
+  let t = p.n + 'W' + p.s;
+  if (p.keep) t += ' ' + (p.keep.high ? 'höchste ' : 'niedrigste ') + p.keep.k;
+  if (p.mod) t += (p.mod > 0 ? '+' : '−') + Math.abs(p.mod);
+  return t;
+}
+
+/* Ergebnis: { min, max, p[] } mit p[i] = P(Wert = min + i) */
+function diceDist(p) {
+  const raw = p.keep ? keepDist(p.n, p.s, p.keep.k, p.keep.high) : sumDist(p.n, p.s);
+  const kept = p.keep ? p.keep.k : p.n;
+  const lo = kept * 1, hi = kept * p.s;
+  const out = [];
+  for (let v = lo; v <= hi; v++) out.push(raw[v] || 0);
+  return { min: lo + p.mod, max: hi + p.mod, p: out };
+}
+
+function distStats(d) {
+  let mean = 0, m2 = 0, total = 0;
+  for (let i = 0; i < d.p.length; i++) { mean += (d.min + i) * d.p[i]; total += d.p[i]; }
+  for (let i = 0; i < d.p.length; i++) m2 += Math.pow(d.min + i - mean, 2) * d.p[i];
+  let cum = 0, median = d.min;
+  for (let i = 0; i < d.p.length; i++) { cum += d.p[i]; if (cum >= 0.5) { median = d.min + i; break; } }
+  let mode = d.min, best = -1;
+  for (let i = 0; i < d.p.length; i++) if (d.p[i] > best) { best = d.p[i]; mode = d.min + i; }
+  return { mean, sd: Math.sqrt(m2), median, mode, modeP: best, total };
+}
+
+/* --- Karten ------------------------------------------------------------- */
+
+/* Hypergeometrisch: dist[x] = P(genau x Treffer) für x = 0 … min(n,K) */
+function hyperDist(N, K, n) {
+  const hi = Math.min(n, K);
+  const lo = Math.max(0, n - (N - K));
+  const lden = lbinom(N, n);
+  const out = new Array(hi + 1).fill(0);
+  for (let x = lo; x <= hi; x++) out[x] = Math.exp(lbinom(K, x) + lbinom(N - K, n - x) - lden);
+  const s = out.reduce((a, b) => a + b, 0);
+  return s > 0 ? out.map(v => v / s) : out;
+}
+/* P(mindestens ein Treffer), wenn n von N Karten gezogen werden */
+function pAtLeastOne(N, K, n) {
+  if (n >= N - K + 1) return 1;
+  return 1 - Math.exp(lbinom(N - K, n) - lbinom(N, n));
+}
+
+/* --- Kampf -------------------------------------------------------------- */
+
+const roundCache = new Map();
+/* Eine Kampfrunde vollständig auszählen. res[i] = P(Angreifer verliert i) */
+function battleRound(na, nd) {
+  const key = na + ':' + nd;
+  if (roundCache.has(key)) return roundCache.get(key);
+  const cmp = Math.min(na, nd);
+  const res = new Array(cmp + 1).fill(0);
+  const total = Math.pow(6, na + nd);
+  const a = new Array(na), d = new Array(nd);
+  const desc = (x, y) => y - x;
+  const rec = i => {
+    if (i < na) { for (let v = 1; v <= 6; v++) { a[i] = v; rec(i + 1); } return; }
+    const j = i - na;
+    if (j < nd) { for (let v = 1; v <= 6; v++) { d[j] = v; rec(i + 1); } return; }
+    const as = a.slice().sort(desc), ds = d.slice().sort(desc);
+    let loss = 0;
+    for (let t = 0; t < cmp; t++) if (as[t] <= ds[t]) loss++;   /* Gleichstand → Verteidigung */
+    res[loss] += 1 / total;
+  };
+  rec(0);
+  roundCache.set(key, res);
+  return res;
+}
+
+/*
+  Ganzer Kampf als Markow-Kette.
+  Rückgabe: { win, exp } — Siegwahrscheinlichkeit und E[verbleibende Armeen · 1{Sieg}].
+  Jede Runde kostet mindestens eine Armee, deshalb terminiert die Rekursion.
+*/
+const battleCache = new Map();
+function battle(a, d) {
+  if (d <= 0) return { win: 1, exp: a };
+  if (a <= 1) return { win: 0, exp: 0 };
+  const key = a * 1000 + d;
+  const hit = battleCache.get(key);
+  if (hit) return hit;
+  const na = Math.min(3, a - 1), nd = Math.min(2, d);
+  const cmp = Math.min(na, nd);
+  const p = battleRound(na, nd);
+  let win = 0, exp = 0;
+  for (let al = 0; al <= cmp; al++) {
+    if (p[al] === 0) continue;
+    const sub = battle(a - al, d - (cmp - al));
+    win += p[al] * sub.win;
+    exp += p[al] * sub.exp;
+  }
+  const r = { win, exp };
+  battleCache.set(key, r);
+  return r;
+}
+
+/* ==========================================================================
+   Tab 1 — Würfel
+   ========================================================================== */
+
+let distA = null, distB = null;
+
+function renderDice() {
+  const msg = $('diceMsg');
+  msg.textContent = '';
+  let pA;
+  try { pA = parseDice($('d1').value); }
+  catch (e) { msg.textContent = 'Pool A: ' + e.message; distA = null; drawDiceChart(); return; }
+  distA = diceDist(pA);
+  distA.label = diceLabel(pA);
+  $('d1desc').textContent = distA.label + ' — Werte von ' + distA.min + ' bis ' + distA.max;
+
+  distB = null;
+  if ($('cmpOn').checked) {
+    try {
+      const pB = parseDice($('d2').value);
+      distB = diceDist(pB);
+      distB.label = diceLabel(pB);
+      $('d2desc').textContent = distB.label + ' — Werte von ' + distB.min + ' bis ' + distB.max;
+    } catch (e) {
+      msg.textContent = 'Pool B: ' + e.message;
+      $('d2desc').textContent = ' ';
+    }
+  } else {
+    $('d2desc').textContent = ' ';
+  }
+
+  /* Schwellenregler an den Wertebereich anpassen */
+  const thr = $('thr');
+  const lo = distB ? Math.min(distA.min, distB.min) : distA.min;
+  const hi = distB ? Math.max(distA.max, distB.max) : distA.max;
+  const old = parseInt(thr.value, 10);
+  thr.min = lo; thr.max = hi;
+  if (old < lo || old > hi || isNaN(old)) thr.value = Math.round(distA.min + (distA.max - distA.min) / 2);
+
+  drawDiceChart();
+  renderStats();
+  renderThreshold();
+  renderTable();
+}
+
+function drawDiceChart() {
+  const cv = $('diceChart');
+  const { c, w, h } = setupCanvas(cv);
+  if (!distA) return;
+  const lo = distB ? Math.min(distA.min, distB.min) : distA.min;
+  const hi = distB ? Math.max(distA.max, distB.max) : distA.max;
+  const nVals = hi - lo + 1;
+  let pmax = Math.max(...distA.p);
+  if (distB) pmax = Math.max(pmax, ...distB.p);
+  pmax = Math.max(pmax, 1e-6);
+
+  const pad = { l: 46, r: 12, t: 14, b: 30 };
+  const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+  const X = v => pad.l + (v - lo + 0.5) / nVals * plotW;
+  const Y = p => pad.t + plotH - (p / (pmax * 1.08)) * plotH;
+  const bw = Math.max(1, plotW / nVals - (nVals > 40 ? 0.5 : 2));
+
+  /* Raster und y-Achse */
+  c.strokeStyle = COL.grid; c.lineWidth = 1;
+  c.fillStyle = COL.text; c.font = '11px system-ui, sans-serif';
+  c.textAlign = 'right'; c.textBaseline = 'middle';
+  for (let i = 0; i <= 4; i++) {
+    const p = pmax * 1.08 * i / 4, y = Y(p);
+    c.beginPath(); c.moveTo(pad.l, y); c.lineTo(w - pad.r, y); c.stroke();
+    c.fillText(fmt(p * 100, 1) + '%', pad.l - 6, y);
+  }
+
+  const thrV = parseInt($('thr').value, 10);
+  const bar = (d, color, softColor, offset, count) => {
+    for (let i = 0; i < d.p.length; i++) {
+      const v = d.min + i;
+      const y = Y(d.p[i]);
+      const bwi = count > 1 ? bw / 2 - 0.5 : bw;
+      const x = X(v) - bw / 2 + (count > 1 ? offset * (bw / 2) : 0);
+      c.fillStyle = (count === 1 && v === thrV) ? COL.hi : (count > 1 ? softColor : color);
+      c.fillRect(x, y, Math.max(1, bwi), pad.t + plotH - y);
+    }
+  };
+  if (distB) { bar(distA, COL.a, COL.a, 0, 2); bar(distB, COL.b, COL.b, 1, 2); }
+  else bar(distA, COL.a, COL.aSoft, 0, 1);
+
+  /* x-Achse */
+  c.strokeStyle = COL.axis;
+  c.beginPath(); c.moveTo(pad.l, pad.t + plotH); c.lineTo(w - pad.r, pad.t + plotH); c.stroke();
+  c.fillStyle = COL.text; c.textBaseline = 'top'; c.textAlign = 'center';
+  const stepLbl = Math.max(1, Math.ceil(nVals / Math.max(4, Math.floor(plotW / 34))));
+  for (let v = lo; v <= hi; v++) {
+    if ((v - lo) % stepLbl !== 0 && v !== hi) continue;
+    c.fillText(String(v), X(v), pad.t + plotH + 6);
+  }
+
+  $('diceLegend').innerHTML = distB
+    ? '<span style="color:' + COL.a + '">' + distA.label + '</span><span style="color:' + COL.b + '">' + distB.label + '</span>'
+    : '<span style="color:' + COL.hi + '">markiert: Schwellenwert ' + thrV + '</span>';
+}
+
+function renderStats() {
+  if (!distA) { $('diceStats').innerHTML = ''; return; }
+  const s = distStats(distA);
+  const cells = [
+    ['Erwartungswert', fmt(s.mean, 2)],
+    ['Standardabw.', fmt(s.sd, 2)],
+    ['Median', String(s.median)],
+    ['häufigster Wert', s.mode + ' (' + pct(s.modeP) + ')'],
+    ['Spannweite', distA.min + ' … ' + distA.max]
+  ];
+  if (distB) {
+    const t = distStats(distB);
+    cells.push(['Ø Pool B', fmt(t.mean, 2)]);
+  }
+  $('diceStats').innerHTML = cells.map(([cap, num]) =>
+    '<div class="stat"><div class="num">' + num + '</div><div class="cap">' + cap + '</div></div>').join('');
+}
+
+function renderThreshold() {
+  if (!distA) return;
+  const v = parseInt($('thr').value, 10);
+  $('thrVal').textContent = v;
+  const at = i => (i >= 0 && i < distA.p.length) ? distA.p[i] : 0;
+  const idx = v - distA.min;
+  let pEq = at(idx), pGe = 0, pLe = 0;
+  for (let i = 0; i < distA.p.length; i++) {
+    if (distA.min + i >= v) pGe += distA.p[i];
+    if (distA.min + i <= v) pLe += distA.p[i];
+  }
+  const box = (q, p, hi) =>
+    '<div class="box' + (hi ? ' hi' : '') + '"><div class="p">' + pct(p) + '</div>' +
+    '<div class="q">' + q + '</div><div class="odds">' + odds(p) + '</div></div>';
+  $('thrBoxes').innerHTML =
+    box('höchstens ' + v, pLe, false) +
+    box('genau ' + v, pEq, true) +
+    box('mindestens ' + v, pGe, false);
+  drawDiceChart();
+}
+
+function renderTable() {
+  if (!distA) { $('diceTable').innerHTML = ''; return; }
+  let cum = 0;
+  const rows = distA.p.map((p, i) => {
+    cum += p;
+    const v = distA.min + i;
+    return '<tr><td class="num">' + v + '</td><td class="num">' + pct(p, 2) +
+      '</td><td class="num">' + pct(cum, 2) + '</td><td class="num">' + pct(1 - cum + p, 2) + '</td></tr>';
+  }).join('');
+  $('diceTable').innerHTML =
+    '<thead><tr><th class="num">Wert</th><th class="num">genau</th><th class="num">höchstens</th><th class="num">mindestens</th></tr></thead><tbody>' +
+    rows + '</tbody>';
+}
+
+$('d1').addEventListener('input', renderDice);
+$('d2').addEventListener('input', renderDice);
+$('cmpOn').addEventListener('change', () => { $('d2').disabled = !$('cmpOn').checked; renderDice(); });
+$('thr').addEventListener('input', renderThreshold);
+document.querySelectorAll('[data-preset]').forEach(b => {
+  b.addEventListener('click', () => { $('d1').value = b.dataset.preset; renderDice(); });
+});
+
+/* ==========================================================================
+   Tab 2 — Karten
+   ========================================================================== */
+
+function renderDeck() {
+  const msg = $('deckMsg');
+  let N = parseInt($('deckN').value, 10);
+  let K = parseInt($('deckK').value, 10);
+  let n = parseInt($('deckH').value, 10);
+  msg.textContent = '';
+  if (!isFinite(N) || !isFinite(K) || !isFinite(n)) { msg.textContent = 'Bitte alle drei Felder ausfüllen.'; return; }
+  if (N < 1) { msg.textContent = 'Das Deck braucht mindestens eine Karte.'; return; }
+  if (K > N) { msg.textContent = 'Es können nicht mehr Treffer als Karten im Deck sein.'; K = N; $('deckK').value = N; }
+  if (K < 0) { msg.textContent = 'Die Trefferzahl kann nicht negativ sein.'; return; }
+  if (n > N) { msg.textContent = 'Es lassen sich nicht mehr Karten ziehen, als im Deck liegen.'; n = N; $('deckH').value = N; }
+  if (n < 1) { msg.textContent = 'Mindestens eine Karte ziehen.'; return; }
+
+  const d = hyperDist(N, K, n);
+  const ge = k => d.slice(k).reduce((a, b) => a + b, 0);
+  const box = (q, p, hi) =>
+    '<div class="box' + (hi ? ' hi' : '') + '"><div class="p">' + pct(p) + '</div>' +
+    '<div class="q">' + q + '</div><div class="odds">' + odds(p) + '</div></div>';
+  $('deckBoxes').innerHTML =
+    box('mindestens 1 Treffer', ge(1), true) +
+    box('mindestens 2 Treffer', ge(2), false) +
+    box('kein einziger Treffer', d[0] || 0, false);
+
+  const mean = d.reduce((a, p, x) => a + p * x, 0);
+  const m2 = d.reduce((a, p, x) => a + p * Math.pow(x - mean, 2), 0);
+  $('deckStats').innerHTML = [
+    ['erwartete Treffer', fmt(mean, 2)],
+    ['Standardabw.', fmt(Math.sqrt(m2), 2)],
+    ['Trefferanteil im Deck', pct(K / N)],
+    ['Anteil gezogen', pct(n / N)]
+  ].map(([cap, num]) => '<div class="stat"><div class="num">' + num + '</div><div class="cap">' + cap + '</div></div>').join('');
+
+  drawDeckChart(d);
+  drawDrawCurve(N, K, n);
+
+  const t3 = firstTurnAbove(N, K, n, 0.5);
+  $('drawNote').innerHTML = t3 === null
+    ? 'Selbst wenn das ganze Deck durchgezogen wird, bleibt die Chance auf einen Treffer unter 50 % — dafür sind zu wenige Treffer im Deck.'
+    : (t3 === 0
+      ? '<strong>Schon die Starthand</strong> reicht: Die Chance auf mindestens einen Treffer liegt bei ' + pct(pAtLeastOne(N, K, n)) + '.'
+      : 'Ab <strong>Zug ' + t3 + '</strong> steht die Chance auf mindestens einen Treffer erstmals über 50 % (' + pct(pAtLeastOne(N, K, n + t3)) + ').');
+}
+
+function firstTurnAbove(N, K, n, target) {
+  for (let t = 0; n + t <= N; t++) if (pAtLeastOne(N, K, n + t) >= target) return t;
+  return null;
+}
+
+function drawDeckChart(d) {
+  const cv = $('deckChart');
+  const { c, w, h } = setupCanvas(cv);
+  const pad = { l: 46, r: 12, t: 14, b: 30 };
+  const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+  const nVals = d.length;
+  const pmax = Math.max(...d, 1e-6) * 1.08;
+  const X = x => pad.l + (x + 0.5) / nVals * plotW;
+  const Y = p => pad.t + plotH - p / pmax * plotH;
+  const bw = Math.max(2, plotW / nVals - 4);
+
+  c.strokeStyle = COL.grid; c.fillStyle = COL.text; c.font = '11px system-ui, sans-serif';
+  c.textAlign = 'right'; c.textBaseline = 'middle';
+  for (let i = 0; i <= 4; i++) {
+    const p = pmax * i / 4, y = Y(p);
+    c.beginPath(); c.moveTo(pad.l, y); c.lineTo(w - pad.r, y); c.stroke();
+    c.fillText(fmt(p * 100, 0) + '%', pad.l - 6, y);
+  }
+  for (let x = 0; x < nVals; x++) {
+    const y = Y(d[x]);
+    c.fillStyle = x === 0 ? '#cbd5e1' : COL.a;
+    c.fillRect(X(x) - bw / 2, y, bw, pad.t + plotH - y);
+    if (d[x] > pmax * 0.06) {
+      c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'top';
+      c.font = '10px system-ui, sans-serif';
+      c.fillText(fmt(d[x] * 100, 0) + '%', X(x), y + 4);
+      c.font = '11px system-ui, sans-serif';
+    }
+  }
+  c.strokeStyle = COL.axis;
+  c.beginPath(); c.moveTo(pad.l, pad.t + plotH); c.lineTo(w - pad.r, pad.t + plotH); c.stroke();
+  c.fillStyle = COL.text; c.textAlign = 'center'; c.textBaseline = 'top';
+  const step = Math.max(1, Math.ceil(nVals / Math.max(4, Math.floor(plotW / 30))));
+  for (let x = 0; x < nVals; x += step) c.fillText(String(x), X(x), pad.t + plotH + 6);
+}
+
+function drawDrawCurve(N, K, n) {
+  const cv = $('drawChart');
+  const { c, w, h } = setupCanvas(cv);
+  const maxT = Math.min(25, N - n);
+  const pad = { l: 46, r: 14, t: 14, b: 30 };
+  const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+  const X = t => pad.l + (maxT === 0 ? 0.5 : t / maxT) * plotW;
+  const Y = p => pad.t + plotH - p * plotH;
+
+  c.strokeStyle = COL.grid; c.fillStyle = COL.text; c.font = '11px system-ui, sans-serif';
+  c.textAlign = 'right'; c.textBaseline = 'middle';
+  for (let i = 0; i <= 4; i++) {
+    const p = i / 4, y = Y(p);
+    c.beginPath(); c.moveTo(pad.l, y); c.lineTo(w - pad.r, y); c.stroke();
+    c.fillText(Math.round(p * 100) + '%', pad.l - 6, y);
+  }
+  /* 50-%-Marke */
+  c.save(); c.setLineDash([4, 4]); c.strokeStyle = '#cbd5e1';
+  c.beginPath(); c.moveTo(pad.l, Y(0.5)); c.lineTo(w - pad.r, Y(0.5)); c.stroke(); c.restore();
+
+  c.strokeStyle = COL.a; c.lineWidth = 2.2; c.beginPath();
+  for (let t = 0; t <= maxT; t++) {
+    const p = pAtLeastOne(N, K, n + t);
+    t === 0 ? c.moveTo(X(t), Y(p)) : c.lineTo(X(t), Y(p));
+  }
+  c.stroke();
+  for (let t = 0; t <= maxT; t += Math.max(1, Math.round(maxT / 12))) {
+    const p = pAtLeastOne(N, K, n + t);
+    c.beginPath(); c.arc(X(t), Y(p), 3, 0, 2 * Math.PI);
+    c.fillStyle = COL.a; c.fill();
+  }
+  c.strokeStyle = COL.axis; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(pad.l, pad.t + plotH); c.lineTo(w - pad.r, pad.t + plotH); c.stroke();
+  c.fillStyle = COL.text; c.textAlign = 'center'; c.textBaseline = 'top';
+  const step = Math.max(1, Math.round(maxT / 8));
+  for (let t = 0; t <= maxT; t += step) c.fillText(t === 0 ? 'Start' : '+' + t, X(t), pad.t + plotH + 6);
+  c.textAlign = 'right'; c.textBaseline = 'bottom';
+  c.fillText('Züge nach der Starthand', w - pad.r, h - 2);
+}
+
+['deckN', 'deckK', 'deckH'].forEach(id => $(id).addEventListener('input', renderDeck));
+document.querySelectorAll('[data-deck]').forEach(b => {
+  b.addEventListener('click', () => {
+    const [N, K, n] = b.dataset.deck.split(',');
+    $('deckN').value = N; $('deckK').value = K; $('deckH').value = n;
+    renderDeck();
+  });
+});
+
+/* ==========================================================================
+   Tab 3 — Kampf
+   ========================================================================== */
+
+function renderBattle() {
+  const a = parseInt($('atk').value, 10), d = parseInt($('def').value, 10);
+  $('atkVal').textContent = a;
+  $('defVal').textContent = d;
+  const r = battle(a, d);
+  const expOnWin = r.win > 0 ? r.exp / r.win : 0;
+  const box = (q, p, hi, sub) =>
+    '<div class="box' + (hi ? ' hi' : '') + '"><div class="p">' + p + '</div>' +
+    '<div class="q">' + q + '</div><div class="odds">' + (sub || '') + '</div></div>';
+  $('battleBoxes').innerHTML =
+    box('Angreifer erobert das Gebiet', pct(r.win), true, odds(r.win)) +
+    box('Verteidigung hält', pct(1 - r.win), false, odds(1 - r.win)) +
+    box('Armeen des Angreifers bei Sieg', r.win > 0 ? fmt(expOnWin, 1) : '–', false,
+      r.win > 0 ? 'im Schnitt, inkl. der zurückgelassenen' : 'kommt praktisch nicht vor');
+
+  const na = Math.min(3, a - 1), nd = Math.min(2, d);
+  $('diceSetup').textContent = na + ' Angriffswürfel gegen ' + nd + ' Verteidigungswürfel';
+  const p = battleRound(na, nd);
+  const cmp = Math.min(na, nd);
+  const total = Math.pow(6, na + nd);
+  let html = '';
+  for (let al = 0; al <= cmp; al++) {
+    const dl = cmp - al;
+    const label = al === 0 ? 'Verteidiger verliert ' + dl
+      : (dl === 0 ? 'Angreifer verliert ' + al : 'jede Seite verliert ' + al);
+    const color = al === 0 ? COL.hi : (dl === 0 ? '#dc2626' : '#b45309');
+    html += '<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.45rem;font-size:0.86rem">' +
+      '<div style="width:190px;flex:none;color:var(--text-muted)">' + label + '</div>' +
+      '<div style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:0.3rem;height:1.15rem;overflow:hidden">' +
+      '<span style="display:block;height:100%;width:' + (p[al] * 100).toFixed(1) + '%;background:' + color + '"></span></div>' +
+      '<div style="width:150px;flex:none;text-align:right;font-family:ui-monospace,monospace">' +
+      pct(p[al]) + ' <span style="color:var(--text-muted)">(' + Math.round(p[al] * total) + '/' + total + ')</span></div></div>';
+  }
+  $('roundBars').innerHTML = html;
+  drawHeat(a, d);
+}
+
+function drawHeat(selA, selD) {
+  const cv = $('heatChart');
+  const { c, w, h } = setupCanvas(cv);
+  const N = 20;
+  const pad = { l: 34, r: 12, t: 20, b: 30 };
+  const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+  const cw = plotW / N, ch = plotH / N;
+
+  for (let ai = 0; ai < N; ai++) {
+    for (let di = 0; di < N; di++) {
+      const a = ai + 2, d = di + 1;
+      const p = battle(a, d).win;
+      /* rot → hell → grün, mit der 50-%-Marke als neutraler Mitte */
+      let col;
+      if (p < 0.5) {
+        const t = p / 0.5;
+        col = 'rgb(' + Math.round(220 + 6 * t) + ',' + Math.round(38 + 194 * t) + ',' + Math.round(38 + 194 * t) + ')';
+      } else {
+        const t = (p - 0.5) / 0.5;
+        col = 'rgb(' + Math.round(226 - 221 * t) + ',' + Math.round(232 - 82 * t) + ',' + Math.round(232 - 127 * t) + ')';
+      }
+      c.fillStyle = col;
+      c.fillRect(pad.l + di * cw, pad.t + (N - 1 - ai) * ch, Math.ceil(cw), Math.ceil(ch));
+    }
+  }
+  /* aktuelle Aufstellung markieren */
+  if (selA >= 2 && selA <= N + 1 && selD >= 1 && selD <= N) {
+    const x = pad.l + (selD - 1) * cw + cw / 2;
+    const y = pad.t + (N - (selA - 2) - 1) * ch + ch / 2;
+    c.strokeStyle = '#0f172a'; c.lineWidth = 2;
+    c.beginPath(); c.arc(x, y, Math.min(cw, ch) * 0.36, 0, 2 * Math.PI); c.stroke();
+    c.strokeStyle = '#fff'; c.lineWidth = 1;
+    c.beginPath(); c.arc(x, y, Math.min(cw, ch) * 0.36, 0, 2 * Math.PI); c.stroke();
+  }
+
+  c.fillStyle = COL.text; c.font = '10px system-ui, sans-serif';
+  c.textAlign = 'center'; c.textBaseline = 'top';
+  for (let di = 0; di < N; di += 2) c.fillText(String(di + 1), pad.l + di * cw + cw / 2, pad.t + plotH + 5);
+  c.textAlign = 'right'; c.textBaseline = 'middle';
+  for (let ai = 0; ai < N; ai += 2) c.fillText(String(ai + 2), pad.l - 5, pad.t + (N - 1 - ai) * ch + ch / 2);
+  c.textAlign = 'left'; c.textBaseline = 'top';
+  c.fillText('Angreifer ↑', 2, 4);
+  c.textAlign = 'right'; c.textBaseline = 'bottom';
+  c.fillText('Verteidiger →', w - pad.r, h - 2);
+}
+
+$('atk').addEventListener('input', renderBattle);
+$('def').addEventListener('input', renderBattle);
+
+/* ==========================================================================
+   Tab 4 — Catan
+   ========================================================================== */
+
+const CATAN_EXP = [1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1];   /* für 2 … 12, Summe 36 */
+let catanCounts = new Array(11).fill(0);
+
+function renderCatanChips() {
+  $('catanChips').innerHTML = CATAN_EXP.map((_, i) => {
+    const n = i + 2;
+    return '<div class="chip"><div class="n">' + n + '</div>' +
+      '<div class="cnt" id="cc' + n + '">' + catanCounts[i] + '</div>' +
+      '<div class="row"><button class="mini" data-catan="-' + n + '">−</button>' +
+      '<button class="mini" data-catan="+' + n + '">+</button></div></div>';
+  }).join('');
+  $('catanChips').querySelectorAll('[data-catan]').forEach(b => {
+    b.addEventListener('click', () => {
+      const s = b.dataset.catan;
+      const n = parseInt(s.slice(1), 10), i = n - 2;
+      catanCounts[i] = Math.max(0, catanCounts[i] + (s[0] === '+' ? 1 : -1));
+      $('cc' + n).textContent = catanCounts[i];
+      renderCatan();
+    });
+  });
+}
+
+function renderCatan() {
+  const total = catanCounts.reduce((a, b) => a + b, 0);
+  drawCatanChart(total);
+
+  if (total === 0) {
+    $('catanStats').innerHTML = '<div class="stat"><div class="num">0</div><div class="cap">Würfe erfasst</div></div>';
+    $('catanVerdict').innerHTML = '<div class="note">Noch keine Würfe eingetragen — die erwartete Verteilung ist oben trotzdem schon zu sehen.</div>';
+    return;
+  }
+
+  let chi2 = 0;
+  for (let i = 0; i < 11; i++) {
+    const e = total * CATAN_EXP[i] / 36;
+    chi2 += Math.pow(catanCounts[i] - e, 2) / e;
+  }
+  const df = 10;
+  const p = chi2P(chi2, df);
+  /* Die Faustregel für den Test: alle erwarteten Häufigkeiten sollten ≥ 5 sein */
+  const minExp = total * 1 / 36;
+
+  $('catanStats').innerHTML = [
+    ['Würfe erfasst', String(total)],
+    ['Chi-Quadrat', fmt(chi2, 2)],
+    ['Freiheitsgrade', String(df)],
+    ['p-Wert', p < 0.001 ? '< 0,001' : fmt(p, 3)]
+  ].map(([cap, num]) => '<div class="stat"><div class="num">' + num + '</div><div class="cap">' + cap + '</div></div>').join('');
+
+  let v;
+  if (minExp < 5) {
+    v = '<div class="warn"><strong>Noch zu wenige Würfe für ein Urteil.</strong> Für einen belastbaren Test sollte jede Zahl mindestens fünfmal erwartet werden — für die 2 und die 12 heißt das <strong>' +
+      Math.ceil(5 * 36) + ' Würfe</strong>. Bisher sind es ' + total + '. Der p-Wert oben ist deshalb nur eine grobe Orientierung.</div>';
+  } else if (p < 0.05) {
+    v = '<div class="warn"><strong>Auffällig.</strong> Eine mindestens so große Abweichung träte mit fairen Würfeln nur in ' + pct(p, 1) +
+      ' der Fälle auf. Das ist ein Hinweis — kein Beweis. Bevor jemand die Würfel tauscht: weiterzählen.</div>';
+  } else {
+    v = '<div class="good"><strong>Unauffällig.</strong> Eine Abweichung dieser Größe ist mit fairen Würfeln ganz normal (' + pct(p, 1) +
+      ' der Fälle liegen mindestens so weit daneben). Was sich wie eine Pechsträhne anfühlt, ist hier keine.</div>';
+  }
+  $('catanVerdict').innerHTML = v;
+}
+
+function drawCatanChart(total) {
+  const cv = $('catanChart');
+  const { c, w, h } = setupCanvas(cv);
+  const pad = { l: 42, r: 12, t: 14, b: 32 };
+  const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+  const nVals = 11;
+  const expP = CATAN_EXP.map(e => e / 36);
+  const obsP = total > 0 ? catanCounts.map(cn => cn / total) : new Array(11).fill(0);
+  const pmax = Math.max(Math.max(...expP), Math.max(...obsP), 0.02) * 1.12;
+  const X = i => pad.l + (i + 0.5) / nVals * plotW;
+  const Y = p => pad.t + plotH - p / pmax * plotH;
+  const bw = plotW / nVals - 6;
+
+  c.strokeStyle = COL.grid; c.fillStyle = COL.text; c.font = '11px system-ui, sans-serif';
+  c.textAlign = 'right'; c.textBaseline = 'middle';
+  for (let i = 0; i <= 4; i++) {
+    const p = pmax * i / 4, y = Y(p);
+    c.beginPath(); c.moveTo(pad.l, y); c.lineTo(w - pad.r, y); c.stroke();
+    c.fillText(fmt(p * 100, 0) + '%', pad.l - 6, y);
+  }
+  for (let i = 0; i < nVals; i++) {
+    const x = X(i);
+    c.fillStyle = COL.a;
+    const ye = Y(expP[i]);
+    c.fillRect(x - bw / 2, ye, total > 0 ? bw / 2 : bw, pad.t + plotH - ye);
+    if (total > 0) {
+      const yo = Y(obsP[i]);
+      c.fillStyle = COL.b;
+      c.fillRect(x, yo, bw / 2, pad.t + plotH - yo);
+    }
+  }
+  c.strokeStyle = COL.axis;
+  c.beginPath(); c.moveTo(pad.l, pad.t + plotH); c.lineTo(w - pad.r, pad.t + plotH); c.stroke();
+  c.fillStyle = COL.text; c.textAlign = 'center'; c.textBaseline = 'top';
+  c.font = '12px system-ui, sans-serif';
+  for (let i = 0; i < nVals; i++) c.fillText(String(i + 2), X(i), pad.t + plotH + 6);
+}
+
+$('catanReset').addEventListener('click', () => {
+  catanCounts = new Array(11).fill(0);
+  renderCatanChips();
+  renderCatan();
+});
+$('catanDemo').addEventListener('click', () => {
+  /*
+    360 Würfe, bei denen die 6 nur 36-mal statt 50-mal fiel — ein Ausfall von gut
+    einem Viertel, der sich am Tisch nach gezinkten Würfeln anfühlt. Der Test sagt:
+    völlig im Rahmen.
+  */
+  catanCounts = [12, 18, 33, 44, 36, 63, 54, 38, 32, 19, 11];
+  renderCatanChips();
+  renderCatan();
+});
+
+/* ==========================================================================
+   Tabs
+   ========================================================================== */
+
+const TABS = [
+  ['p-wuerfel', 'Würfel'],
+  ['p-karten', 'Karten'],
+  ['p-kampf', 'Kampf'],
+  ['p-catan', 'Catan'],
+  ['p-spick', 'Spickzettel']
+];
+const tabsEl = $('tabs');
+tabsEl.innerHTML = TABS.map(([id, label]) => '<button data-t="' + id + '">' + label + '</button>').join('');
+
+const redrawHooks = {
+  'p-wuerfel': renderDice,
+  'p-karten': renderDeck,
+  'p-kampf': renderBattle,
+  'p-catan': renderCatan
+};
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === id));
+  tabsEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.t === id));
+  if (redrawHooks[id]) redrawHooks[id]();
+}
+tabsEl.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b) showPanel(b.dataset.t);
+});
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const active = document.querySelector('.panel.active');
+    if (active && redrawHooks[active.id]) redrawHooks[active.id]();
+  }, 120);
+});
+
+renderCatanChips();
+showPanel('p-wuerfel');
+</script>
+</body>
+</html>

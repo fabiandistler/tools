@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Netzwerkschichten — was bei https:// wirklich passiert</title>
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-soft: #eef2ff;
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --good: #059669;
+    --good-bg: #ecfdf5;
+    --warn: #b45309;
+    --warn-bg: #fffbeb;
+    --bad: #dc2626;
+    --bad-bg: #fef2f2;
+
+    --l-eth: #64748b;
+    --l-ip: #0891b2;
+    --l-tcp: #4f46e5;
+    --l-tls: #059669;
+    --l-http: #b45309;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+    padding: 1rem;
+  }
+
+  .container { max-width: 960px; margin: 0 auto; }
+
+  header { margin-bottom: 1.5rem; }
+  h1 { font-size: 1.7rem; margin-bottom: 0.35rem; }
+  h2 { font-size: 1.15rem; margin-bottom: 0.6rem; }
+  h3 { font-size: 0.95rem; margin-bottom: 0.3rem; }
+  p.subtitle { color: var(--text-muted); font-size: 0.95rem; }
+  p + p { margin-top: 0.7rem; }
+  h2 + p, h3 + p { margin-top: 0; }
+
+  nav.tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.25rem; }
+  nav.tabs button {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
+    padding: 0.5rem 0.9rem; border-radius: 999px;
+    font-size: 0.88rem; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  nav.tabs button:hover { border-color: var(--primary); color: var(--primary); }
+  nav.tabs button.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  .note, .warn, .good, .bad {
+    border-radius: 0 0.5rem 0.5rem 0; padding: 0.8rem 1rem;
+    font-size: 0.9rem; margin-top: 1rem;
+  }
+  .note { background: var(--primary-soft); border-left: 3px solid var(--primary); }
+  .warn { background: var(--warn-bg); border-left: 3px solid var(--warn); }
+  .good { background: var(--good-bg); border-left: 3px solid var(--good); }
+  .bad  { background: var(--bad-bg);  border-left: 3px solid var(--bad); }
+
+  ul.tight, ol.tight { margin: 0.6rem 0 0 1.2rem; }
+  ul.tight li, ol.tight li { margin-bottom: 0.35rem; }
+
+  code, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: #f1f5f9; padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-size: 0.88em;
+  }
+
+  input[type="text"], select {
+    width: 100%; padding: 0.5rem;
+    border: 1px solid var(--border); border-radius: 0.375rem;
+    font-size: 0.95rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: var(--surface); color: var(--text);
+  }
+  input[type="range"] { width: 100%; accent-color: var(--primary); }
+  label.check { display: flex; align-items: center; gap: 0.4rem; font-size: 0.86rem; font-weight: 600; cursor: pointer; }
+  label.check input { accent-color: var(--primary); }
+
+  button.ghost, button.solid {
+    padding: 0.45rem 0.9rem; border-radius: 0.375rem;
+    font-weight: 600; font-size: 0.85rem; cursor: pointer; font-family: inherit;
+  }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+  button.ghost:hover { border-color: var(--primary); color: var(--primary); }
+  button.ghost.on { border-color: var(--primary); color: #fff; background: var(--primary); }
+  .btnrow { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.9rem; }
+  .pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+  button.mini {
+    padding: 0.2rem 0.55rem; font-size: 0.8rem; border-radius: 0.3rem;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
+    cursor: pointer; font-family: inherit; font-weight: 600;
+  }
+  button.mini:hover { border-color: var(--primary); color: var(--primary); }
+
+  .msg { color: var(--bad); font-size: 0.83rem; margin-top: 0.4rem; min-height: 1.1rem; }
+
+  /* ---------- Zwiebel ---------- */
+  .layer { border: 2px solid; border-radius: 0.6rem; overflow: hidden; }
+  .layer + .layer { margin-top: 0; }
+  .lhead {
+    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+    padding: 0.45rem 0.7rem; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+    color: #fff;
+  }
+  .lhead .tag { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.85; }
+  .lhead .bytes { margin-left: auto; font-family: ui-monospace, monospace; font-size: 0.8rem; opacity: 0.95; }
+  .lhead .caret { transition: transform 0.15s; }
+  .layer.open > .lhead .caret { transform: rotate(90deg); }
+  .lfields { display: none; padding: 0.6rem 0.7rem; background: #f8fafc; border-bottom: 1px solid var(--border); }
+  .layer.open > .lfields { display: block; }
+  .lbody { padding: 0.6rem; }
+  .layer.dim { opacity: 0.3; }
+
+  .layer.eth  { border-color: var(--l-eth); }  .layer.eth  > .lhead { background: var(--l-eth); }
+  .layer.ip   { border-color: var(--l-ip); }   .layer.ip   > .lhead { background: var(--l-ip); }
+  .layer.tcp  { border-color: var(--l-tcp); }  .layer.tcp  > .lhead { background: var(--l-tcp); }
+  .layer.tls  { border-color: var(--l-tls); }  .layer.tls  > .lhead { background: var(--l-tls); }
+  .layer.http { border-color: var(--l-http); } .layer.http > .lhead { background: var(--l-http); }
+
+  .fieldtable { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .fieldtable td { padding: 0.22rem 0.35rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .fieldtable td:first-child { color: var(--text-muted); width: 42%; }
+  .fieldtable td:nth-child(2) { font-family: ui-monospace, monospace; }
+  .fieldtable td:last-child { text-align: right; font-family: ui-monospace, monospace; color: var(--text-muted); white-space: nowrap; }
+
+  pre.wire {
+    background: #0f172a; color: #e2e8f0; padding: 0.8rem 0.9rem; border-radius: 0.4rem;
+    overflow-x: auto; font-size: 0.78rem; line-height: 1.5;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre;
+  }
+  pre.wire .k { color: #7dd3fc; }
+  pre.wire .v { color: #fde68a; }
+  pre.wire .enc { color: #34d399; }
+
+  .cipher {
+    font-family: ui-monospace, monospace; font-size: 0.78rem; color: #059669;
+    background: #ecfdf5; border: 1px dashed #6ee7b7; border-radius: 0.4rem;
+    padding: 0.6rem 0.7rem; word-break: break-all; line-height: 1.6;
+  }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.7rem; text-align: center; }
+  .stat .num { font-size: 1.25rem; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; }
+  .stat .cap { font-size: 0.74rem; color: var(--text-muted); }
+
+  /* ---------- Sequenzdiagramm ---------- */
+  .seqwrap { overflow-x: auto; }
+  svg.seq { display: block; width: 100%; min-width: 520px; height: auto; }
+  svg.seq .arrow { cursor: pointer; }
+  svg.seq .arrow:hover .aline { stroke-width: 2.6; }
+  svg.seq .arrow.sel .aline { stroke-width: 3; }
+  svg.seq .arrow.sel .alabel { font-weight: 700; }
+  svg.seq text { font-family: system-ui, sans-serif; }
+
+  /* ---------- Mithören ---------- */
+  .urlparts { font-family: ui-monospace, monospace; font-size: 1rem; word-break: break-all; line-height: 2.1; }
+  .urlparts span { padding: 0.15rem 0.25rem; border-radius: 0.25rem; }
+  .up-vis { background: #fee2e2; color: #991b1b; border-bottom: 2px solid #dc2626; }
+  .up-hid { background: #dcfce7; color: #14532d; border-bottom: 2px solid #059669; }
+
+  .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+  .col h3 { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.5rem; }
+  .col ul { list-style: none; margin: 0; }
+  .col li {
+    font-size: 0.87rem; padding: 0.4rem 0.55rem; border-radius: 0.35rem;
+    margin-bottom: 0.35rem; line-height: 1.4;
+  }
+  .col.vis li { background: var(--bad-bg); border-left: 3px solid var(--bad); }
+  .col.hid li { background: var(--good-bg); border-left: 3px solid var(--good); }
+  .col li b { display: block; font-size: 0.82rem; }
+  .col li span { color: var(--text-muted); font-size: 0.8rem; }
+
+  /* ---------- Schichtentabelle ---------- */
+  table.layers { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+  table.layers th, table.layers td { padding: 0.5rem 0.5rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  table.layers th { color: var(--text-muted); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  table.layers td.n { font-family: ui-monospace, monospace; color: var(--text-muted); width: 2rem; }
+  table.layers tr.hl td { background: var(--primary-soft); }
+  .swatch { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; margin-right: 0.4rem; vertical-align: baseline; }
+  .table-wrap { overflow-x: auto; }
+
+  footer { color: var(--text-muted); font-size: 0.8rem; margin-top: 2rem; text-align: center; }
+
+  @media (max-width: 700px) {
+    .twocol { grid-template-columns: 1fr; }
+    h1 { font-size: 1.35rem; }
+    .lhead { font-size: 0.8rem; }
+    .lbody { padding: 0.4rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Was bei <span class="mono">https://</span> wirklich passiert</h1>
+  <p class="subtitle">Eine Anfrage, fünf Schichten, ein Handshake — und am Ende die Frage, die zählt: Was sieht eigentlich jemand, der im selben WLAN mitliest?</p>
+</header>
+
+<nav class="tabs" id="tabs"></nav>
+
+<!-- ============================== ZWIEBEL ============================== -->
+<section class="panel" id="p-zwiebel">
+  <div class="card">
+    <h2>Deine Anfrage</h2>
+    <input type="text" id="url" value="https://www.beispiel.de/konto/einstellungen?tab=sicherheit" spellcheck="false">
+    <div class="pills">
+      <button class="mini" data-url="https://www.beispiel.de/konto/einstellungen?tab=sicherheit">mit Pfad und Query</button>
+      <button class="mini" data-url="https://beispiel.de/">nur Startseite</button>
+      <button class="mini" data-url="http://alt.beispiel.de/login?user=fabian">unverschlüsselt (HTTP)</button>
+    </div>
+    <div class="msg" id="urlMsg"></div>
+    <div class="stats" id="sizeStats"></div>
+  </div>
+
+  <div class="card">
+    <h2>Die Verpackung</h2>
+    <p>Innen steht, was du willst. Nach außen kommt Schicht für Schicht dazu, was zum Transport nötig ist. <strong>Auf eine Schicht klicken, um ihre Kopfdaten zu sehen.</strong></p>
+    <div id="onion" style="margin-top:1rem"></div>
+  </div>
+
+  <div class="card">
+    <h2>Auspacken beim Server</h2>
+    <p>Jede Schicht wird von einer anderen Stelle gelesen — und danach weggeworfen. Der Webserver bekommt nur den innersten Kern zu sehen.</p>
+    <div style="margin-top:0.9rem">
+      <input type="range" id="unwrap" min="0" max="5" step="1" value="0">
+    </div>
+    <div class="note" id="unwrapNote"></div>
+  </div>
+</section>
+
+<!-- ============================== ABLAUF ============================== -->
+<section class="panel" id="p-ablauf">
+  <div class="card">
+    <h2>Von der Eingabe bis zum ersten Byte</h2>
+    <p>Bevor auch nur ein Zeichen HTML ankommt, sind mehrere Runden über die Leitung gegangen. Jede Runde kostet eine <strong>Round-Trip-Zeit</strong> — einmal hin und zurück.</p>
+    <div style="margin-top:0.9rem">
+      <label class="check" style="display:block;margin-bottom:0.3rem">
+        Round-Trip-Zeit: <span class="mono" id="rttVal">20 ms</span>
+      </label>
+      <input type="range" id="rtt" min="5" max="120" step="5" value="20">
+      <div style="display:flex;justify-content:space-between;font-size:0.76rem;color:var(--text-muted)">
+        <span>schnelles Festnetz</span><span>Mobilfunk</span><span>schlechtes Hotel-WLAN</span>
+      </div>
+    </div>
+    <div class="btnrow">
+      <label class="check"><input type="checkbox" id="dnsCache"> DNS steht schon im Cache</label>
+      <label class="check"><input type="checkbox" id="tls12"> TLS 1.2 statt 1.3</label>
+      <label class="check"><input type="checkbox" id="reuse"> Verbindung wird wiederverwendet</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Sequenz</h2>
+    <p class="subtitle">Auf einen Pfeil klicken für die Erklärung.</p>
+    <div class="seqwrap"><svg class="seq" id="seq" xmlns="http://www.w3.org/2000/svg"></svg></div>
+    <div class="note" id="seqDetail"></div>
+    <div class="stats" id="seqStats"></div>
+  </div>
+
+  <div class="card">
+    <h2>Warum das spürbar ist</h2>
+    <p>Die Wartezeit vor dem ersten Byte hängt kaum an der Bandbreite, sondern an der Anzahl der Runden. Eine doppelt so schnelle Leitung halbiert die Round-Trip-Zeit nicht — deshalb bringt eine schnellere Anbindung beim Seitenaufbau oft weniger als erhofft.</p>
+    <div class="note">
+      <strong>Genau hier setzen die Optimierungen an:</strong> TLS 1.3 spart gegenüber 1.2 eine ganze Runde. Eine wiederverwendete Verbindung spart Handshake und Verbindungsaufbau komplett. Und QUIC (HTTP/3) legt Verbindungsaufbau und Verschlüsselung in dieselbe Runde — dann bleibt vor der ersten Anfrage nur noch ein einziger Hin- und Rückweg.
+    </div>
+  </div>
+</section>
+
+<!-- ============================== MITHÖREN ============================== -->
+<section class="panel" id="p-mithoeren">
+  <div class="card">
+    <h2>Wer im selben WLAN sitzt, sieht …</h2>
+    <p>Ein Café, ein Flughafen, ein Hotel: Jemand im selben Netz kann den Verkehr mitschneiden. Was davon lesbar ist, hängt an genau drei Buchstaben.</p>
+    <div class="btnrow" id="modeBtns">
+      <button class="ghost" data-mode="http">HTTP</button>
+      <button class="ghost on" data-mode="https">HTTPS</button>
+      <button class="ghost" data-mode="ech">HTTPS + ECH</button>
+    </div>
+    <div id="modeDesc" style="margin-top:0.6rem"></div>
+  </div>
+
+  <div class="card">
+    <h2>Die aufgerufene Adresse</h2>
+    <p class="subtitle">Rot = für den Mitleser sichtbar, grün = verborgen.</p>
+    <div class="urlparts" id="urlParts" style="margin-top:0.7rem"></div>
+  </div>
+
+  <div class="card">
+    <h2>Aufschlüsselung</h2>
+    <div class="twocol">
+      <div class="col vis">
+        <h3>🔓 sichtbar</h3>
+        <ul id="visList"></ul>
+      </div>
+      <div class="col hid">
+        <h3>🔒 verborgen</h3>
+        <ul id="hidList"></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SCHICHTEN ============================== -->
+<section class="panel" id="p-schichten">
+  <div class="card">
+    <h2>OSI und TCP/IP nebeneinander</h2>
+    <p>Das OSI-Modell hat sieben Schichten und beschreibt, wie man Netzwerke <em>denken</em> kann. Das TCP/IP-Modell hat vier und beschreibt, wie das Internet <em>tatsächlich</em> gebaut ist. Farbig hinterlegt sind die Schichten, die in den anderen Tabs vorkommen.</p>
+    <div class="table-wrap" style="margin-top:1rem">
+      <table class="layers">
+        <thead><tr><th class="n">#</th><th>OSI</th><th>TCP/IP</th><th>Protokolle hier</th><th>Adressiert wird über …</th></tr></thead>
+        <tbody>
+          <tr class="hl"><td class="n">7</td><td>Anwendung</td><td rowspan="3" style="vertical-align:middle">Anwendung</td><td><span class="swatch" style="background:var(--l-http)"></span>HTTP, DNS</td><td>URL</td></tr>
+          <tr><td class="n">6</td><td>Darstellung</td><td>—</td><td>Zeichensatz, Kompression</td></tr>
+          <tr class="hl"><td class="n">5</td><td>Sitzung</td><td><span class="swatch" style="background:var(--l-tls)"></span>TLS</td><td>Sitzungsschlüssel</td></tr>
+          <tr class="hl"><td class="n">4</td><td>Transport</td><td>Transport</td><td><span class="swatch" style="background:var(--l-tcp)"></span>TCP, UDP, QUIC</td><td>Portnummer</td></tr>
+          <tr class="hl"><td class="n">3</td><td>Vermittlung</td><td>Internet</td><td><span class="swatch" style="background:var(--l-ip)"></span>IP, ICMP</td><td>IP-Adresse</td></tr>
+          <tr class="hl"><td class="n">2</td><td>Sicherung</td><td rowspan="2" style="vertical-align:middle">Netzzugang</td><td><span class="swatch" style="background:var(--l-eth)"></span>Ethernet, WLAN</td><td>MAC-Adresse</td></tr>
+          <tr><td class="n">1</td><td>Bitübertragung</td><td>Kabel, Funk, Glasfaser</td><td>Spannung, Frequenz, Licht</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <strong>Wo TLS wirklich sitzt, ist Auslegungssache.</strong> Im OSI-Modell wird es mal auf Schicht 5, mal auf 6 einsortiert — schlicht weil TLS lange nach OSI entstanden ist und sich nicht darum geschert hat. Im TCP/IP-Modell ist die Frage gegenstandslos: Dort gehört es zur Anwendungsschicht, die auf TCP aufsetzt.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Die eine Idee dahinter</h2>
+    <p>Jede Schicht redet nur mit ihrer eigenen Entsprechung auf der Gegenseite und behandelt alles darüber als undurchsichtige Nutzlast. Der Router interessiert sich nicht dafür, dass er gerade eine Bankwebsite weiterleitet — er sieht eine IP-Adresse und einen Haufen Bytes.</p>
+    <p>Genau dieses Desinteresse macht das Internet erweiterbar: HTTP/3 konnte auf UDP umsteigen, ohne dass ein einziger Router davon wissen musste.</p>
+    <div class="warn">
+      <strong>Und es ist auch die Grenze der Verschlüsselung.</strong> TLS schützt die Nutzlast, nicht den Umschlag. Ziel-IP, Portnummer, Paketgrößen und Zeitpunkte liegen auf jeder Zwischenstation offen — sie <em>müssen</em> es, sonst käme nichts an.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Zahlen, die man einmal gesehen haben sollte</h2>
+    <ul class="tight">
+      <li><strong>Ethernet-Header:</strong> 14 Byte (zwei MAC-Adressen à 6 Byte plus 2 Byte Typfeld), dazu 4 Byte Prüfsumme am Ende.</li>
+      <li><strong>IPv4-Header:</strong> 20 Byte ohne Optionen. IPv6 hat 40 — dafür ohne Prüfsumme und ohne Fragmentierung unterwegs.</li>
+      <li><strong>TCP-Header:</strong> 20 Byte ohne Optionen. Mit Zeitstempeln und Fensterskalierung werden es in der Praxis 32.</li>
+      <li><strong>TLS-Record:</strong> 5 Byte Kopf, dazu bei TLS 1.3 ein Byte innerer Typ und 16 Byte Authentifizierungs-Tag im verschlüsselten Teil.</li>
+      <li><strong>MTU 1500 Byte</strong> ist der Ethernet-Standard. Abzüglich IP- und TCP-Header bleiben <strong>1460 Byte</strong> Nutzlast — die berühmte MSS.</li>
+      <li><strong>Port 443</strong> für HTTPS, <strong>80</strong> für HTTP, <strong>53</strong> für DNS. Der Absender nimmt einen zufälligen hohen Port.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>Alles simuliert — dieses Tool baut keine einzige Netzwerkverbindung auf.</footer>
+
+</div>
+
+<script>
+"use strict";
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const utf8Len = s => new TextEncoder().encode(s).length;
+
+/* Beispielwerte, damit die Kopfdaten konkret statt abstrakt sind */
+const NET = {
+  clientIP: '192.168.178.42',
+  clientMAC: 'a4:83:e7:1c:9d:0b',
+  routerMAC: '3c:37:86:5f:11:e2',
+  serverIP: '93.184.216.34',
+  srcPort: 51843,
+  seq: 2847193021,
+  ack: 1094375882,
+  ttl: 64
+};
+
+/* ==========================================================================
+   Anfrage aufbauen
+   ========================================================================== */
+
+let U = null;   /* geparste URL */
+
+function parseUrl(raw) {
+  let s = String(raw).trim();
+  if (!s) throw new Error('Bitte eine Adresse eingeben.');
+  if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
+  let u;
+  try { u = new URL(s); } catch (e) { throw new Error('Das ist keine gültige Adresse.'); }
+  if (!u.hostname) throw new Error('Es fehlt der Hostname.');
+  const https = u.protocol === 'https:';
+  return {
+    href: u.href,
+    scheme: u.protocol.replace(':', ''),
+    https,
+    host: u.hostname,
+    port: u.port ? parseInt(u.port, 10) : (https ? 443 : 80),
+    portExplicit: !!u.port,
+    path: u.pathname || '/',
+    query: u.search || '',
+    target: (u.pathname || '/') + (u.search || '')
+  };
+}
+
+function httpRequest(u) {
+  return 'GET ' + u.target + ' HTTP/1.1\n' +
+    'Host: ' + u.host + '\n' +
+    'User-Agent: Mozilla/5.0 (X11; Linux x86_64) Firefox/141.0\n' +
+    'Accept: text/html,application/xhtml+xml;q=0.9,*/*;q=0.8\n' +
+    'Accept-Language: de-DE,de;q=0.9,en;q=0.5\n' +
+    'Accept-Encoding: gzip, deflate, br\n' +
+    'Cookie: sitzung=8f3a91c4e77b2d05; theme=hell\n' +
+    'Connection: keep-alive\n';
+}
+
+/* Byte-Bilanz der Verpackung */
+function sizes(u) {
+  const http = utf8Len(httpRequest(u).replace(/\n/g, '\r\n')) + 2;   /* Leerzeile am Ende */
+  const enc = u.https;
+  const tlsInner = enc ? http + 1 + 16 : 0;    /* innerer Typ + AEAD-Tag */
+  const tlsRec = enc ? 5 + tlsInner : 0;
+  const tcpPayload = enc ? tlsRec : http;
+  const tcp = 20 + tcpPayload;
+  const ip = 20 + tcp;
+  const eth = 14 + ip + 4;
+  return { http, tlsInner, tlsRec, tcpPayload, tcp, ip, eth, overhead: eth - http };
+}
+
+/* ==========================================================================
+   Tab 1 — Zwiebel
+   ========================================================================== */
+
+function fieldRows(rows) {
+  return '<table class="fieldtable">' + rows.map(r =>
+    '<tr><td>' + r[0] + '</td><td>' + esc(r[1]) + '</td><td>' + r[2] + '</td></tr>').join('') + '</table>';
+}
+
+function renderOnion() {
+  const msg = $('urlMsg');
+  msg.textContent = '';
+  try { U = parseUrl($('url').value); }
+  catch (e) { msg.textContent = e.message; return; }
+
+  const S = sizes(U);
+  const enc = U.https;
+
+  $('sizeStats').innerHTML = [
+    ['Nutzdaten (HTTP)', S.http + ' B'],
+    ['auf der Leitung', S.eth + ' B'],
+    ['Verpackung', S.overhead + ' B'],
+    ['Anteil Verpackung', Math.round(S.overhead / S.eth * 100) + ' %'],
+    ['Zielport', String(U.port)]
+  ].map(([cap, num]) => '<div class="stat"><div class="num">' + num + '</div><div class="cap">' + cap + '</div></div>').join('');
+
+  const req = httpRequest(U);
+  const wire = req.split('\n').filter(Boolean).map((line, i) => {
+    if (i === 0) return '<span class="v">' + esc(line) + '</span>';
+    const ci = line.indexOf(':');
+    return '<span class="k">' + esc(line.slice(0, ci + 1)) + '</span>' + esc(line.slice(ci + 1));
+  }).join('\n');
+
+  const httpLayer =
+    '<div class="layer http" data-l="4"><div class="lhead"><span class="caret">▸</span>' +
+    '<span class="tag">Anwendung</span> HTTP-Anfrage<span class="bytes">' + S.http + ' B</span></div>' +
+    '<div class="lfields">' + fieldRows([
+      ['Methode', 'GET', '3 B'],
+      ['Ziel', U.target, utf8Len(U.target) + ' B'],
+      ['Host-Header', U.host, utf8Len(U.host) + ' B'],
+      ['Cookie', 'sitzung=8f3a91c4e77b2d05; …', '38 B']
+    ]) + '</div>' +
+    '<div class="lbody"><pre class="wire">' + wire + '</pre></div></div>';
+
+  let inner = httpLayer;
+
+  if (enc) {
+    inner =
+      '<div class="layer tls" data-l="3"><div class="lhead"><span class="caret">▸</span>' +
+      '<span class="tag">TLS 1.3</span> Application-Data-Record<span class="bytes">' + S.tlsRec + ' B</span></div>' +
+      '<div class="lfields">' + fieldRows([
+        ['Content Type', '0x17 (application_data)', '1 B'],
+        ['Legacy Version', '0x0303 (aus Kompatibilität)', '2 B'],
+        ['Length', String(S.tlsInner), '2 B'],
+        ['verschlüsselter Inhalt', 'HTTP-Anfrage + innerer Typ', (S.http + 1) + ' B'],
+        ['Authentifizierungs-Tag', 'AEAD, schützt vor Veränderung', '16 B']
+      ]) + '</div>' +
+      '<div class="lbody">' +
+      '<div class="cipher">Für jeden Mitleser sieht dieser Teil so aus:<br>9f 2a c1 7e 44 b0 d3 91 6c 05 ff 8a 21 4d e9 73 …<br>' +
+      '<strong>Der ganze Block darunter ist nicht lesbar.</strong></div>' +
+      '<div style="margin-top:0.6rem">' + inner + '</div></div></div>';
+  }
+
+  inner =
+    '<div class="layer tcp" data-l="2"><div class="lhead"><span class="caret">▸</span>' +
+    '<span class="tag">Transport</span> TCP-Segment<span class="bytes">' + S.tcp + ' B</span></div>' +
+    '<div class="lfields">' + fieldRows([
+      ['Quellport', String(NET.srcPort), '2 B'],
+      ['Zielport', String(U.port) + (U.port === 443 ? ' (HTTPS)' : U.port === 80 ? ' (HTTP)' : ''), '2 B'],
+      ['Sequenznummer', String(NET.seq), '4 B'],
+      ['Bestätigungsnummer', String(NET.ack), '4 B'],
+      ['Flags', 'PSH, ACK', '1 B'],
+      ['Fenstergröße', '64240', '2 B'],
+      ['Prüfsumme', '0x1f4c', '2 B'],
+      ['übrige Felder', 'Offset, reserviert, Urgent-Zeiger', '3 B']
+    ]) + '</div><div class="lbody">' + inner + '</div></div>';
+
+  inner =
+    '<div class="layer ip" data-l="1"><div class="lhead"><span class="caret">▸</span>' +
+    '<span class="tag">Internet</span> IPv4-Paket<span class="bytes">' + S.ip + ' B</span></div>' +
+    '<div class="lfields">' + fieldRows([
+      ['Version / Headerlänge', '4 / 5 (= 20 Byte)', '1 B'],
+      ['Gesamtlänge', String(S.ip), '2 B'],
+      ['Kennung', '0x7a3e', '2 B'],
+      ['Flags / Fragment-Offset', "Don't Fragment", '2 B'],
+      ['TTL', String(NET.ttl) + ' (jeder Router zieht 1 ab)', '1 B'],
+      ['Protokoll', '6 (TCP)', '1 B'],
+      ['Quell-IP', NET.clientIP, '4 B'],
+      ['Ziel-IP', NET.serverIP, '4 B'],
+      ['übrige Felder', 'DSCP/ECN, Prüfsumme', '3 B']
+    ]) + '</div><div class="lbody">' + inner + '</div></div>';
+
+  inner =
+    '<div class="layer eth" data-l="0"><div class="lhead"><span class="caret">▸</span>' +
+    '<span class="tag">Netzzugang</span> Ethernet-Frame<span class="bytes">' + S.eth + ' B</span></div>' +
+    '<div class="lfields">' + fieldRows([
+      ['Ziel-MAC', NET.routerMAC + ' (dein Router)', '6 B'],
+      ['Quell-MAC', NET.clientMAC + ' (dein Gerät)', '6 B'],
+      ['EtherType', '0x0800 (IPv4)', '2 B'],
+      ['Prüfsumme (am Ende)', 'FCS', '4 B']
+    ]) + '</div><div class="lbody">' + inner + '</div></div>';
+
+  $('onion').innerHTML = inner;
+  $('onion').querySelectorAll('.lhead').forEach(h => {
+    h.addEventListener('click', () => h.parentElement.classList.toggle('open'));
+  });
+
+  if (!enc) {
+    $('onion').insertAdjacentHTML('afterbegin',
+      '<div class="bad" style="margin-top:0;margin-bottom:0.8rem"><strong>Ohne TLS fehlt eine Schicht.</strong> ' +
+      'Die HTTP-Anfrage liegt direkt im TCP-Segment — im Klartext, inklusive Pfad, Cookies und allem, was in einem Formular stand.</div>');
+  }
+  if (S.tcpPayload > 1460) {
+    $('onion').insertAdjacentHTML('afterbegin',
+      '<div class="warn" style="margin-top:0;margin-bottom:0.8rem"><strong>Über der MSS.</strong> ' +
+      'Mit ' + S.tcpPayload + ' Byte Nutzlast passt das nicht mehr in ein Segment (Grenze: 1460 Byte) — TCP zerlegt es in mehrere.</div>');
+  }
+  renderUnwrap();
+}
+
+const UNWRAP = [
+  ['Nichts ausgepackt', 'Das Frame liegt so auf dem Kabel beziehungsweise in der Luft. Jedes Gerät im selben Netz kann es empfangen.'],
+  ['Netzwerkkarte und Switch', 'Die <strong>Ethernet-Schicht</strong> ist erledigt. Der Switch hat anhand der Ziel-MAC entschieden, an welchen Port das Frame geht — und die MAC-Adressen dabei gleich verworfen. Über das eigene Netz hinaus ist von ihnen nichts mehr übrig; jeder Router setzt unterwegs neue ein.'],
+  ['Router unterwegs', 'Die <strong>IP-Schicht</strong> ist gelesen. Jeder Router auf dem Weg schaut sich nur die Ziel-IP an, zieht eins von der TTL ab und reicht weiter. Was in dem Paket steht, interessiert ihn nicht — er sieht es nicht einmal an.'],
+  ['Betriebssystem des Servers', 'Die <strong>TCP-Schicht</strong> ist ausgewertet. Der Kernel ordnet das Segment anhand der Portnummer der richtigen Anwendung zu, sortiert es in die Reihenfolge ein und bestätigt den Empfang. Vom Inhalt weiß er weiterhin nichts.'],
+  ['TLS-Bibliothek', 'Erst <strong>hier</strong> wird entschlüsselt — im Prozess des Webservers, mit dem Sitzungsschlüssel aus dem Handshake. Alles davor hat nur einen Haufen Zufallsbytes weitergereicht.'],
+  ['Webserver-Prozess', 'Übrig bleibt die <strong>HTTP-Anfrage</strong>: eine Methode, ein Pfad, ein paar Kopfzeilen. Das ist alles, was die Anwendung je zu sehen bekommt — und der ganze Rest war nur Transport.']
+];
+
+function renderUnwrap() {
+  const v = parseInt($('unwrap').value, 10);
+  const layers = $('onion').querySelectorAll('.layer');
+  layers.forEach(l => l.classList.toggle('dim', parseInt(l.dataset.l, 10) < v));
+  const step = UNWRAP[Math.min(v, UNWRAP.length - 1)];
+  $('unwrapNote').innerHTML = '<strong>' + step[0] + '</strong><br>' + step[1];
+}
+
+$('url').addEventListener('input', renderOnion);
+$('unwrap').addEventListener('input', renderUnwrap);
+document.querySelectorAll('[data-url]').forEach(b => {
+  b.addEventListener('click', () => { $('url').value = b.dataset.url; renderOnion(); renderSpy(); });
+});
+
+/* ==========================================================================
+   Tab 2 — Ablauf
+   ========================================================================== */
+
+let selStep = 0;
+
+function buildSteps() {
+  const rtt = parseInt($('rtt').value, 10);
+  const cached = $('dnsCache').checked;
+  const reuse = $('reuse').checked;
+  const old = $('tls12').checked;
+  const host = U ? U.host : 'www.beispiel.de';
+  const half = rtt / 2;
+  const steps = [];
+  let t = 0;
+
+  /* Wer eine offene Verbindung wiederverwendet, hat die Adresse längst — DNS entfällt dann ebenfalls */
+  if (reuse) {
+    steps.push({ from: 0, to: 0, t: 0, label: 'Verbindung steht bereits', kind: 'tcp', self: true,
+      detail: 'Die Verbindung zu diesem Server ist noch offen — genau dafür gibt es <code>Connection: keep-alive</code> und HTTP/2. Namensauflösung, Verbindungsaufbau und Handshake entfallen komplett; es geht direkt mit der Anfrage los. Deshalb lädt die zweite Seite einer Website spürbar schneller als die erste.' });
+  } else if (cached) {
+    steps.push({ from: 0, to: 0, t: 0, label: 'DNS aus dem Cache', kind: 'dns', self: true,
+      detail: 'Der Name steht schon im Cache — im Browser, im Betriebssystem oder im Router. Das spart eine komplette Runde. Wie lange ein Eintrag gilt, legt der Autoritative Nameserver über die TTL fest, üblich sind fünf Minuten bis 24 Stunden.' });
+  } else {
+    steps.push({ from: 0, to: 1, t: t += half, label: 'A? ' + host, kind: 'dns',
+      detail: 'Zuerst muss aus dem Namen eine Adresse werden. Der Rechner fragt seinen DNS-Resolver — meist den des Providers oder einen wie 1.1.1.1. <strong>Klassisches DNS läuft unverschlüsselt über Port 53</strong>: Wer mitliest, sieht damit, welche Domain gleich aufgerufen wird, noch bevor TLS überhaupt beginnt. Genau das ändern DNS over HTTPS und DNS over TLS.' });
+    steps.push({ from: 1, to: 0, t: t += half, label: '93.184.216.34', kind: 'dns',
+      detail: 'Der Resolver antwortet mit dem A-Record, also der IPv4-Adresse. Musste er selbst erst bei den autoritativen Servern nachfragen, dauert das deutlich länger als die hier angesetzte eine Runde — dafür beantwortet er die nächste Anfrage aus seinem eigenen Cache.' });
+  }
+
+  if (!reuse) {
+    steps.push({ from: 0, to: 2, t: t += half, label: 'SYN', kind: 'tcp',
+      detail: 'Der Anfang des Drei-Wege-Handshakes. Das Paket trägt nur das SYN-Flag und eine zufällige Anfangs-Sequenznummer — Nutzdaten sind noch keine dabei. Die Zufälligkeit ist Absicht: Vorhersagbare Sequenznummern wären eine Einladung, sich in fremde Verbindungen einzuklinken.' });
+    steps.push({ from: 2, to: 0, t: t += half, label: 'SYN-ACK', kind: 'tcp',
+      detail: 'Der Server bestätigt und schickt seine eigene Anfangs-Sequenznummer mit. Damit ist eine Richtung bestätigt — und weil auf offene Ports geantwortet wird, verrät genau diese Antwort auch, welche Ports offen sind.' });
+    steps.push({ from: 0, to: 2, t: t += half, label: 'ACK + ClientHello', kind: 'tcp',
+      detail: 'Die dritte Nachricht schließt den TCP-Handshake ab. Ab hier steht eine gesicherte, geordnete Verbindung — <em>gesichert</em> heißt dabei nur: kein Paket geht verloren und die Reihenfolge stimmt. Verschlüsselt ist noch gar nichts.<br><br>Das ClientHello reist gleich mit: Es geht in dieselbe Richtung wie das ACK und kostet deshalb keine eigene Runde. Darin nennt der Browser seine unterstützten Cipher Suites, seine TLS-Version und im Feld <strong>SNI</strong> den gewünschten Hostnamen — im Klartext.' });
+
+    if (old) {
+      steps.push({ from: 2, to: 0, t: t += half, label: 'ServerHello, Zertifikat', kind: 'tls',
+        detail: 'Der Server wählt eine Cipher Suite und schickt sein Zertifikat — bei TLS 1.2 <strong>unverschlüsselt</strong>. Wer mitliest, erfährt daraus ebenfalls, welche Domain gemeint ist.' });
+      steps.push({ from: 0, to: 2, t: t += half, label: 'Schlüsselaustausch, Finished', kind: 'tls',
+        detail: 'Erst jetzt einigen sich beide Seiten auf den Sitzungsschlüssel und bestätigen den Handshake. Zwei volle Runden nur für die Verschlüsselung — TLS 1.3 kommt mit einer aus, weil der Schlüsselanteil schon im ClientHello steckt.' });
+      steps.push({ from: 2, to: 0, t: t += half, label: 'Finished', kind: 'tls',
+        detail: 'Der Server bestätigt seinerseits. Ab hier ist alles verschlüsselt.' });
+    } else {
+      steps.push({ from: 2, to: 0, t: t += half, label: 'ServerHello, {Zertifikat}, Finished', kind: 'tls',
+        detail: 'TLS 1.3 spart eine Runde, weil der Browser seinen Schlüsselanteil bereits im ClientHello mitgeschickt hat. Der Server kann sofort mitrechnen — und schickt sein <strong>Zertifikat schon verschlüsselt</strong>. Die geschweiften Klammern stehen für genau das. Nur das ClientHello mit dem SNI-Feld bleibt offen.' });
+    }
+  }
+
+  steps.push({ from: 0, to: 2, t: t += half, label: 'GET ' + (U ? U.target : '/'), kind: 'http',
+    detail: 'Endlich die eigentliche Anfrage — verschlüsselt im TLS-Record verpackt, so wie im Zwiebel-Tab zu sehen. Alles davor war Vorbereitung: Namensauflösung, Verbindungsaufbau, Schlüsselvereinbarung.' });
+  steps.push({ from: 2, to: 0, t: t += half + 40, label: '200 OK, HTML', kind: 'http', server: 40,
+    detail: 'Der Zeitpunkt, an dem das erste Byte ankommt, heißt <strong>Time to First Byte</strong>. Er enthält die halbe Round-Trip-Zeit plus die Zeit, die der Server zum Erzeugen der Antwort braucht — hier mit 40 ms angesetzt. Erst danach beginnt der Browser überhaupt zu rendern.' });
+
+  return { steps, total: t, rtt };
+}
+
+const KIND_COL = { dns: '#0891b2', tcp: '#4f46e5', tls: '#059669', http: '#b45309' };
+const ACTORS = ['Dein Rechner', 'DNS-Resolver', 'Server'];
+
+function renderSeq() {
+  $('rttVal').textContent = $('rtt').value + ' ms';
+  const { steps, total, rtt } = buildSteps();
+  const xs = [95, 300, 520];
+  const W = 620;
+  const top = 46, gap = 40;
+  const H = top + steps.length * gap + 30;
+
+  /* id mitgeben — outerHTML ersetzt das Element, sonst ist es beim nächsten Mal nicht mehr auffindbar */
+  let svg = '<svg class="seq" id="seq" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">';
+  /* Lebenslinien */
+  ACTORS.forEach((a, i) => {
+    svg += '<line x1="' + xs[i] + '" y1="30" x2="' + xs[i] + '" y2="' + (H - 16) + '" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 4"/>';
+    svg += '<rect x="' + (xs[i] - 62) + '" y="6" width="124" height="24" rx="6" fill="#f1f5f9" stroke="#e2e8f0"/>';
+    svg += '<text x="' + xs[i] + '" y="22" text-anchor="middle" font-size="12" fill="#0f172a">' + a + '</text>';
+  });
+
+  svg += '<defs>';
+  Object.entries(KIND_COL).forEach(([k, c]) => {
+    svg += '<marker id="ah-' + k + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">' +
+      '<path d="M0,1 L9,5 L0,9 z" fill="' + c + '"/></marker>';
+  });
+  svg += '</defs>';
+
+  steps.forEach((s, i) => {
+    const y = top + i * gap + 14;
+    const col = KIND_COL[s.kind];
+    const sel = i === selStep ? ' sel' : '';
+    svg += '<g class="arrow' + sel + '" data-step="' + i + '">';
+    svg += '<rect x="0" y="' + (y - 15) + '" width="' + W + '" height="' + gap + '" fill="transparent"/>';
+    if (s.self) {
+      const x = xs[s.from];
+      svg += '<path class="aline" d="M' + x + ',' + (y - 6) + ' h34 v12 h-34" fill="none" stroke="' + col + '" stroke-width="1.8" marker-end="url(#ah-' + s.kind + ')"/>';
+      svg += '<text class="alabel" x="' + (x + 42) + '" y="' + (y + 2) + '" font-size="11.5" fill="#0f172a">' + esc(s.label) + '</text>';
+    } else {
+      const x1 = xs[s.from], x2 = xs[s.to];
+      const dir = x2 > x1 ? 1 : -1;
+      svg += '<line class="aline" x1="' + (x1 + dir * 4) + '" y1="' + y + '" x2="' + (x2 - dir * 6) + '" y2="' + y + '" stroke="' + col + '" stroke-width="1.8" marker-end="url(#ah-' + s.kind + ')"/>';
+      svg += '<text class="alabel" x="' + ((x1 + x2) / 2) + '" y="' + (y - 5) + '" text-anchor="middle" font-size="11.5" fill="#0f172a">' + esc(s.label) + '</text>';
+    }
+    svg += '<text x="' + (W - 4) + '" y="' + (y + 3) + '" text-anchor="end" font-size="10.5" fill="#94a3b8" font-family="ui-monospace, monospace">' + Math.round(s.t) + ' ms</text>';
+    svg += '</g>';
+  });
+  svg += '</svg>';
+
+  $('seq').outerHTML = svg;
+  $('seq').querySelectorAll('.arrow').forEach(g => {
+    g.addEventListener('click', () => { selStep = parseInt(g.dataset.step, 10); renderSeq(); });
+  });
+
+  const s = steps[Math.min(selStep, steps.length - 1)];
+  $('seqDetail').innerHTML = '<strong>' + esc(s.label) + '</strong><br>' + s.detail;
+
+  const rounds = Math.round((total - 40) / rtt * 10) / 10;
+  $('seqStats').innerHTML = [
+    ['bis zum ersten Byte', Math.round(total) + ' ms'],
+    ['davon Wartezeit', Math.round(total - 40) + ' ms'],
+    ['volle Runden', String(rounds)],
+    ['Nachrichten', String(steps.filter(x => !x.self).length)]
+  ].map(([cap, num]) => '<div class="stat"><div class="num">' + num + '</div><div class="cap">' + cap + '</div></div>').join('');
+}
+
+['rtt', 'dnsCache', 'tls12', 'reuse'].forEach(id => {
+  $(id).addEventListener('input', () => { selStep = 0; renderSeq(); });
+});
+
+/* ==========================================================================
+   Tab 3 — Mithören
+   ========================================================================== */
+
+let spyMode = 'https';
+
+function renderSpy() {
+  if (!U) { try { U = parseUrl($('url').value); } catch (e) { return; } }
+  const m = U.https ? spyMode : 'http';
+  document.querySelectorAll('#modeBtns button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+
+  const desc = {
+    http: '<div class="bad"><strong>Alles liegt offen.</strong> Ohne TLS ist jede Anfrage und jede Antwort im Klartext lesbar — und veränderbar. Wer im Netz sitzt, kann nicht nur mitlesen, sondern auch eingeschleuste Inhalte zurückschicken, ohne dass es auffällt.</div>',
+    https: '<div class="good"><strong>Inhalt geschützt, Ziel sichtbar.</strong> Was du überträgst, ist verschlüsselt. <em>Mit wem</em> du sprichst, bleibt erkennbar — über die Ziel-IP und über das SNI-Feld im ClientHello, das notwendigerweise vor dem Schlüsselaustausch verschickt wird.</div>',
+    ech: '<div class="good"><strong>Auch das SNI ist verborgen.</strong> Encrypted Client Hello verschlüsselt den inneren Teil des ClientHello mit einem öffentlichen Schlüssel, den der Browser vorher per DNS geholt hat. Sichtbar bleibt nur der Name des Frontend-Servers — bei einem CDN teilen sich den Tausende Websites, sodass die Ziel-IP kaum noch etwas verrät.<br><br>Damit das aufgeht, muss allerdings auch die DNS-Abfrage verschlüsselt laufen (DoH oder DoT). Sonst steht die Domain weiterhin im Klartext auf der Leitung — nur eben eine Schicht früher.</div>'
+  }[m];
+  $('modeDesc').innerHTML = desc;
+
+  /* Adresse einfärben */
+  const cls = v => v ? 'up-vis' : 'up-hid';
+  const hostVisible = m !== 'ech';
+  const pathVisible = m === 'http';
+  const parts =
+    '<span class="' + cls(true) + '">' + U.scheme + '://</span>' +
+    '<span class="' + cls(hostVisible) + '">' + esc(U.host) + '</span>' +
+    (U.portExplicit ? '<span class="' + cls(true) + '">:' + U.port + '</span>' : '') +
+    '<span class="' + cls(pathVisible) + '">' + esc(U.path) + '</span>' +
+    (U.query ? '<span class="' + cls(pathVisible) + '">' + esc(U.query) + '</span>' : '');
+  $('urlParts').innerHTML = parts;
+
+  const vis = [], hid = [];
+  const item = (t, d) => '<li><b>' + t + '</b><span>' + d + '</span></li>';
+
+  vis.push(item('Ziel-IP-Adresse ' + NET.serverIP, 'Muss im Klartext im IP-Header stehen, sonst wüsste kein Router, wohin.'));
+  vis.push(item('Portnummer ' + U.port, 'Verrät das Protokoll: 443 ist HTTPS, 80 ist HTTP.'));
+  vis.push(item('Paketgrößen und Zeitpunkte', 'Auch verschlüsselt bleibt sichtbar, wie viel wann fließt. Daraus lässt sich mehr ableiten, als die meisten vermuten — etwa welches Video gerade läuft.'));
+
+  if (m === 'http') {
+    vis.push(item('Domain ' + U.host, 'Steht im Host-Header, offen lesbar.'));
+    vis.push(item('Pfad und Query ' + U.target, 'Vollständig lesbar — inklusive Suchbegriffen, IDs und allem, was in der Adresse steht.'));
+    vis.push(item('Cookies und Sitzungs-IDs', 'Abgreifbar. Wer sie kopiert, ist eingeloggt wie du.'));
+    vis.push(item('Formulardaten und Passwörter', 'Alles, was abgeschickt wird, steht im Klartext im Paket.'));
+    vis.push(item('Der gesamte Antwortinhalt', 'Die komplette Seite, die du zu sehen bekommst — und sie lässt sich unterwegs auch verändern.'));
+    hid.push(item('Nichts.', 'Ohne TLS gibt es keine Vertraulichkeit und keinen Schutz vor Veränderung.'));
+  } else {
+    if (m === 'https') {
+      vis.push(item('Domain ' + U.host + ' (via SNI)', 'Das ClientHello nennt den Hostnamen im Klartext — es muss, denn der Server braucht ihn, um das richtige Zertifikat zu wählen. Das ist die unangenehmste Lücke von normalem HTTPS.'));
+      vis.push(item('Zertifikat des Servers', 'Bei TLS 1.2 unverschlüsselt und damit ebenfalls ein Hinweis auf die Domain. TLS 1.3 verschlüsselt es.'));
+    } else {
+      hid.push(item('Domain ' + U.host, 'Das SNI steckt im verschlüsselten inneren ClientHello. Sichtbar bleibt nur der gemeinsame Frontend-Name des CDN.'));
+    }
+    vis.push(item('DNS-Anfrage', 'Klassisches DNS läuft im Klartext über Port 53 — dann steht die Domain dort, auch wenn TLS sie später verbirgt. DNS over HTTPS schließt diese Lücke.'));
+    hid.push(item('Pfad und Query ' + U.target, 'Steckt in der verschlüsselten HTTP-Anfrage. Suchbegriffe, Konto-IDs und Parameter bleiben verborgen.'));
+    hid.push(item('Alle HTTP-Header', 'Cookies, Sitzungs-IDs, User-Agent, Referer — alles innerhalb der Verschlüsselung.'));
+    hid.push(item('Formulardaten und Passwörter', 'Im verschlüsselten Body.'));
+    hid.push(item('Der Antwortinhalt', 'Was der Server zurückschickt, ist ebenfalls verschlüsselt — und durch den Authentifizierungs-Tag zusätzlich vor Veränderung geschützt.'));
+  }
+
+  $('visList').innerHTML = vis.join('');
+  $('hidList').innerHTML = hid.join('');
+}
+
+document.querySelectorAll('#modeBtns button').forEach(b => {
+  b.addEventListener('click', () => {
+    if (!U || !U.https) {
+      /* Bei einer http-Adresse gibt es nichts umzuschalten */
+      if (b.dataset.mode !== 'http') {
+        $('modeDesc').insertAdjacentHTML('beforeend',
+          '<div class="warn">Die eingegebene Adresse beginnt mit <code>http://</code> — für HTTPS-Modi im Zwiebel-Tab eine <code>https://</code>-Adresse eintragen.</div>');
+      }
+      return;
+    }
+    spyMode = b.dataset.mode;
+    renderSpy();
+  });
+});
+
+/* ==========================================================================
+   Tabs
+   ========================================================================== */
+
+const TABS = [
+  ['p-zwiebel', 'Zwiebel'],
+  ['p-ablauf', 'Ablauf'],
+  ['p-mithoeren', 'Mithören'],
+  ['p-schichten', 'Schichten']
+];
+const tabsEl = $('tabs');
+tabsEl.innerHTML = TABS.map(([id, label]) => '<button data-t="' + id + '">' + label + '</button>').join('');
+
+const redrawHooks = {
+  'p-zwiebel': renderOnion,
+  'p-ablauf': renderSeq,
+  'p-mithoeren': renderSpy
+};
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === id));
+  tabsEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.t === id));
+  if (redrawHooks[id]) redrawHooks[id]();
+}
+tabsEl.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b) showPanel(b.dataset.t);
+});
+
+renderOnion();
+renderSeq();
+renderSpy();
+showPanel('p-zwiebel');
+</script>
+</body>
+</html>
