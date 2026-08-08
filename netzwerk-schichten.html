@@ -33,8 +33,9 @@
     font-family: system-ui, -apple-system, sans-serif;
     background: var(--bg);
     color: var(--text);
-    line-height: 1.55;
+    line-height: 1.6;
     padding: 1rem;
+    -webkit-text-size-adjust: 100%;
   }
 
   .container { max-width: 960px; margin: 0 auto; }
@@ -46,6 +47,7 @@
   p.subtitle { color: var(--text-muted); font-size: 0.95rem; }
   p + p { margin-top: 0.7rem; }
   h2 + p, h3 + p { margin-top: 0; }
+  .card p, .card li { font-size: 0.97rem; }
 
   nav.tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.25rem; }
   nav.tabs button {
@@ -67,7 +69,7 @@
 
   .note, .warn, .good, .bad {
     border-radius: 0 0.5rem 0.5rem 0; padding: 0.8rem 1rem;
-    font-size: 0.9rem; margin-top: 1rem;
+    font-size: 0.92rem; margin-top: 1rem;
   }
   .note { background: var(--primary-soft); border-left: 3px solid var(--primary); }
   .warn { background: var(--warn-bg); border-left: 3px solid var(--warn); }
@@ -75,26 +77,48 @@
   .bad  { background: var(--bad-bg);  border-left: 3px solid var(--bad); }
 
   ul.tight, ol.tight { margin: 0.6rem 0 0 1.2rem; }
-  ul.tight li, ol.tight li { margin-bottom: 0.35rem; }
+  ul.tight li, ol.tight li { margin-bottom: 0.4rem; }
 
   code, .mono {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     background: #f1f5f9; padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-size: 0.88em;
   }
 
+  /* ---------- antippbare Fachbegriffe ---------- */
+  .t {
+    border-bottom: 1px dashed var(--primary);
+    cursor: pointer; font-weight: 600; color: var(--primary);
+  }
+  .t::after { content: '\00a0?'; font-size: 0.7em; vertical-align: super; opacity: 0.65; }
+  .lhead .t, .col li .t { color: inherit; border-bottom-color: currentColor; }
+  #termBox {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    background: var(--surface); border-top: 2px solid var(--primary);
+    box-shadow: 0 -6px 24px rgba(15,23,42,0.16);
+    padding: 1rem 1.1rem 1.2rem; display: none;
+  }
+  #termBox.open { display: block; }
+  #termBox .inner { max-width: 960px; margin: 0 auto; position: relative; padding-right: 2.2rem; }
+  #termBox h4 { font-size: 1rem; color: var(--primary); margin-bottom: 0.3rem; }
+  #termBox p { font-size: 0.95rem; }
+  #termBox .close {
+    position: absolute; top: -0.3rem; right: 0; border: none; background: none;
+    font-size: 1.5rem; line-height: 1; cursor: pointer; color: var(--text-muted); padding: 0.2rem 0.4rem;
+  }
+
   input[type="text"], select {
-    width: 100%; padding: 0.5rem;
+    width: 100%; padding: 0.55rem;
     border: 1px solid var(--border); border-radius: 0.375rem;
-    font-size: 0.95rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 16px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     background: var(--surface); color: var(--text);
   }
   input[type="range"] { width: 100%; accent-color: var(--primary); }
-  label.check { display: flex; align-items: center; gap: 0.4rem; font-size: 0.86rem; font-weight: 600; cursor: pointer; }
+  label.check { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
   label.check input { accent-color: var(--primary); }
 
   button.ghost, button.solid {
     padding: 0.45rem 0.9rem; border-radius: 0.375rem;
-    font-weight: 600; font-size: 0.85rem; cursor: pointer; font-family: inherit;
+    font-weight: 600; font-size: 0.87rem; cursor: pointer; font-family: inherit;
   }
   button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
   button.ghost:hover { border-color: var(--primary); color: var(--primary); }
@@ -102,26 +126,29 @@
   .btnrow { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.9rem; }
   .pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
   button.mini {
-    padding: 0.2rem 0.55rem; font-size: 0.8rem; border-radius: 0.3rem;
+    padding: 0.25rem 0.6rem; font-size: 0.82rem; border-radius: 0.3rem;
     border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
     cursor: pointer; font-family: inherit; font-weight: 600;
   }
   button.mini:hover { border-color: var(--primary); color: var(--primary); }
 
-  .msg { color: var(--bad); font-size: 0.83rem; margin-top: 0.4rem; min-height: 1.1rem; }
+  .msg { color: var(--bad); font-size: 0.86rem; margin-top: 0.4rem; min-height: 1.1rem; }
 
   /* ---------- Zwiebel ---------- */
   .layer { border: 2px solid; border-radius: 0.6rem; overflow: hidden; }
   .layer + .layer { margin-top: 0; }
   .lhead {
     display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
-    padding: 0.45rem 0.7rem; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+    padding: 0.5rem 0.7rem; cursor: pointer; font-size: 0.87rem; font-weight: 600;
     color: #fff;
   }
+  .lhead .ltitle { display: inline; }
   .lhead .tag { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.85; }
   .lhead .bytes { margin-left: auto; font-family: ui-monospace, monospace; font-size: 0.8rem; opacity: 0.95; }
   .lhead .caret { transition: transform 0.15s; }
   .layer.open > .lhead .caret { transform: rotate(90deg); }
+  .lsub { font-size: 0.86rem; padding: 0.5rem 0.7rem; background: #f8fafc; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+  .lsub strong { color: var(--text); }
   .lfields { display: none; padding: 0.6rem 0.7rem; background: #f8fafc; border-bottom: 1px solid var(--border); }
   .layer.open > .lfields { display: block; }
   .lbody { padding: 0.6rem; }
@@ -133,8 +160,8 @@
   .layer.tls  { border-color: var(--l-tls); }  .layer.tls  > .lhead { background: var(--l-tls); }
   .layer.http { border-color: var(--l-http); } .layer.http > .lhead { background: var(--l-http); }
 
-  .fieldtable { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-  .fieldtable td { padding: 0.22rem 0.35rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .fieldtable { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .fieldtable td { padding: 0.24rem 0.35rem; border-bottom: 1px solid var(--border); vertical-align: top; }
   .fieldtable td:first-child { color: var(--text-muted); width: 42%; }
   .fieldtable td:nth-child(2) { font-family: ui-monospace, monospace; }
   .fieldtable td:last-child { text-align: right; font-family: ui-monospace, monospace; color: var(--text-muted); white-space: nowrap; }
@@ -146,7 +173,6 @@
   }
   pre.wire .k { color: #7dd3fc; }
   pre.wire .v { color: #fde68a; }
-  pre.wire .enc { color: #34d399; }
 
   .cipher {
     font-family: ui-monospace, monospace; font-size: 0.78rem; color: #059669;
@@ -157,7 +183,7 @@
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
   .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.7rem; text-align: center; }
   .stat .num { font-size: 1.25rem; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; }
-  .stat .cap { font-size: 0.74rem; color: var(--text-muted); }
+  .stat .cap { font-size: 0.76rem; color: var(--text-muted); }
 
   /* ---------- Sequenzdiagramm ---------- */
   .seqwrap { overflow-x: auto; }
@@ -178,16 +204,16 @@
   .col h3 { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.5rem; }
   .col ul { list-style: none; margin: 0; }
   .col li {
-    font-size: 0.87rem; padding: 0.4rem 0.55rem; border-radius: 0.35rem;
-    margin-bottom: 0.35rem; line-height: 1.4;
+    font-size: 0.89rem; padding: 0.45rem 0.6rem; border-radius: 0.35rem;
+    margin-bottom: 0.35rem; line-height: 1.45;
   }
   .col.vis li { background: var(--bad-bg); border-left: 3px solid var(--bad); }
   .col.hid li { background: var(--good-bg); border-left: 3px solid var(--good); }
-  .col li b { display: block; font-size: 0.82rem; }
-  .col li span { color: var(--text-muted); font-size: 0.8rem; }
+  .col li b { display: block; font-size: 0.85rem; }
+  .col li span { color: var(--text-muted); font-size: 0.83rem; }
 
   /* ---------- Schichtentabelle ---------- */
-  table.layers { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+  table.layers { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
   table.layers th, table.layers td { padding: 0.5rem 0.5rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
   table.layers th { color: var(--text-muted); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.03em; }
   table.layers td.n { font-family: ui-monospace, monospace; color: var(--text-muted); width: 2rem; }
@@ -195,12 +221,26 @@
   .swatch { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; margin-right: 0.4rem; vertical-align: baseline; }
   .table-wrap { overflow-x: auto; }
 
+  /* ---------- Postbild ---------- */
+  .post { display: grid; gap: 0.5rem; margin-top: 1rem; }
+  .post .pr { display: grid; grid-template-columns: 2.2rem 1fr; gap: 0.7rem; align-items: start; }
+  .post .pi { font-size: 1.5rem; text-align: center; line-height: 1.4; }
+  .post .pt { font-size: 0.95rem; }
+  .post .pt b { display: block; }
+  .post .pt span { color: var(--text-muted); font-size: 0.9rem; }
+
+  /* ---------- Wörterbuch ---------- */
+  dl.gl dt { font-weight: 700; color: var(--primary); margin-top: 1rem; font-size: 0.97rem; }
+  dl.gl dt:first-child { margin-top: 0; }
+  dl.gl dd { margin: 0.15rem 0 0; font-size: 0.95rem; color: var(--text-muted); }
+  .glsearch { margin-bottom: 1rem; }
+
   footer { color: var(--text-muted); font-size: 0.8rem; margin-top: 2rem; text-align: center; }
 
   @media (max-width: 700px) {
     .twocol { grid-template-columns: 1fr; }
     h1 { font-size: 1.35rem; }
-    .lhead { font-size: 0.8rem; }
+    .lhead { font-size: 0.82rem; }
     .lbody { padding: 0.4rem; }
   }
 </style>
@@ -210,20 +250,79 @@
 
 <header>
   <h1>Was bei <span class="mono">https://</span> wirklich passiert</h1>
-  <p class="subtitle">Eine Anfrage, fünf Schichten, ein Handshake — und am Ende die Frage, die zählt: Was sieht eigentlich jemand, der im selben WLAN mitliest?</p>
+  <p class="subtitle">Von der eingetippten Adresse bis zur ersten Zeile der Seite — und am Ende die Frage, die zählt: Was sieht eigentlich jemand, der im selben WLAN mitliest?</p>
 </header>
 
 <nav class="tabs" id="tabs"></nav>
+
+<!-- ============================== ÜBERBLICK ============================== -->
+<section class="panel" id="p-ueberblick">
+  <div class="card">
+    <h2>In einem Bild: der Brief in vier Umschlägen</h2>
+    <p>
+      Du tippst eine Adresse ein und willst eine Seite sehen. Diese Bitte ist der eigentliche Inhalt — sie passt in zwei Zeilen. Alles andere, was gleich über die Leitung geht, ist nur Verpackung: Angaben, die unterwegs jemand braucht, um das Päckchen weiterzureichen.
+    </p>
+    <div class="post">
+      <div class="pr"><div class="pi">✉️</div><div class="pt">
+        <b>Der Brief selbst</b>
+        <span>„Bitte schick mir die Seite <code>/konto/einstellungen</code>." Nur das will die Website am Ende wissen.</span>
+      </div></div>
+      <div class="pr"><div class="pi">🔒</div><div class="pt">
+        <b>Ein versiegelter, undurchsichtiger Umschlag</b>
+        <span>Das <span class="t" data-k="tls">TLS</span> — das <em>S</em> in <code>https</code>. Nur der Empfänger kann ihn öffnen. Unterwegs sieht jeder nur einen Klumpen Zufallszeichen.</span>
+      </div></div>
+      <div class="pr"><div class="pi">🚪</div><div class="pt">
+        <b>Ein Umschlag mit Wohnungsnummer</b>
+        <span>Auf einem Server laufen viele Programme. Die <span class="t" data-k="port">Portnummer</span> sagt, welches gemeint ist — wie die Wohnungsnummer im Mehrfamilienhaus. Diese Schicht heißt <span class="t" data-k="tcp">TCP</span> und passt außerdem auf, dass nichts verlorengeht.</span>
+      </div></div>
+      <div class="pr"><div class="pi">🏙️</div><div class="pt">
+        <b>Ein Umschlag mit der Hausadresse</b>
+        <span>Die <span class="t" data-k="ip">IP-Adresse</span>. Danach richten sich alle Zwischenstationen auf dem Weg quer durchs Internet.</span>
+      </div></div>
+      <div class="pr"><div class="pi">🚲</div><div class="pt">
+        <b>Ein Zettel für den Boten bis zur nächsten Ecke</b>
+        <span>Die <span class="t" data-k="mac">MAC-Adresse</span>: gilt nur bis zu deinem Router und wird dort weggeworfen. Auf jedem weiteren Abschnitt schreibt jemand einen neuen.</span>
+      </div></div>
+    </div>
+    <div class="note">
+      Diese Staffelung ist der ganze Trick. Jede Station liest nur ihren eigenen Umschlag und reicht den Rest ungeöffnet weiter. Deshalb muss kein Router der Welt wissen, was <code>https</code> überhaupt ist.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Was in den vier Tabs steht</h2>
+    <ul class="tight">
+      <li><strong>Die Verpackung</strong> — deine eigene Adresse einsetzen und sehen, wie viele Bytes wirklich Inhalt sind und wie viele Umschlag. Dazu ein Schieber, der Schicht für Schicht auspackt.</li>
+      <li><strong>Der Ablauf</strong> — bevor das erste Zeichen ankommt, gehen mehrere Nachrichten hin und her. Hier lässt sich durchspielen, warum das je nach Verbindung 60 oder 400 Millisekunden dauert.</li>
+      <li><strong>Wer sieht was?</strong> — der Kern: Was erfährt jemand, der im selben WLAN mitschneidet? Mit und ohne Verschlüsselung.</li>
+      <li><strong>Die Schichten</strong> — die klassische Tabelle, die in jedem Lehrbuch steht, mit Einordnung, wo die Dinge aus den anderen Tabs hingehören.</li>
+    </ul>
+    <div class="good">
+      <strong>Alle unterstrichenen Wörter mit einem kleinen <span style="font-size:0.7em;vertical-align:super">?</span> kannst du antippen</strong> — dann erscheint unten eine Erklärung in einem Satz. Vollständig stehen sie im Tab <strong>Wörterbuch</strong>. Nichts davon musst du vorher wissen.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Die kurze Antwort, falls du nur eine willst</h2>
+    <p>
+      Bei <code>https://</code> ist <strong>der Inhalt</strong> geschützt: Pfad, Suchbegriffe, Passwörter, Cookies, die ganze Seite. Das kann niemand mitlesen und niemand verändern.
+    </p>
+    <p>
+      <strong>Nicht geschützt ist, mit wem du sprichst.</strong> Dass du gerade <code>www.beispiel.de</code> aufrufst, ist für jeden im selben Netz erkennbar — an der Zieladresse und an einem Feld namens <span class="t" data-k="sni">SNI</span>, das der Browser vor der Verschlüsselung im Klartext verschicken muss. Warum das so ist und was dagegen hilft, steht im Tab <strong>Wer sieht was?</strong>
+    </p>
+  </div>
+</section>
 
 <!-- ============================== ZWIEBEL ============================== -->
 <section class="panel" id="p-zwiebel">
   <div class="card">
     <h2>Deine Anfrage</h2>
+    <p class="subtitle" style="margin-bottom:0.6rem">Eine Adresse eintippen oder ein Beispiel wählen — alles darunter rechnet sich sofort neu.</p>
     <input type="text" id="url" value="https://www.beispiel.de/konto/einstellungen?tab=sicherheit" spellcheck="false">
     <div class="pills">
-      <button class="mini" data-url="https://www.beispiel.de/konto/einstellungen?tab=sicherheit">mit Pfad und Query</button>
+      <button class="mini" data-url="https://www.beispiel.de/konto/einstellungen?tab=sicherheit">mit Unterseite</button>
       <button class="mini" data-url="https://beispiel.de/">nur Startseite</button>
-      <button class="mini" data-url="http://alt.beispiel.de/login?user=fabian">unverschlüsselt (HTTP)</button>
+      <button class="mini" data-url="http://alt.beispiel.de/login?user=fabian">unverschlüsselt</button>
     </div>
     <div class="msg" id="urlMsg"></div>
     <div class="stats" id="sizeStats"></div>
@@ -231,13 +330,14 @@
 
   <div class="card">
     <h2>Die Verpackung</h2>
-    <p>Innen steht, was du willst. Nach außen kommt Schicht für Schicht dazu, was zum Transport nötig ist. <strong>Auf eine Schicht klicken, um ihre Kopfdaten zu sehen.</strong></p>
+    <p>Innen steht, was du willst. Nach außen kommt Schicht für Schicht dazu, was zum Transport nötig ist. Ganz außen liegt das, was als Erstes gelesen wird.</p>
+    <p><strong>Auf eine farbige Leiste tippen</strong>, um zu sehen, was in dieser Schicht an Angaben steht.</p>
     <div id="onion" style="margin-top:1rem"></div>
   </div>
 
   <div class="card">
-    <h2>Auspacken beim Server</h2>
-    <p>Jede Schicht wird von einer anderen Stelle gelesen — und danach weggeworfen. Der Webserver bekommt nur den innersten Kern zu sehen.</p>
+    <h2>Auspacken auf dem Weg</h2>
+    <p>Jede Schicht wird von einer anderen Stelle gelesen — und danach weggeworfen. Der Webserver bekommt am Ende nur den innersten Kern zu sehen. Schieber nach rechts ziehen:</p>
     <div style="margin-top:0.9rem">
       <input type="range" id="unwrap" min="0" max="5" step="1" value="0">
     </div>
@@ -248,27 +348,29 @@
 <!-- ============================== ABLAUF ============================== -->
 <section class="panel" id="p-ablauf">
   <div class="card">
-    <h2>Von der Eingabe bis zum ersten Byte</h2>
-    <p>Bevor auch nur ein Zeichen HTML ankommt, sind mehrere Runden über die Leitung gegangen. Jede Runde kostet eine <strong>Round-Trip-Zeit</strong> — einmal hin und zurück.</p>
+    <h2>Von der Eingabe bis zum ersten Zeichen</h2>
+    <p>
+      Bevor auch nur ein Buchstabe der Seite ankommt, sind mehrere Nachrichten hin und her gegangen. Jedes Hin und Her kostet einmal <span class="t" data-k="rtt">Round-Trip-Zeit</span> — die Zeit, die ein Signal für Hinweg plus Rückweg braucht. Sie hängt an der Entfernung und der Art der Leitung, nicht daran, wie schnell dein Anschluss ist.
+    </p>
     <div style="margin-top:0.9rem">
       <label class="check" style="display:block;margin-bottom:0.3rem">
-        Round-Trip-Zeit: <span class="mono" id="rttVal">20 ms</span>
+        Ein Hin und Her dauert: <span class="mono" id="rttVal">20 ms</span>
       </label>
       <input type="range" id="rtt" min="5" max="120" step="5" value="20">
-      <div style="display:flex;justify-content:space-between;font-size:0.76rem;color:var(--text-muted)">
+      <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--text-muted)">
         <span>schnelles Festnetz</span><span>Mobilfunk</span><span>schlechtes Hotel-WLAN</span>
       </div>
     </div>
     <div class="btnrow">
-      <label class="check"><input type="checkbox" id="dnsCache"> DNS steht schon im Cache</label>
-      <label class="check"><input type="checkbox" id="tls12"> TLS 1.2 statt 1.3</label>
-      <label class="check"><input type="checkbox" id="reuse"> Verbindung wird wiederverwendet</label>
+      <label class="check"><input type="checkbox" id="dnsCache"> Adresse schon bekannt</label>
+      <label class="check"><input type="checkbox" id="tls12"> ältere Verschlüsselung (<span class="t" data-k="tls12">TLS 1.2</span>)</label>
+      <label class="check"><input type="checkbox" id="reuse"> Verbindung steht schon</label>
     </div>
   </div>
 
   <div class="card">
-    <h2>Sequenz</h2>
-    <p class="subtitle">Auf einen Pfeil klicken für die Erklärung.</p>
+    <h2>Der Verlauf</h2>
+    <p class="subtitle">Jeder Pfeil ist eine Nachricht. <strong>Auf einen Pfeil tippen</strong> für die Erklärung darunter.</p>
     <div class="seqwrap"><svg class="seq" id="seq" xmlns="http://www.w3.org/2000/svg"></svg></div>
     <div class="note" id="seqDetail"></div>
     <div class="stats" id="seqStats"></div>
@@ -276,9 +378,10 @@
 
   <div class="card">
     <h2>Warum das spürbar ist</h2>
-    <p>Die Wartezeit vor dem ersten Byte hängt kaum an der Bandbreite, sondern an der Anzahl der Runden. Eine doppelt so schnelle Leitung halbiert die Round-Trip-Zeit nicht — deshalb bringt eine schnellere Anbindung beim Seitenaufbau oft weniger als erhofft.</p>
+    <p>Die Wartezeit vor dem ersten Zeichen hängt kaum an der Bandbreite, sondern an der <em>Anzahl</em> der Hin-und-Her-Runden. Eine doppelt so schnelle Leitung halbiert die Round-Trip-Zeit nicht — deshalb bringt ein schnellerer Anschluss beim Seitenaufbau oft weniger als erhofft.</p>
+    <p>Probier es aus: Schieb die Zeit auf 120 ms und häkchen dann „Verbindung steht schon" an. Der Unterschied ist größer als alles, was mehr Bandbreite je bringen könnte.</p>
     <div class="note">
-      <strong>Genau hier setzen die Optimierungen an:</strong> TLS 1.3 spart gegenüber 1.2 eine ganze Runde. Eine wiederverwendete Verbindung spart Handshake und Verbindungsaufbau komplett. Und QUIC (HTTP/3) legt Verbindungsaufbau und Verschlüsselung in dieselbe Runde — dann bleibt vor der ersten Anfrage nur noch ein einziger Hin- und Rückweg.
+      <strong>Genau hier setzen die Verbesserungen an:</strong> Die heutige Verschlüsselung spart gegenüber der älteren eine ganze Runde. Eine wiederverwendete Verbindung spart den Aufbau komplett. Und <span class="t" data-k="quic">QUIC</span>, das neueste Verfahren, erledigt Verbindungsaufbau und Verschlüsselung in derselben Runde — dann bleibt vor der ersten Anfrage nur noch ein einziger Hin- und Rückweg.
     </div>
   </div>
 </section>
@@ -287,18 +390,18 @@
 <section class="panel" id="p-mithoeren">
   <div class="card">
     <h2>Wer im selben WLAN sitzt, sieht …</h2>
-    <p>Ein Café, ein Flughafen, ein Hotel: Jemand im selben Netz kann den Verkehr mitschneiden. Was davon lesbar ist, hängt an genau drei Buchstaben.</p>
+    <p>Ein Café, ein Flughafen, ein Hotel: Wer im selben Netz ist, kann den Verkehr mitschneiden — dafür braucht es keine besondere Ausrüstung. Was davon lesbar ist, hängt an einem einzigen Buchstaben in der Adresse.</p>
     <div class="btnrow" id="modeBtns">
-      <button class="ghost" data-mode="http">HTTP</button>
-      <button class="ghost on" data-mode="https">HTTPS</button>
-      <button class="ghost" data-mode="ech">HTTPS + ECH</button>
+      <button class="ghost" data-mode="http">ohne Verschlüsselung</button>
+      <button class="ghost on" data-mode="https">mit Verschlüsselung</button>
+      <button class="ghost" data-mode="ech">verschlüsselt + <span class="t" data-k="ech" style="color:inherit;border-bottom-color:currentColor">ECH</span></button>
     </div>
     <div id="modeDesc" style="margin-top:0.6rem"></div>
   </div>
 
   <div class="card">
     <h2>Die aufgerufene Adresse</h2>
-    <p class="subtitle">Rot = für den Mitleser sichtbar, grün = verborgen.</p>
+    <p class="subtitle">Rot heißt: Ein Mitleser sieht diesen Teil. Grün heißt: verborgen.</p>
     <div class="urlparts" id="urlParts" style="margin-top:0.7rem"></div>
   </div>
 
@@ -315,51 +418,76 @@
       </div>
     </div>
   </div>
+
+  <div class="card">
+    <h2>Was das praktisch heißt</h2>
+    <ul class="tight">
+      <li><strong>Im fremden WLAN einkaufen oder Bankgeschäfte machen ist bei <code>https</code> in Ordnung.</strong> Zugangsdaten und Inhalte sind geschützt.</li>
+      <li><strong>Welche Websites du besuchst, bleibt erkennbar</strong> — nicht welche Unterseiten, aber die Namen. Wer das auch verbergen will, braucht ein <span class="t" data-k="vpn">VPN</span>; dann sieht das WLAN nur noch, dass du mit dem VPN sprichst.</li>
+      <li><strong>Ein Browser, der vor einer Seite warnt, meint es ernst.</strong> Eine Warnung zum Zertifikat kann bedeuten, dass jemand sich dazwischengeschaltet hat. Im Café ist Wegklicken die falsche Reaktion.</li>
+    </ul>
+  </div>
 </section>
 
 <!-- ============================== SCHICHTEN ============================== -->
 <section class="panel" id="p-schichten">
   <div class="card">
-    <h2>OSI und TCP/IP nebeneinander</h2>
-    <p>Das OSI-Modell hat sieben Schichten und beschreibt, wie man Netzwerke <em>denken</em> kann. Das TCP/IP-Modell hat vier und beschreibt, wie das Internet <em>tatsächlich</em> gebaut ist. Farbig hinterlegt sind die Schichten, die in den anderen Tabs vorkommen.</p>
+    <h2>Die beiden Tabellen, die überall zitiert werden</h2>
+    <p>
+      Es gibt zwei Ordnungsschemata für dasselbe. Das <span class="t" data-k="osi">OSI-Modell</span> hat sieben Schichten und beschreibt, wie man Netzwerke <em>denken</em> kann — es stammt aus einem Gremium und wurde nie so gebaut. Das <span class="t" data-k="tcpip">TCP/IP-Modell</span> hat vier und beschreibt, wie das Internet <em>tatsächlich</em> funktioniert.
+    </p>
+    <p class="subtitle" style="margin-top:0.5rem">Farbig hinterlegt sind die Schichten, die in den anderen Tabs vorkommen.</p>
     <div class="table-wrap" style="margin-top:1rem">
       <table class="layers">
-        <thead><tr><th class="n">#</th><th>OSI</th><th>TCP/IP</th><th>Protokolle hier</th><th>Adressiert wird über …</th></tr></thead>
+        <thead><tr><th class="n">#</th><th>OSI</th><th>TCP/IP</th><th>hier zu sehen</th><th>adressiert über …</th></tr></thead>
         <tbody>
-          <tr class="hl"><td class="n">7</td><td>Anwendung</td><td rowspan="3" style="vertical-align:middle">Anwendung</td><td><span class="swatch" style="background:var(--l-http)"></span>HTTP, DNS</td><td>URL</td></tr>
+          <tr class="hl"><td class="n">7</td><td>Anwendung</td><td rowspan="3" style="vertical-align:middle">Anwendung</td><td><span class="swatch" style="background:var(--l-http)"></span>HTTP, DNS</td><td>die Adresse</td></tr>
           <tr><td class="n">6</td><td>Darstellung</td><td>—</td><td>Zeichensatz, Kompression</td></tr>
-          <tr class="hl"><td class="n">5</td><td>Sitzung</td><td><span class="swatch" style="background:var(--l-tls)"></span>TLS</td><td>Sitzungsschlüssel</td></tr>
-          <tr class="hl"><td class="n">4</td><td>Transport</td><td>Transport</td><td><span class="swatch" style="background:var(--l-tcp)"></span>TCP, UDP, QUIC</td><td>Portnummer</td></tr>
-          <tr class="hl"><td class="n">3</td><td>Vermittlung</td><td>Internet</td><td><span class="swatch" style="background:var(--l-ip)"></span>IP, ICMP</td><td>IP-Adresse</td></tr>
-          <tr class="hl"><td class="n">2</td><td>Sicherung</td><td rowspan="2" style="vertical-align:middle">Netzzugang</td><td><span class="swatch" style="background:var(--l-eth)"></span>Ethernet, WLAN</td><td>MAC-Adresse</td></tr>
+          <tr class="hl"><td class="n">5</td><td>Sitzung</td><td><span class="swatch" style="background:var(--l-tls)"></span>TLS</td><td>den Sitzungsschlüssel</td></tr>
+          <tr class="hl"><td class="n">4</td><td>Transport</td><td>Transport</td><td><span class="swatch" style="background:var(--l-tcp)"></span>TCP, UDP, QUIC</td><td>die Portnummer</td></tr>
+          <tr class="hl"><td class="n">3</td><td>Vermittlung</td><td>Internet</td><td><span class="swatch" style="background:var(--l-ip)"></span>IP</td><td>die IP-Adresse</td></tr>
+          <tr class="hl"><td class="n">2</td><td>Sicherung</td><td rowspan="2" style="vertical-align:middle">Netzzugang</td><td><span class="swatch" style="background:var(--l-eth)"></span>Ethernet, WLAN</td><td>die MAC-Adresse</td></tr>
           <tr><td class="n">1</td><td>Bitübertragung</td><td>Kabel, Funk, Glasfaser</td><td>Spannung, Frequenz, Licht</td></tr>
         </tbody>
       </table>
     </div>
     <div class="note">
-      <strong>Wo TLS wirklich sitzt, ist Auslegungssache.</strong> Im OSI-Modell wird es mal auf Schicht 5, mal auf 6 einsortiert — schlicht weil TLS lange nach OSI entstanden ist und sich nicht darum geschert hat. Im TCP/IP-Modell ist die Frage gegenstandslos: Dort gehört es zur Anwendungsschicht, die auf TCP aufsetzt.
+      <strong>Wo die Verschlüsselung genau hingehört, ist Auslegungssache.</strong> Im OSI-Modell wird TLS mal auf Schicht 5, mal auf 6 einsortiert — schlicht weil es lange nach OSI entstanden ist und sich nicht darum geschert hat. Im TCP/IP-Modell ist die Frage gegenstandslos: Dort gehört es zur Anwendung. Wenn dir also in zwei Büchern zwei Zahlen begegnen, hast du nichts falsch verstanden.
     </div>
   </div>
 
   <div class="card">
     <h2>Die eine Idee dahinter</h2>
-    <p>Jede Schicht redet nur mit ihrer eigenen Entsprechung auf der Gegenseite und behandelt alles darüber als undurchsichtige Nutzlast. Der Router interessiert sich nicht dafür, dass er gerade eine Bankwebsite weiterleitet — er sieht eine IP-Adresse und einen Haufen Bytes.</p>
-    <p>Genau dieses Desinteresse macht das Internet erweiterbar: HTTP/3 konnte auf UDP umsteigen, ohne dass ein einziger Router davon wissen musste.</p>
+    <p>Jede Schicht redet nur mit ihrer Entsprechung auf der Gegenseite und behandelt alles darüber als undurchsichtigen Inhalt. Der Router interessiert sich nicht dafür, dass er gerade eine Bankwebsite weiterleitet — er sieht eine Zieladresse und einen Haufen Bytes.</p>
+    <p>Genau dieses Desinteresse macht das Internet erweiterbar: Das neue Verfahren QUIC konnte auf einen ganz anderen Transport umsteigen, ohne dass ein einziger Router der Welt davon wissen musste.</p>
     <div class="warn">
-      <strong>Und es ist auch die Grenze der Verschlüsselung.</strong> TLS schützt die Nutzlast, nicht den Umschlag. Ziel-IP, Portnummer, Paketgrößen und Zeitpunkte liegen auf jeder Zwischenstation offen — sie <em>müssen</em> es, sonst käme nichts an.
+      <strong>Und es ist auch die Grenze der Verschlüsselung.</strong> Geschützt ist der Inhalt, nicht der Umschlag. Zieladresse, Portnummer, Paketgrößen und Zeitpunkte liegen auf jeder Zwischenstation offen — sie <em>müssen</em> es, sonst käme nichts an.
     </div>
   </div>
 
   <div class="card">
     <h2>Zahlen, die man einmal gesehen haben sollte</h2>
+    <p class="subtitle" style="margin-bottom:0.5rem">Ein Byte ist ein Zeichen. Zum Vergleich: Der eigentliche Inhalt einer Anfrage sind ein paar hundert Byte.</p>
     <ul class="tight">
-      <li><strong>Ethernet-Header:</strong> 14 Byte (zwei MAC-Adressen à 6 Byte plus 2 Byte Typfeld), dazu 4 Byte Prüfsumme am Ende.</li>
-      <li><strong>IPv4-Header:</strong> 20 Byte ohne Optionen. IPv6 hat 40 — dafür ohne Prüfsumme und ohne Fragmentierung unterwegs.</li>
-      <li><strong>TCP-Header:</strong> 20 Byte ohne Optionen. Mit Zeitstempeln und Fensterskalierung werden es in der Praxis 32.</li>
-      <li><strong>TLS-Record:</strong> 5 Byte Kopf, dazu bei TLS 1.3 ein Byte innerer Typ und 16 Byte Authentifizierungs-Tag im verschlüsselten Teil.</li>
-      <li><strong>MTU 1500 Byte</strong> ist der Ethernet-Standard. Abzüglich IP- und TCP-Header bleiben <strong>1460 Byte</strong> Nutzlast — die berühmte MSS.</li>
-      <li><strong>Port 443</strong> für HTTPS, <strong>80</strong> für HTTP, <strong>53</strong> für DNS. Der Absender nimmt einen zufälligen hohen Port.</li>
+      <li><strong>Zettel für den Boten (Ethernet):</strong> 14 Byte, dazu 4 Byte <span class="t" data-k="pruef">Prüfsumme</span> am Ende.</li>
+      <li><strong>Hausadresse (IP):</strong> 20 Byte in der heute noch üblichen Fassung, 40 in der neueren.</li>
+      <li><strong>Wohnungsnummer und Empfangsbestätigung (TCP):</strong> 20 Byte, in der Praxis eher 32.</li>
+      <li><strong>Siegel (TLS):</strong> 5 Byte Kopf plus 16 Byte <span class="t" data-k="tag">Echtheitsstempel</span> — mehr kostet die Verschlüsselung an Platz nicht.</li>
+      <li><strong>1500 Byte</strong> ist die übliche Höchstgröße eines einzelnen Pakets. Nach Abzug der Umschläge bleiben <strong>1460 Byte</strong> Inhalt; alles Größere wird zerlegt und drüben wieder zusammengesetzt.</li>
+      <li><strong>Türnummer 443</strong> bedeutet verschlüsselt, <strong>80</strong> unverschlüsselt, <strong>53</strong> die Namensauskunft. Der Absender nimmt eine beliebige hohe Nummer.</li>
     </ul>
+  </div>
+</section>
+
+<!-- ============================== WÖRTERBUCH ============================== -->
+<section class="panel" id="p-woerter">
+  <div class="card">
+    <h2>Wörterbuch</h2>
+    <p class="subtitle">Jeder Begriff dieser Seite in ein bis zwei Sätzen — ohne dass man dafür etwas anderes wissen muss.</p>
+    <div class="glsearch" style="margin-top:0.8rem">
+      <input type="text" id="glq" placeholder="suchen …" spellcheck="false" style="font-family:inherit">
+    </div>
+    <dl class="gl" id="glList"></dl>
   </div>
 </section>
 
@@ -367,12 +495,101 @@
 
 </div>
 
+<div id="termBox"><div class="inner">
+  <button class="close" id="termClose" aria-label="schließen">×</button>
+  <h4 id="termTitle"></h4>
+  <p id="termText"></p>
+</div></div>
+
 <script>
 "use strict";
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const utf8Len = s => new TextEncoder().encode(s).length;
+
+/* ==========================================================================
+   Wörterbuch — eine Quelle für die antippbaren Begriffe und für den Tab
+   ========================================================================== */
+
+const GLOSSAR = {
+  adresse:  ['Adresse (URL)', 'Das, was oben in der Adresszeile steht. Sie besteht aus dem Verfahren (<code>https</code>), dem Namen der Website, dem Pfad zur Unterseite und optional einem Anhängsel nach einem Fragezeichen.'],
+  domain:   ['Domain / Hostname', 'Der Name der Website, etwa <code>www.beispiel.de</code>. Für Menschen gemacht — Rechner brauchen daraus erst eine Nummer.'],
+  pfad:     ['Pfad', 'Der Teil der Adresse nach dem Namen, etwa <code>/konto/einstellungen</code>. Sagt, welche Unterseite gemeint ist — und verrät damit oft mehr über dich als der Name der Website.'],
+  query:    ['Anhängsel (Query)', 'Alles nach dem Fragezeichen in der Adresse. Dort stehen Suchbegriffe, Filter oder Kennnummern.'],
+  ip:       ['IP-Adresse', 'Die Nummer, unter der ein Gerät im Internet erreichbar ist — wie eine Hausadresse. Jede Zwischenstation auf dem Weg entscheidet nur anhand dieser Nummer, wohin es weitergeht.'],
+  mac:      ['MAC-Adresse', 'Die fest eingebaute Kennung einer Netzwerkkarte. Sie gilt nur innerhalb des eigenen Netzes — bis zum Router — und wird dort verworfen. Über deine Wohnung hinaus sieht sie niemand.'],
+  router:   ['Router', 'Das Gerät, das zwei Netze verbindet. Zu Hause der Kasten mit dem WLAN; unterwegs stehen davon Dutzende zwischen dir und der Website, und jeder reicht das Paket ein Stück weiter.'],
+  port:     ['Portnummer', 'Auf einem Server laufen viele Programme gleichzeitig. Die Portnummer sagt, welches gemeint ist — wie die Wohnungsnummer im Mehrfamilienhaus. 443 heißt verschlüsselte Website, 80 unverschlüsselte.'],
+  paket:    ['Paket', 'Eine Nachricht wird nicht am Stück verschickt, sondern in Häppchen von höchstens rund 1500 Zeichen. Jedes Häppchen reist einzeln und wird am Ziel wieder zusammengesetzt.'],
+  header:   ['Kopfdaten (Header)', 'Die Angaben, die eine Schicht vor den eigentlichen Inhalt schreibt: Absender, Ziel, Länge, laufende Nummer. Sie sind die Aufschrift auf dem Umschlag.'],
+  nutzlast: ['Inhalt (Nutzlast)', 'Das, was eine Schicht transportiert, ohne es anzuschauen. Für den Router ist die komplette verschlüsselte Anfrage nichts als Inhalt.'],
+  pruef:    ['Prüfsumme', 'Eine kleine Zahl, die sich aus allen Zeichen errechnet. Stimmt sie beim Empfänger nicht, ist unterwegs etwas verrutscht und das Paket wird verworfen. Schützt gegen Übertragungsfehler, nicht gegen Angreifer.'],
+  ttl:      ['Restlebensdauer (TTL)', 'Ein Zähler im Paket, den jede Zwischenstation um eins verringert. Bei null wird das Paket weggeworfen — so kreist nichts ewig, wenn sich zwei Router gegenseitig im Kreis schicken.'],
+  dns:      ['DNS', 'Die Namensauskunft des Internets. Sie übersetzt <code>www.beispiel.de</code> in eine IP-Adresse. Vor jedem Seitenaufruf muss das einmal passieren — es sei denn, die Antwort liegt noch von vorhin im Zwischenspeicher.'],
+  resolver: ['Resolver', 'Der Dienst, den dein Gerät nach der Adresse fragt. Meist der deines Internetanbieters, manchmal ein öffentlicher. Er weiß dadurch, welche Websites du aufrufst.'],
+  cache:    ['Zwischenspeicher (Cache)', 'Eine gemerkte Antwort von vorhin. Spart den ganzen Nachfrageweg — deshalb geht der zweite Aufruf derselben Website spürbar schneller.'],
+  tcp:      ['TCP', 'Die Schicht, die dafür sorgt, dass nichts verlorengeht und alles in der richtigen Reihenfolge ankommt. Fehlt ein Häppchen, wird es noch einmal angefordert. Dafür muss vorher eine Verbindung aufgebaut werden.'],
+  udp:      ['UDP', 'Die schlanke Alternative zu TCP: verschickt einfach und kümmert sich nicht darum, ob es ankommt. Gut für Telefonie und Videostreams, wo ein Nachliefern zu spät käme.'],
+  quic:     ['QUIC / HTTP/3', 'Das neueste Verfahren. Es legt Verbindungsaufbau und Verschlüsselung in denselben Schritt und braucht deshalb weniger Hin und Her, bevor es losgeht.'],
+  handshake:['Handshake', 'Das Hallo-Sagen zu Beginn: Beide Seiten tauschen aus, wer sie sind und wie sie miteinander reden. Kostet Zeit, passiert aber nur einmal je Verbindung.'],
+  syn:      ['SYN und ACK', 'Die beiden Wörter des Verbindungsaufbaus. <code>SYN</code> heißt „ich möchte reden", <code>ACK</code> heißt „angekommen". Drei solche Nachrichten, dann steht die Verbindung.'],
+  seqnr:    ['Sequenznummer', 'Die laufende Nummer eines Häppchens. Daran erkennt die Gegenseite die richtige Reihenfolge und merkt, wenn eines fehlt. Sie startet zufällig, damit sich niemand von außen dazwischendrängeln kann.'],
+  tls:      ['TLS', 'Die Verschlüsselung hinter dem <em>s</em> in <code>https</code>. Sie sorgt für zweierlei: Niemand kann mitlesen, und niemand kann unterwegs etwas verändern, ohne dass es auffällt.'],
+  tls12:    ['TLS 1.2 und 1.3', 'Zwei Fassungen derselben Verschlüsselung. Die ältere (1.2) braucht beim Verbindungsaufbau eine Runde mehr und schickt das Zertifikat offen mit. Die heutige (1.3) ist schneller und verrät weniger.'],
+  zert:     ['Zertifikat', 'Der Ausweis einer Website, ausgestellt von einer Stelle, der dein Browser vertraut. Er belegt, dass du wirklich mit <code>beispiel.de</code> sprichst und nicht mit jemandem, der sich dafür ausgibt.'],
+  sess:     ['Sitzungsschlüssel', 'Der geheime Schlüssel, den beide Seiten beim Hallo-Sagen gemeinsam ausrechnen — ohne ihn je zu verschicken. Er gilt nur für diese eine Verbindung und wird danach weggeworfen.'],
+  cipher:   ['Cipher Suite', 'Die Liste der Verschlüsselungsverfahren, die ein Browser beherrscht. Beim Hallo-Sagen einigen sich beide Seiten auf das beste, das sie gemeinsam können.'],
+  tag:      ['Echtheitsstempel', 'Sechzehn Zeichen, die an jedes verschlüsselte Häppchen angehängt werden. Passt der Stempel nicht zum Inhalt, hat jemand daran gedreht — und der Empfänger verwirft es.'],
+  sni:      ['SNI', 'Ein Feld ganz am Anfang, in dem der Browser sagt, mit welcher Website er sprechen will. Es muss offen lesbar sein: Auf einer IP-Adresse liegen oft Tausende Websites, und der Server muss wissen, welches Zertifikat er zeigen soll. Das ist die bekannteste Lücke von <code>https</code>.'],
+  ech:      ['ECH', 'Eine neuere Erweiterung, die genau dieses Feld ebenfalls verschlüsselt. Sichtbar bleibt dann nur noch der Name des Rechenzentrums, hinter dem Tausende Websites liegen — was kaum noch etwas verrät.'],
+  doh:      ['Verschlüsselte Namensauskunft', 'Normalerweise läuft die Frage „welche Nummer hat beispiel.de" offen über die Leitung. Verschlüsselte Varianten (bekannt als DoH und DoT) schließen diese Lücke; die meisten Browser können das heute.'],
+  cdn:      ['CDN', 'Ein Netz aus Rechenzentren, das Websites für viele Anbieter gleichzeitig ausliefert — nah bei dir und deshalb schnell. Weil sich Tausende Websites dieselben Adressen teilen, sagt die Zieladresse allein wenig aus.'],
+  vpn:      ['VPN', 'Ein verschlüsselter Tunnel zu einem Server, durch den dein gesamter Verkehr läuft. Das WLAN sieht dann nur noch, dass du mit dem Tunnel sprichst. Der Anbieter des Tunnels sieht dafür alles — man verlagert das Vertrauen, man beseitigt es nicht.'],
+  http:     ['HTTP und HTTPS', 'Die Sprache, in der Browser und Website miteinander reden: „gib mir diese Seite" — „hier ist sie". Das <em>S</em> heißt nur, dass dieses Gespräch verschlüsselt geführt wird.'],
+  cookie:   ['Cookie', 'Ein kleiner Merkzettel, den eine Website in deinem Browser ablegt und bei jedem Aufruf zurückbekommt. Daran erkennt sie dich wieder — weshalb ein abgefangenes Cookie so gut ist wie dein Passwort.'],
+  rtt:      ['Round-Trip-Zeit', 'Die Zeit für einen kompletten Hin- und Rückweg. Im Festnetz zum Nachbarland etwa 20 Millisekunden, im Mobilfunk 40 bis 80, über Satellit mehrere hundert. Sie hängt an der Entfernung, nicht an der Bandbreite.'],
+  ttfb:     ['Zeit bis zum ersten Zeichen', 'Der Moment, in dem das erste Stück Antwort ankommt. Alles davor ist Vorbereitung: Namensauskunft, Verbindungsaufbau, Verschlüsselung — plus die Zeit, die der Server zum Nachdenken braucht.'],
+  mss:      ['Höchstgröße eines Pakets', 'Etwa 1500 Zeichen passen in ein Paket, nach Abzug der Umschläge bleiben rund 1460 für den Inhalt. Was größer ist, wird zerlegt und drüben wieder zusammengesetzt.'],
+  osi:      ['OSI-Modell', 'Ein Ordnungsschema mit sieben Schichten, entstanden in einem Normungsgremium. Gut zum Denken und Erklären — so gebaut wurde das Internet aber nie.'],
+  tcpip:    ['TCP/IP-Modell', 'Das Schema mit vier Schichten, nach dem das Internet tatsächlich funktioniert. Weniger sauber als OSI, dafür echt.'],
+  kernel:   ['Betriebssystem-Kern', 'Der innerste Teil von Windows, macOS, Linux oder iOS. Er kümmert sich um die Verbindungen und reicht die Daten an das richtige Programm weiter — vom Inhalt weiß er nichts.'],
+  klartext: ['Klartext', 'Unverschlüsselt, also für jeden auf dem Weg lesbar. Das Gegenteil ist das, was <code>https</code> herstellt.']
+};
+
+function g(key, label) {
+  const entry = GLOSSAR[key];
+  if (!entry) return label || key;
+  return '<span class="t" data-k="' + key + '">' + (label || entry[0]) + '</span>';
+}
+
+function showTerm(key) {
+  const entry = GLOSSAR[key];
+  if (!entry) return;
+  $('termTitle').innerHTML = entry[0];
+  $('termText').innerHTML = entry[1];
+  $('termBox').classList.add('open');
+}
+function hideTerm() { $('termBox').classList.remove('open'); }
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('.t');
+  if (t) { showTerm(t.dataset.k); return; }
+  if (!e.target.closest('#termBox')) hideTerm();
+});
+$('termClose').addEventListener('click', hideTerm);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideTerm(); });
+
+function renderGlossar() {
+  const q = $('glq').value.trim().toLowerCase();
+  const rows = Object.values(GLOSSAR)
+    .filter(([t, d]) => !q || t.toLowerCase().includes(q) || d.toLowerCase().includes(q))
+    .sort((a, b) => a[0].localeCompare(b[0], 'de'));
+  $('glList').innerHTML = rows.length
+    ? rows.map(([t, d]) => '<dt>' + t + '</dt><dd>' + d + '</dd>').join('')
+    : '<dd>Nichts gefunden.</dd>';
+}
+$('glq').addEventListener('input', renderGlossar);
 
 /* Beispielwerte, damit die Kopfdaten konkret statt abstrakt sind */
 const NET = {
@@ -390,7 +607,7 @@ const NET = {
    Anfrage aufbauen
    ========================================================================== */
 
-let U = null;   /* geparste URL */
+let U = null;   /* zerlegte Adresse */
 
 function parseUrl(raw) {
   let s = String(raw).trim();
@@ -398,7 +615,7 @@ function parseUrl(raw) {
   if (!/^https?:\/\//i.test(s)) s = 'https://' + s;
   let u;
   try { u = new URL(s); } catch (e) { throw new Error('Das ist keine gültige Adresse.'); }
-  if (!u.hostname) throw new Error('Es fehlt der Hostname.');
+  if (!u.hostname) throw new Error('Es fehlt der Name der Website.');
   const https = u.protocol === 'https:';
   return {
     href: u.href,
@@ -428,7 +645,7 @@ function httpRequest(u) {
 function sizes(u) {
   const http = utf8Len(httpRequest(u).replace(/\n/g, '\r\n')) + 2;   /* Leerzeile am Ende */
   const enc = u.https;
-  const tlsInner = enc ? http + 1 + 16 : 0;    /* innerer Typ + AEAD-Tag */
+  const tlsInner = enc ? http + 1 + 16 : 0;    /* innerer Typ + Echtheitsstempel */
   const tlsRec = enc ? 5 + tlsInner : 0;
   const tcpPayload = enc ? tlsRec : http;
   const tcp = 20 + tcpPayload;
@@ -438,7 +655,7 @@ function sizes(u) {
 }
 
 /* ==========================================================================
-   Tab 1 — Zwiebel
+   Tab — Die Verpackung
    ========================================================================== */
 
 function fieldRows(rows) {
@@ -456,11 +673,11 @@ function renderOnion() {
   const enc = U.https;
 
   $('sizeStats').innerHTML = [
-    ['Nutzdaten (HTTP)', S.http + ' B'],
-    ['auf der Leitung', S.eth + ' B'],
-    ['Verpackung', S.overhead + ' B'],
-    ['Anteil Verpackung', Math.round(S.overhead / S.eth * 100) + ' %'],
-    ['Zielport', String(U.port)]
+    ['das ist der Inhalt', S.http + ' B'],
+    ['geht über die Leitung', S.eth + ' B'],
+    ['davon nur Umschlag', S.overhead + ' B'],
+    ['Anteil Umschlag', Math.round(S.overhead / S.eth * 100) + ' %'],
+    ['Türnummer beim Server', String(U.port)]
   ].map(([cap, num]) => '<div class="stat"><div class="num">' + num + '</div><div class="cap">' + cap + '</div></div>').join('');
 
   const req = httpRequest(U);
@@ -472,12 +689,13 @@ function renderOnion() {
 
   const httpLayer =
     '<div class="layer http" data-l="4"><div class="lhead"><span class="caret">▸</span>' +
-    '<span class="tag">Anwendung</span> HTTP-Anfrage<span class="bytes">' + S.http + ' B</span></div>' +
+    '<span class="tag">innerster Kern</span><span class="ltitle">Die eigentliche Bitte</span><span class="bytes">' + S.http + ' B</span></div>' +
+    '<div class="lsub">Das hier — und nur das — bekommt die Website zu sehen: <strong>welche Seite</strong> du willst, dazu ein paar Angaben über deinen Browser und deinen ' + g('cookie', 'Merkzettel') + '.</div>' +
     '<div class="lfields">' + fieldRows([
-      ['Methode', 'GET', '3 B'],
-      ['Ziel', U.target, utf8Len(U.target) + ' B'],
-      ['Host-Header', U.host, utf8Len(U.host) + ' B'],
-      ['Cookie', 'sitzung=8f3a91c4e77b2d05; …', '38 B']
+      ['Was soll passieren', 'GET (= gib mir)', '3 B'],
+      ['Welche Seite', U.target, utf8Len(U.target) + ' B'],
+      ['Von welcher Website', U.host, utf8Len(U.host) + ' B'],
+      ['Merkzettel (Cookie)', 'sitzung=8f3a91c4e77b2d05; …', '38 B']
     ]) + '</div>' +
     '<div class="lbody"><pre class="wire">' + wire + '</pre></div></div>';
 
@@ -486,13 +704,14 @@ function renderOnion() {
   if (enc) {
     inner =
       '<div class="layer tls" data-l="3"><div class="lhead"><span class="caret">▸</span>' +
-      '<span class="tag">TLS 1.3</span> Application-Data-Record<span class="bytes">' + S.tlsRec + ' B</span></div>' +
+      '<span class="tag">Siegel</span><span class="ltitle">Verschlüsselung (' + g('tls', 'TLS') + ')</span><span class="bytes">' + S.tlsRec + ' B</span></div>' +
+      '<div class="lsub">Der undurchsichtige Umschlag. Was darin liegt, kann nur der Empfänger lesen — und am ' + g('tag', 'Echtheitsstempel') + ' merkt er, ob unterwegs jemand daran gedreht hat.</div>' +
       '<div class="lfields">' + fieldRows([
-        ['Content Type', '0x17 (application_data)', '1 B'],
-        ['Legacy Version', '0x0303 (aus Kompatibilität)', '2 B'],
-        ['Length', String(S.tlsInner), '2 B'],
-        ['verschlüsselter Inhalt', 'HTTP-Anfrage + innerer Typ', (S.http + 1) + ' B'],
-        ['Authentifizierungs-Tag', 'AEAD, schützt vor Veränderung', '16 B']
+        ['Art des Inhalts', 'verschlüsselte Nutzdaten', '1 B'],
+        ['Versionsangabe', 'aus Kompatibilität veraltet', '2 B'],
+        ['Länge', String(S.tlsInner) + ' Byte', '2 B'],
+        ['verschlüsselter Teil', 'die komplette Bitte von oben', (S.http + 1) + ' B'],
+        ['Echtheitsstempel', 'schützt vor Veränderung', '16 B']
       ]) + '</div>' +
       '<div class="lbody">' +
       '<div class="cipher">Für jeden Mitleser sieht dieser Teil so aus:<br>9f 2a c1 7e 44 b0 d3 91 6c 05 ff 8a 21 4d e9 73 …<br>' +
@@ -502,68 +721,80 @@ function renderOnion() {
 
   inner =
     '<div class="layer tcp" data-l="2"><div class="lhead"><span class="caret">▸</span>' +
-    '<span class="tag">Transport</span> TCP-Segment<span class="bytes">' + S.tcp + ' B</span></div>' +
+    '<span class="tag">Wohnungsnummer</span><span class="ltitle">Zustellung (' + g('tcp', 'TCP') + ')</span><span class="bytes">' + S.tcp + ' B</span></div>' +
+    '<div class="lsub">Sagt, <strong>welches Programm</strong> auf dem Server gemeint ist, und sorgt dafür, dass nichts verlorengeht: Jedes Häppchen hat eine laufende Nummer und wird einzeln bestätigt.</div>' +
     '<div class="lfields">' + fieldRows([
-      ['Quellport', String(NET.srcPort), '2 B'],
-      ['Zielport', String(U.port) + (U.port === 443 ? ' (HTTPS)' : U.port === 80 ? ' (HTTP)' : ''), '2 B'],
-      ['Sequenznummer', String(NET.seq), '4 B'],
-      ['Bestätigungsnummer', String(NET.ack), '4 B'],
-      ['Flags', 'PSH, ACK', '1 B'],
-      ['Fenstergröße', '64240', '2 B'],
+      ['Türnummer beim Absender', String(NET.srcPort) + ' (beliebig gewählt)', '2 B'],
+      ['Türnummer beim Ziel', String(U.port) + (U.port === 443 ? ' (verschlüsselt)' : U.port === 80 ? ' (unverschlüsselt)' : ''), '2 B'],
+      ['laufende Nummer', String(NET.seq), '4 B'],
+      ['bestätigt bis', String(NET.ack), '4 B'],
+      ['Steuerzeichen', 'PSH, ACK (= „bitte weiterreichen", „angekommen")', '1 B'],
+      ['wie viel darf folgen', '64240 Byte', '2 B'],
       ['Prüfsumme', '0x1f4c', '2 B'],
-      ['übrige Felder', 'Offset, reserviert, Urgent-Zeiger', '3 B']
+      ['übrige Felder', 'Verwaltung', '3 B']
     ]) + '</div><div class="lbody">' + inner + '</div></div>';
 
   inner =
     '<div class="layer ip" data-l="1"><div class="lhead"><span class="caret">▸</span>' +
-    '<span class="tag">Internet</span> IPv4-Paket<span class="bytes">' + S.ip + ' B</span></div>' +
+    '<span class="tag">Hausadresse</span><span class="ltitle">Wegfindung (' + g('ip', 'IP') + ')</span><span class="bytes">' + S.ip + ' B</span></div>' +
+    '<div class="lsub">Danach richtet sich <strong>jede Zwischenstation quer durchs Internet</strong>. Mehr als diese Zeilen schaut sich ein Router nicht an — was drin steht, sieht er nie.</div>' +
     '<div class="lfields">' + fieldRows([
-      ['Version / Headerlänge', '4 / 5 (= 20 Byte)', '1 B'],
-      ['Gesamtlänge', String(S.ip), '2 B'],
-      ['Kennung', '0x7a3e', '2 B'],
-      ['Flags / Fragment-Offset', "Don't Fragment", '2 B'],
-      ['TTL', String(NET.ttl) + ' (jeder Router zieht 1 ab)', '1 B'],
-      ['Protokoll', '6 (TCP)', '1 B'],
-      ['Quell-IP', NET.clientIP, '4 B'],
-      ['Ziel-IP', NET.serverIP, '4 B'],
-      ['übrige Felder', 'DSCP/ECN, Prüfsumme', '3 B']
+      ['Fassung / Kopflänge', 'Fassung 4, 20 Byte lang', '1 B'],
+      ['Gesamtlänge', String(S.ip) + ' Byte', '2 B'],
+      ['Kennung', '0x7a3e (zum Wiederzusammensetzen)', '2 B'],
+      ['Zerlegen erlaubt?', 'nein', '2 B'],
+      ['Restlebensdauer', String(NET.ttl) + ' (jede Station zieht 1 ab)', '1 B'],
+      ['was liegt darin', 'TCP', '1 B'],
+      ['Absender', NET.clientIP + ' (dein Gerät)', '4 B'],
+      ['Ziel', NET.serverIP + ' (der Server)', '4 B'],
+      ['übrige Felder', 'Priorität, Prüfsumme', '3 B']
     ]) + '</div><div class="lbody">' + inner + '</div></div>';
 
   inner =
     '<div class="layer eth" data-l="0"><div class="lhead"><span class="caret">▸</span>' +
-    '<span class="tag">Netzzugang</span> Ethernet-Frame<span class="bytes">' + S.eth + ' B</span></div>' +
+    '<span class="tag">bis zur nächsten Ecke</span><span class="ltitle">Dein WLAN oder Kabel</span><span class="bytes">' + S.eth + ' B</span></div>' +
+    '<div class="lsub">Gilt nur <strong>bis zu deinem Router</strong> und wird dort weggeworfen. Auf jedem weiteren Abschnitt schreibt die nächste Station ihren eigenen Zettel.</div>' +
     '<div class="lfields">' + fieldRows([
-      ['Ziel-MAC', NET.routerMAC + ' (dein Router)', '6 B'],
-      ['Quell-MAC', NET.clientMAC + ' (dein Gerät)', '6 B'],
-      ['EtherType', '0x0800 (IPv4)', '2 B'],
-      ['Prüfsumme (am Ende)', 'FCS', '4 B']
+      ['an wen hier im Netz', NET.routerMAC + ' (dein Router)', '6 B'],
+      ['von wem hier im Netz', NET.clientMAC + ' (dein Gerät)', '6 B'],
+      ['was liegt darin', 'ein IP-Paket', '2 B'],
+      ['Prüfsumme (am Ende)', 'gegen Übertragungsfehler', '4 B']
     ]) + '</div><div class="lbody">' + inner + '</div></div>';
 
   $('onion').innerHTML = inner;
   $('onion').querySelectorAll('.lhead').forEach(h => {
-    h.addEventListener('click', () => h.parentElement.classList.toggle('open'));
+    h.addEventListener('click', e => {
+      if (e.target.closest('.t')) return;      /* Begriff antippen klappt nicht auf */
+      h.parentElement.classList.toggle('open');
+    });
   });
 
   if (!enc) {
     $('onion').insertAdjacentHTML('afterbegin',
-      '<div class="bad" style="margin-top:0;margin-bottom:0.8rem"><strong>Ohne TLS fehlt eine Schicht.</strong> ' +
-      'Die HTTP-Anfrage liegt direkt im TCP-Segment — im Klartext, inklusive Pfad, Cookies und allem, was in einem Formular stand.</div>');
+      '<div class="bad" style="margin-top:0;margin-bottom:0.8rem"><strong>Ohne Verschlüsselung fehlt eine Schicht.</strong> ' +
+      'Die Bitte liegt ungeschützt im Paket — im ' + g('klartext', 'Klartext') + ', mitsamt der Unterseite, den Merkzetteln und allem, was in einem Formular stand.</div>');
   }
   if (S.tcpPayload > 1460) {
     $('onion').insertAdjacentHTML('afterbegin',
-      '<div class="warn" style="margin-top:0;margin-bottom:0.8rem"><strong>Über der MSS.</strong> ' +
-      'Mit ' + S.tcpPayload + ' Byte Nutzlast passt das nicht mehr in ein Segment (Grenze: 1460 Byte) — TCP zerlegt es in mehrere.</div>');
+      '<div class="warn" style="margin-top:0;margin-bottom:0.8rem"><strong>Passt nicht mehr in ein Paket.</strong> ' +
+      'Mit ' + S.tcpPayload + ' Byte ist der Inhalt größer als die ' + g('mss', 'übliche Höchstgröße') + ' von 1460 Byte — er wird zerlegt und drüben wieder zusammengesetzt.</div>');
   }
   renderUnwrap();
 }
 
 const UNWRAP = [
-  ['Nichts ausgepackt', 'Das Frame liegt so auf dem Kabel beziehungsweise in der Luft. Jedes Gerät im selben Netz kann es empfangen.'],
-  ['Netzwerkkarte und Switch', 'Die <strong>Ethernet-Schicht</strong> ist erledigt. Der Switch hat anhand der Ziel-MAC entschieden, an welchen Port das Frame geht — und die MAC-Adressen dabei gleich verworfen. Über das eigene Netz hinaus ist von ihnen nichts mehr übrig; jeder Router setzt unterwegs neue ein.'],
-  ['Router unterwegs', 'Die <strong>IP-Schicht</strong> ist gelesen. Jeder Router auf dem Weg schaut sich nur die Ziel-IP an, zieht eins von der TTL ab und reicht weiter. Was in dem Paket steht, interessiert ihn nicht — er sieht es nicht einmal an.'],
-  ['Betriebssystem des Servers', 'Die <strong>TCP-Schicht</strong> ist ausgewertet. Der Kernel ordnet das Segment anhand der Portnummer der richtigen Anwendung zu, sortiert es in die Reihenfolge ein und bestätigt den Empfang. Vom Inhalt weiß er weiterhin nichts.'],
-  ['TLS-Bibliothek', 'Erst <strong>hier</strong> wird entschlüsselt — im Prozess des Webservers, mit dem Sitzungsschlüssel aus dem Handshake. Alles davor hat nur einen Haufen Zufallsbytes weitergereicht.'],
-  ['Webserver-Prozess', 'Übrig bleibt die <strong>HTTP-Anfrage</strong>: eine Methode, ein Pfad, ein paar Kopfzeilen. Das ist alles, was die Anwendung je zu sehen bekommt — und der ganze Rest war nur Transport.']
+  ['Nichts ausgepackt',
+   'So liegt das Päckchen auf dem Kabel beziehungsweise in der Luft. <strong>Jedes Gerät im selben WLAN kann es empfangen</strong> — genau darum geht es im Tab „Wer sieht was?".'],
+  ['Deine Netzwerkkarte und der Router',
+   'Der äußere Zettel ist erledigt. Dein Router hat gelesen, an wen es hier im Haus geht, und wirft die Angabe weg. <strong>Über dein eigenes Netz hinaus bleibt davon nichts übrig</strong>; jede weitere Station schreibt einen neuen Zettel.'],
+  ['Die Stationen unterwegs',
+   'Die Hausadresse ist gelesen. Jeder Router auf dem Weg schaut nur, wohin es geht, zieht eins von der ' + g('ttl', 'Restlebensdauer') + ' ab und reicht weiter. <strong>Was im Päckchen steht, sieht er nicht einmal an.</strong>'],
+  ['Das Betriebssystem des Servers',
+   'Die Wohnungsnummer ist ausgewertet. Der ' + g('kernel', 'Betriebssystem-Kern') + ' gibt das Päckchen dem richtigen Programm, bringt die Häppchen in die richtige Reihenfolge und bestätigt den Empfang. <strong>Vom Inhalt weiß auch er nichts.</strong>'],
+  ['Das Siegel wird gebrochen',
+   'Erst <strong>hier</strong> wird entschlüsselt — im Programm des Webservers, mit dem ' + g('sess', 'Sitzungsschlüssel') + ' von der Begrüßung. Alles davor hat nur einen Haufen Zufallszeichen weitergereicht, ohne je hineinsehen zu können.'],
+  ['Der Webserver',
+   'Übrig bleibt die eigentliche Bitte: welche Seite, von welcher Website, dazu ein paar Angaben. <strong>Das ist alles, was die Website je zu sehen bekommt</strong> — der ganze Rest war nur Transport.']
 ];
 
 function renderUnwrap() {
@@ -581,7 +812,7 @@ document.querySelectorAll('[data-url]').forEach(b => {
 });
 
 /* ==========================================================================
-   Tab 2 — Ablauf
+   Tab — Der Ablauf
    ========================================================================== */
 
 let selStep = 0;
@@ -596,51 +827,51 @@ function buildSteps() {
   const steps = [];
   let t = 0;
 
-  /* Wer eine offene Verbindung wiederverwendet, hat die Adresse längst — DNS entfällt dann ebenfalls */
+  /* Wer eine offene Verbindung wiederverwendet, hat die Adresse längst — die Namensauskunft entfällt dann ebenfalls */
   if (reuse) {
     steps.push({ from: 0, to: 0, t: 0, label: 'Verbindung steht bereits', kind: 'tcp', self: true,
-      detail: 'Die Verbindung zu diesem Server ist noch offen — genau dafür gibt es <code>Connection: keep-alive</code> und HTTP/2. Namensauflösung, Verbindungsaufbau und Handshake entfallen komplett; es geht direkt mit der Anfrage los. Deshalb lädt die zweite Seite einer Website spürbar schneller als die erste.' });
+      detail: 'Die Verbindung zu diesem Server ist noch offen. Namensauskunft, Verbindungsaufbau und Begrüßung entfallen komplett; es geht sofort mit der Anfrage los. <strong>Deshalb lädt die zweite Seite einer Website spürbar schneller als die erste</strong> — und deshalb halten Browser Verbindungen absichtlich eine Weile offen.' });
   } else if (cached) {
-    steps.push({ from: 0, to: 0, t: 0, label: 'DNS aus dem Cache', kind: 'dns', self: true,
-      detail: 'Der Name steht schon im Cache — im Browser, im Betriebssystem oder im Router. Das spart eine komplette Runde. Wie lange ein Eintrag gilt, legt der Autoritative Nameserver über die TTL fest, üblich sind fünf Minuten bis 24 Stunden.' });
+    steps.push({ from: 0, to: 0, t: 0, label: 'Adresse schon bekannt', kind: 'dns', self: true,
+      detail: 'Die Nummer zu diesem Namen liegt noch von vorhin im ' + g('cache', 'Zwischenspeicher') + ' — im Browser, im Betriebssystem oder im Router. Das spart eine komplette Runde. Wie lange so ein Eintrag gilt, bestimmt die Website selbst; üblich sind fünf Minuten bis 24 Stunden.' });
   } else {
-    steps.push({ from: 0, to: 1, t: t += half, label: 'A? ' + host, kind: 'dns',
-      detail: 'Zuerst muss aus dem Namen eine Adresse werden. Der Rechner fragt seinen DNS-Resolver — meist den des Providers oder einen wie 1.1.1.1. <strong>Klassisches DNS läuft unverschlüsselt über Port 53</strong>: Wer mitliest, sieht damit, welche Domain gleich aufgerufen wird, noch bevor TLS überhaupt beginnt. Genau das ändern DNS over HTTPS und DNS over TLS.' });
+    steps.push({ from: 0, to: 1, t: t += half, label: 'Welche Nummer hat ' + host + '?', kind: 'dns',
+      detail: 'Zuerst muss aus dem Namen eine Nummer werden. Dein Gerät fragt dafür die ' + g('dns', 'Namensauskunft') + ', meist die deines Internetanbieters.<br><br><strong>Diese Frage läuft klassisch unverschlüsselt.</strong> Wer mitliest, weiß dadurch schon, welche Website gleich aufgerufen wird — noch bevor überhaupt eine Verschlüsselung beginnt. Genau das behebt die ' + g('doh', 'verschlüsselte Namensauskunft') + '.' });
     steps.push({ from: 1, to: 0, t: t += half, label: '93.184.216.34', kind: 'dns',
-      detail: 'Der Resolver antwortet mit dem A-Record, also der IPv4-Adresse. Musste er selbst erst bei den autoritativen Servern nachfragen, dauert das deutlich länger als die hier angesetzte eine Runde — dafür beantwortet er die nächste Anfrage aus seinem eigenen Cache.' });
+      detail: 'Die Antwort: die ' + g('ip', 'IP-Adresse') + ' des Servers. Musste die Auskunft ihrerseits erst nachfragen, dauert das deutlich länger als die hier angesetzte eine Runde — dafür beantwortet sie die nächste Frage sofort aus dem eigenen Zwischenspeicher.' });
   }
 
   if (!reuse) {
-    steps.push({ from: 0, to: 2, t: t += half, label: 'SYN', kind: 'tcp',
-      detail: 'Der Anfang des Drei-Wege-Handshakes. Das Paket trägt nur das SYN-Flag und eine zufällige Anfangs-Sequenznummer — Nutzdaten sind noch keine dabei. Die Zufälligkeit ist Absicht: Vorhersagbare Sequenznummern wären eine Einladung, sich in fremde Verbindungen einzuklinken.' });
-    steps.push({ from: 2, to: 0, t: t += half, label: 'SYN-ACK', kind: 'tcp',
-      detail: 'Der Server bestätigt und schickt seine eigene Anfangs-Sequenznummer mit. Damit ist eine Richtung bestätigt — und weil auf offene Ports geantwortet wird, verrät genau diese Antwort auch, welche Ports offen sind.' });
-    steps.push({ from: 0, to: 2, t: t += half, label: 'ACK + ClientHello', kind: 'tcp',
-      detail: 'Die dritte Nachricht schließt den TCP-Handshake ab. Ab hier steht eine gesicherte, geordnete Verbindung — <em>gesichert</em> heißt dabei nur: kein Paket geht verloren und die Reihenfolge stimmt. Verschlüsselt ist noch gar nichts.<br><br>Das ClientHello reist gleich mit: Es geht in dieselbe Richtung wie das ACK und kostet deshalb keine eigene Runde. Darin nennt der Browser seine unterstützten Cipher Suites, seine TLS-Version und im Feld <strong>SNI</strong> den gewünschten Hostnamen — im Klartext.' });
+    steps.push({ from: 0, to: 2, t: t += half, label: '„Ich möchte reden"', kind: 'tcp',
+      detail: 'Der Anfang des Verbindungsaufbaus (fachlich: ' + g('syn', 'SYN') + '). Es geht noch nichts an Daten mit, nur die Bitte um eine Verbindung und eine zufällige Anfangsnummer.<br><br>Die Zufälligkeit ist Absicht: Vorhersagbare Nummern wären eine Einladung für Fremde, sich in eine laufende Verbindung einzuklinken.' });
+    steps.push({ from: 2, to: 0, t: t += half, label: '„Gerne, ich auch"', kind: 'tcp',
+      detail: 'Der Server bestätigt und schickt seine eigene Anfangsnummer mit. Damit ist eine Richtung geklärt. Nebenbei: Weil auf offene Türnummern geantwortet wird und auf geschlossene nicht, verrät genau diese Antwort auch, welche Dienste ein Server anbietet.' });
+    steps.push({ from: 0, to: 2, t: t += half, label: '„Angekommen" + Begrüßung', kind: 'tcp',
+      detail: 'Die dritte Nachricht schließt den Verbindungsaufbau ab. Ab hier steht eine <em>zuverlässige</em> Verbindung — das heißt nur: nichts geht verloren, die Reihenfolge stimmt. <strong>Verschlüsselt ist noch gar nichts.</strong><br><br>Die Begrüßung der Verschlüsselung reist gleich mit, in dieselbe Richtung, und kostet deshalb keine eigene Runde. Darin nennt der Browser, welche Verfahren er beherrscht — und im Feld ' + g('sni', 'SNI') + ' den Namen der gewünschten Website, im Klartext.' });
 
     if (old) {
-      steps.push({ from: 2, to: 0, t: t += half, label: 'ServerHello, Zertifikat', kind: 'tls',
-        detail: 'Der Server wählt eine Cipher Suite und schickt sein Zertifikat — bei TLS 1.2 <strong>unverschlüsselt</strong>. Wer mitliest, erfährt daraus ebenfalls, welche Domain gemeint ist.' });
-      steps.push({ from: 0, to: 2, t: t += half, label: 'Schlüsselaustausch, Finished', kind: 'tls',
-        detail: 'Erst jetzt einigen sich beide Seiten auf den Sitzungsschlüssel und bestätigen den Handshake. Zwei volle Runden nur für die Verschlüsselung — TLS 1.3 kommt mit einer aus, weil der Schlüsselanteil schon im ClientHello steckt.' });
-      steps.push({ from: 2, to: 0, t: t += half, label: 'Finished', kind: 'tls',
+      steps.push({ from: 2, to: 0, t: t += half, label: 'Antwort + Ausweis', kind: 'tls',
+        detail: 'Der Server wählt ein Verfahren und schickt sein ' + g('zert', 'Zertifikat') + ' — bei der älteren Fassung <strong>unverschlüsselt</strong>. Wer mitliest, erfährt daraus ebenfalls, um welche Website es geht.' });
+      steps.push({ from: 0, to: 2, t: t += half, label: 'Schlüssel vereinbaren', kind: 'tls',
+        detail: 'Erst jetzt rechnen beide Seiten den gemeinsamen ' + g('sess', 'Sitzungsschlüssel') + ' aus. <strong>Zwei volle Runden nur für die Verschlüsselung</strong> — die heutige Fassung kommt mit einer aus, weil der Schlüsselanteil schon in der Begrüßung steckt.' });
+      steps.push({ from: 2, to: 0, t: t += half, label: 'Bestätigung', kind: 'tls',
         detail: 'Der Server bestätigt seinerseits. Ab hier ist alles verschlüsselt.' });
     } else {
-      steps.push({ from: 2, to: 0, t: t += half, label: 'ServerHello, {Zertifikat}, Finished', kind: 'tls',
-        detail: 'TLS 1.3 spart eine Runde, weil der Browser seinen Schlüsselanteil bereits im ClientHello mitgeschickt hat. Der Server kann sofort mitrechnen — und schickt sein <strong>Zertifikat schon verschlüsselt</strong>. Die geschweiften Klammern stehen für genau das. Nur das ClientHello mit dem SNI-Feld bleibt offen.' });
+      steps.push({ from: 2, to: 0, t: t += half, label: 'Antwort, {Ausweis}, fertig', kind: 'tls',
+        detail: 'Die heutige Fassung spart eine ganze Runde, weil der Browser seinen Schlüsselanteil bereits in der Begrüßung mitgeschickt hat. Der Server kann sofort mitrechnen — und sein ' + g('zert', 'Zertifikat') + ' <strong>schon verschlüsselt</strong> schicken. Dafür stehen die geschweiften Klammern.<br><br>Offen bleibt allein die Begrüßung mit dem Feld ' + g('sni', 'SNI') + '.' });
     }
   }
 
-  steps.push({ from: 0, to: 2, t: t += half, label: 'GET ' + (U ? U.target : '/'), kind: 'http',
-    detail: 'Endlich die eigentliche Anfrage — verschlüsselt im TLS-Record verpackt, so wie im Zwiebel-Tab zu sehen. Alles davor war Vorbereitung: Namensauflösung, Verbindungsaufbau, Schlüsselvereinbarung.' });
-  steps.push({ from: 2, to: 0, t: t += half + 40, label: '200 OK, HTML', kind: 'http', server: 40,
-    detail: 'Der Zeitpunkt, an dem das erste Byte ankommt, heißt <strong>Time to First Byte</strong>. Er enthält die halbe Round-Trip-Zeit plus die Zeit, die der Server zum Erzeugen der Antwort braucht — hier mit 40 ms angesetzt. Erst danach beginnt der Browser überhaupt zu rendern.' });
+  steps.push({ from: 0, to: 2, t: t += half, label: 'Gib mir ' + (U ? U.target : '/'), kind: 'http',
+    detail: 'Endlich die eigentliche Anfrage — verschlüsselt verpackt, genau so wie im Tab „Die Verpackung" zu sehen. Alles davor war Vorbereitung: Namensauskunft, Verbindungsaufbau, Schlüsselvereinbarung.' });
+  steps.push({ from: 2, to: 0, t: t += half + 40, label: 'Hier ist die Seite', kind: 'http', server: 40,
+    detail: 'Der Moment, in dem das erste Stück ankommt, heißt ' + g('ttfb', 'Zeit bis zum ersten Zeichen') + '. Darin steckt der halbe Rückweg plus die Zeit, die der Server zum Erzeugen der Antwort braucht — hier mit 40 ms angesetzt. <strong>Erst danach fängt der Browser überhaupt an, etwas anzuzeigen.</strong>' });
 
   return { steps, total: t, rtt };
 }
 
 const KIND_COL = { dns: '#0891b2', tcp: '#4f46e5', tls: '#059669', http: '#b45309' };
-const ACTORS = ['Dein Rechner', 'DNS-Resolver', 'Server'];
+const ACTORS = ['Dein Gerät', 'Namensauskunft', 'Server'];
 
 function renderSeq() {
   $('rttVal').textContent = $('rtt').value + ' ms';
@@ -652,7 +883,6 @@ function renderSeq() {
 
   /* id mitgeben — outerHTML ersetzt das Element, sonst ist es beim nächsten Mal nicht mehr auffindbar */
   let svg = '<svg class="seq" id="seq" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">';
-  /* Lebenslinien */
   ACTORS.forEach((a, i) => {
     svg += '<line x1="' + xs[i] + '" y1="30" x2="' + xs[i] + '" y2="' + (H - 16) + '" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 4"/>';
     svg += '<rect x="' + (xs[i] - 62) + '" y="6" width="124" height="24" rx="6" fill="#f1f5f9" stroke="#e2e8f0"/>';
@@ -688,8 +918,8 @@ function renderSeq() {
   svg += '</svg>';
 
   $('seq').outerHTML = svg;
-  $('seq').querySelectorAll('.arrow').forEach(g => {
-    g.addEventListener('click', () => { selStep = parseInt(g.dataset.step, 10); renderSeq(); });
+  $('seq').querySelectorAll('.arrow').forEach(gr => {
+    gr.addEventListener('click', () => { selStep = parseInt(gr.dataset.step, 10); renderSeq(); });
   });
 
   const s = steps[Math.min(selStep, steps.length - 1)];
@@ -697,8 +927,8 @@ function renderSeq() {
 
   const rounds = Math.round((total - 40) / rtt * 10) / 10;
   $('seqStats').innerHTML = [
-    ['bis zum ersten Byte', Math.round(total) + ' ms'],
-    ['davon Wartezeit', Math.round(total - 40) + ' ms'],
+    ['bis zum ersten Zeichen', Math.round(total) + ' ms'],
+    ['davon reines Warten', Math.round(total - 40) + ' ms'],
     ['volle Runden', String(rounds)],
     ['Nachrichten', String(steps.filter(x => !x.self).length)]
   ].map(([cap, num]) => '<div class="stat"><div class="num">' + num + '</div><div class="cap">' + cap + '</div></div>').join('');
@@ -709,7 +939,7 @@ function renderSeq() {
 });
 
 /* ==========================================================================
-   Tab 3 — Mithören
+   Tab — Wer sieht was?
    ========================================================================== */
 
 let spyMode = 'https';
@@ -720,13 +950,12 @@ function renderSpy() {
   document.querySelectorAll('#modeBtns button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
 
   const desc = {
-    http: '<div class="bad"><strong>Alles liegt offen.</strong> Ohne TLS ist jede Anfrage und jede Antwort im Klartext lesbar — und veränderbar. Wer im Netz sitzt, kann nicht nur mitlesen, sondern auch eingeschleuste Inhalte zurückschicken, ohne dass es auffällt.</div>',
-    https: '<div class="good"><strong>Inhalt geschützt, Ziel sichtbar.</strong> Was du überträgst, ist verschlüsselt. <em>Mit wem</em> du sprichst, bleibt erkennbar — über die Ziel-IP und über das SNI-Feld im ClientHello, das notwendigerweise vor dem Schlüsselaustausch verschickt wird.</div>',
-    ech: '<div class="good"><strong>Auch das SNI ist verborgen.</strong> Encrypted Client Hello verschlüsselt den inneren Teil des ClientHello mit einem öffentlichen Schlüssel, den der Browser vorher per DNS geholt hat. Sichtbar bleibt nur der Name des Frontend-Servers — bei einem CDN teilen sich den Tausende Websites, sodass die Ziel-IP kaum noch etwas verrät.<br><br>Damit das aufgeht, muss allerdings auch die DNS-Abfrage verschlüsselt laufen (DoH oder DoT). Sonst steht die Domain weiterhin im Klartext auf der Leitung — nur eben eine Schicht früher.</div>'
+    http: '<div class="bad"><strong>Alles liegt offen.</strong> Ohne Verschlüsselung ist jede Anfrage und jede Antwort lesbar — und veränderbar. Wer im selben Netz sitzt, kann nicht nur mitlesen, sondern dir auch etwas anderes zurückschicken, ohne dass es auffällt.</div>',
+    https: '<div class="good"><strong>Inhalt geschützt, Ziel sichtbar.</strong> Was du überträgst, kann niemand lesen. <em>Mit wem</em> du sprichst, bleibt aber erkennbar — an der Zieladresse und am Feld ' + g('sni', 'SNI') + ', das notwendigerweise vor der Verschlüsselung verschickt wird.</div>',
+    ech: '<div class="good"><strong>Auch der Name ist verborgen.</strong> ' + g('ech', 'ECH') + ' verschlüsselt zusätzlich die Begrüßung. Sichtbar bleibt nur der Name des Rechenzentrums — und weil sich bei einem ' + g('cdn', 'CDN') + ' Tausende Websites dieselbe Adresse teilen, verrät das kaum noch etwas.<br><br>Damit das aufgeht, muss allerdings auch die ' + g('doh', 'Namensauskunft verschlüsselt') + ' laufen. Sonst steht der Name weiterhin offen auf der Leitung — nur eben einen Schritt früher.</div>'
   }[m];
   $('modeDesc').innerHTML = desc;
 
-  /* Adresse einfärben */
   const cls = v => v ? 'up-vis' : 'up-hid';
   const hostVisible = m !== 'ech';
   const pathVisible = m === 'http';
@@ -741,29 +970,29 @@ function renderSpy() {
   const vis = [], hid = [];
   const item = (t, d) => '<li><b>' + t + '</b><span>' + d + '</span></li>';
 
-  vis.push(item('Ziel-IP-Adresse ' + NET.serverIP, 'Muss im Klartext im IP-Header stehen, sonst wüsste kein Router, wohin.'));
-  vis.push(item('Portnummer ' + U.port, 'Verrät das Protokoll: 443 ist HTTPS, 80 ist HTTP.'));
-  vis.push(item('Paketgrößen und Zeitpunkte', 'Auch verschlüsselt bleibt sichtbar, wie viel wann fließt. Daraus lässt sich mehr ableiten, als die meisten vermuten — etwa welches Video gerade läuft.'));
+  vis.push(item('Die Zieladresse ' + NET.serverIP, 'Muss offen im Paket stehen, sonst wüsste keine Zwischenstation, wohin. Daraus lässt sich meist auf den Anbieter schließen.'));
+  vis.push(item('Die Türnummer ' + U.port, 'Verrät die Art: 443 heißt verschlüsselte Website, 80 unverschlüsselte.'));
+  vis.push(item('Größe und Zeitpunkt jedes Pakets', 'Auch verschlüsselt bleibt sichtbar, wie viel wann fließt. Daraus lässt sich mehr ableiten, als die meisten vermuten — bei Videos etwa, welches gerade läuft.'));
 
   if (m === 'http') {
-    vis.push(item('Domain ' + U.host, 'Steht im Host-Header, offen lesbar.'));
-    vis.push(item('Pfad und Query ' + U.target, 'Vollständig lesbar — inklusive Suchbegriffen, IDs und allem, was in der Adresse steht.'));
-    vis.push(item('Cookies und Sitzungs-IDs', 'Abgreifbar. Wer sie kopiert, ist eingeloggt wie du.'));
-    vis.push(item('Formulardaten und Passwörter', 'Alles, was abgeschickt wird, steht im Klartext im Paket.'));
-    vis.push(item('Der gesamte Antwortinhalt', 'Die komplette Seite, die du zu sehen bekommst — und sie lässt sich unterwegs auch verändern.'));
-    hid.push(item('Nichts.', 'Ohne TLS gibt es keine Vertraulichkeit und keinen Schutz vor Veränderung.'));
+    vis.push(item('Der Name ' + U.host, 'Steht offen in der Anfrage.'));
+    vis.push(item('Die Unterseite ' + U.target, 'Vollständig lesbar — samt Suchbegriffen, Kennnummern und allem, was in der Adresse steht.'));
+    vis.push(item('Merkzettel und Anmeldung', 'Abgreifbar. Wer sie kopiert, ist angemeldet wie du — ohne dein Passwort zu kennen.'));
+    vis.push(item('Formulardaten und Passwörter', 'Alles, was du abschickst, steht lesbar im Paket.'));
+    vis.push(item('Die komplette Antwort', 'Die ganze Seite, die du zu sehen bekommst — und sie lässt sich unterwegs auch verändern.'));
+    hid.push(item('Nichts.', 'Ohne Verschlüsselung gibt es weder Vertraulichkeit noch Schutz vor Veränderung.'));
   } else {
     if (m === 'https') {
-      vis.push(item('Domain ' + U.host + ' (via SNI)', 'Das ClientHello nennt den Hostnamen im Klartext — es muss, denn der Server braucht ihn, um das richtige Zertifikat zu wählen. Das ist die unangenehmste Lücke von normalem HTTPS.'));
-      vis.push(item('Zertifikat des Servers', 'Bei TLS 1.2 unverschlüsselt und damit ebenfalls ein Hinweis auf die Domain. TLS 1.3 verschlüsselt es.'));
+      vis.push(item('Der Name ' + U.host, 'Die Begrüßung nennt ihn offen. Sie muss es: Auf einer Adresse liegen oft Tausende Websites, und der Server muss wissen, welchen Ausweis er zeigen soll. Das ist die bekannteste Lücke von <code>https</code>.'));
+      vis.push(item('Der Ausweis des Servers', 'Bei der älteren Verschlüsselung unverschlüsselt und damit ebenfalls ein Hinweis auf die Website. Die heutige Fassung verschlüsselt ihn.'));
     } else {
-      hid.push(item('Domain ' + U.host, 'Das SNI steckt im verschlüsselten inneren ClientHello. Sichtbar bleibt nur der gemeinsame Frontend-Name des CDN.'));
+      hid.push(item('Der Name ' + U.host, 'Steckt im verschlüsselten Teil der Begrüßung. Sichtbar bleibt nur der gemeinsame Name des Rechenzentrums.'));
     }
-    vis.push(item('DNS-Anfrage', 'Klassisches DNS läuft im Klartext über Port 53 — dann steht die Domain dort, auch wenn TLS sie später verbirgt. DNS over HTTPS schließt diese Lücke.'));
-    hid.push(item('Pfad und Query ' + U.target, 'Steckt in der verschlüsselten HTTP-Anfrage. Suchbegriffe, Konto-IDs und Parameter bleiben verborgen.'));
-    hid.push(item('Alle HTTP-Header', 'Cookies, Sitzungs-IDs, User-Agent, Referer — alles innerhalb der Verschlüsselung.'));
-    hid.push(item('Formulardaten und Passwörter', 'Im verschlüsselten Body.'));
-    hid.push(item('Der Antwortinhalt', 'Was der Server zurückschickt, ist ebenfalls verschlüsselt — und durch den Authentifizierungs-Tag zusätzlich vor Veränderung geschützt.'));
+    vis.push(item('Die Frage an die Namensauskunft', 'Klassisch läuft sie unverschlüsselt — dann steht der Name dort, auch wenn die Verschlüsselung ihn später verbirgt. Die verschlüsselte Variante schließt diese Lücke.'));
+    hid.push(item('Die Unterseite ' + U.target, 'Steckt in der verschlüsselten Anfrage. Suchbegriffe, Kontonummern und Parameter bleiben verborgen.'));
+    hid.push(item('Alle Zusatzangaben', 'Merkzettel, Anmeldung, Browserkennung, woher du kamst — alles innerhalb der Verschlüsselung.'));
+    hid.push(item('Formulardaten und Passwörter', 'Im verschlüsselten Teil.'));
+    hid.push(item('Die komplette Antwort', 'Was der Server zurückschickt, ist ebenfalls verschlüsselt — und durch den Echtheitsstempel zusätzlich vor Veränderung geschützt.'));
   }
 
   $('visList').innerHTML = vis.join('');
@@ -771,12 +1000,12 @@ function renderSpy() {
 }
 
 document.querySelectorAll('#modeBtns button').forEach(b => {
-  b.addEventListener('click', () => {
+  b.addEventListener('click', e => {
+    if (e.target.closest('.t')) return;      /* das Fragezeichen erklärt nur */
     if (!U || !U.https) {
-      /* Bei einer http-Adresse gibt es nichts umzuschalten */
       if (b.dataset.mode !== 'http') {
         $('modeDesc').insertAdjacentHTML('beforeend',
-          '<div class="warn">Die eingegebene Adresse beginnt mit <code>http://</code> — für HTTPS-Modi im Zwiebel-Tab eine <code>https://</code>-Adresse eintragen.</div>');
+          '<div class="warn">Die eingetragene Adresse beginnt mit <code>http://</code>, ist also unverschlüsselt. Für die anderen beiden Fälle im Tab „Die Verpackung" eine Adresse mit <code>https://</code> eintragen.</div>');
       }
       return;
     }
@@ -790,10 +1019,12 @@ document.querySelectorAll('#modeBtns button').forEach(b => {
    ========================================================================== */
 
 const TABS = [
-  ['p-zwiebel', 'Zwiebel'],
-  ['p-ablauf', 'Ablauf'],
-  ['p-mithoeren', 'Mithören'],
-  ['p-schichten', 'Schichten']
+  ['p-ueberblick', 'Überblick'],
+  ['p-zwiebel', 'Die Verpackung'],
+  ['p-ablauf', 'Der Ablauf'],
+  ['p-mithoeren', 'Wer sieht was?'],
+  ['p-schichten', 'Die Schichten'],
+  ['p-woerter', 'Wörterbuch']
 ];
 const tabsEl = $('tabs');
 tabsEl.innerHTML = TABS.map(([id, label]) => '<button data-t="' + id + '">' + label + '</button>').join('');
@@ -801,12 +1032,14 @@ tabsEl.innerHTML = TABS.map(([id, label]) => '<button data-t="' + id + '">' + la
 const redrawHooks = {
   'p-zwiebel': renderOnion,
   'p-ablauf': renderSeq,
-  'p-mithoeren': renderSpy
+  'p-mithoeren': renderSpy,
+  'p-woerter': renderGlossar
 };
 function showPanel(id) {
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === id));
   tabsEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.t === id));
   if (redrawHooks[id]) redrawHooks[id]();
+  hideTerm();
 }
 tabsEl.addEventListener('click', e => {
   const b = e.target.closest('button');
@@ -816,7 +1049,8 @@ tabsEl.addEventListener('click', e => {
 renderOnion();
 renderSeq();
 renderSpy();
-showPanel('p-zwiebel');
+renderGlossar();
+showPanel('p-ueberblick');
 </script>
 </body>
 </html>
