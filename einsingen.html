@@ -179,6 +179,21 @@
   #micState { font-size: 0.85rem; }
   footer { color: var(--text-muted); font-size: 0.8rem; margin-top: 2rem; text-align: center; }
 
+  /* ---------- Eingangspegel ---------- */
+  .levelrow { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.9rem; }
+  .levelrow .cap { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; }
+  .levelbar {
+    position: relative; flex: 1; height: 12px; border-radius: 999px;
+    background: #e2e8f0; overflow: hidden; border: 1px solid var(--border);
+  }
+  .levelbar .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+    background: var(--text-muted); transition: width 0.08s linear; }
+  .levelbar .fill.over { background: var(--good); }
+  .levelbar .gate { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--bad); opacity: 0.7; }
+  .sensrow { margin-top: 0.8rem; }
+  .sensrow label { display: block; font-size: 0.84rem; font-weight: 600; margin-bottom: 0.2rem; }
+  .sensrow .desc { font-size: 0.76rem; color: var(--text-muted); margin-top: 0.15rem; }
+
   @media (max-width: 700px) {
     h1 { font-size: 1.35rem; }
     .readout .note-name { font-size: 2.6rem; }
@@ -202,6 +217,22 @@
     <button class="ghost on" id="soundBtn">Ton an</button>
     <span id="micState" style="color:var(--text-muted)">Noch nicht gestartet.</span>
   </div>
+
+  <div class="levelrow" id="levelRow" hidden>
+    <span class="cap">Eingang</span>
+    <div class="levelbar">
+      <div class="fill" id="levelFill"></div>
+      <div class="gate" id="levelGate" style="left:30%"></div>
+    </div>
+    <span class="cap" id="levelTxt">–</span>
+  </div>
+
+  <div class="sensrow" id="sensRow" hidden>
+    <label for="sens">Empfindlichkeit</label>
+    <input type="range" id="sens" min="0" max="100" step="1" value="60">
+    <div class="desc">Der rote Strich im Balken ist die Schwelle: Erst was darüber liegt, wird als Ton gemessen. Schlägt der Balken beim Singen aus, bleibt aber unter dem Strich, den Regler nach rechts schieben.</div>
+  </div>
+
   <div id="micHint"></div>
 </div>
 
@@ -398,6 +429,25 @@
       Bei sehr tiefen Männerstimmen unter etwa 75 Hz und bei geflüsterten oder gehauchten Tönen stößt jede solche Messung an ihre Grenze. Zeigt die Anzeige nichts an, liegt das oft nicht an der Stimme, sondern daran, dass zu wenig Grundton da ist.
     </div>
   </div>
+
+  <div class="card">
+    <h2>Wenn auf dem iPhone kein Ton erkannt wird</h2>
+    <p>Der Balken <strong>Eingang</strong> oben trennt die beiden möglichen Ursachen. Er zeigt, wie laut das Signal ankommt, der rote Strich ist die Schwelle, ab der gemessen wird.</p>
+    <ol class="tight">
+      <li><strong>Der Balken bewegt sich beim Singen und geht über den roten Strich</strong> — dann kommt das Signal an. Wird trotzdem keine Note angezeigt, ist der Ton zu behaucht oder zu kurz. Einen Vokal auf <em>„nu"</em> oder <em>„no"</em> singen und zwei Sekunden halten.</li>
+      <li><strong>Der Balken bewegt sich, bleibt aber unter dem Strich</strong> — das Signal ist zu leise. Den Regler <em>Empfindlichkeit</em> nach rechts schieben. Das Mikrofon des iPhones sitzt unten an der Ladebuchse; eine Hand oder eine Hülle davor kostet viel.</li>
+      <li><strong>Der Balken bewegt sich überhaupt nicht</strong> — dann kommt gar nichts an. Das hat fast immer einen dieser Gründe.</li>
+    </ol>
+    <ul class="tight">
+      <li><strong>Eine andere App hält das Mikrofon fest.</strong> Sprachmemos, ein laufender Anruf, WhatsApp, eine Videokonferenz. iOS gibt das Mikrofon nur einmal her. Die andere App wirklich schließen, nicht nur wegwischen.</li>
+      <li><strong>Ein Bluetooth-Kopfhörer ist verbunden.</strong> Dann nimmt iOS dessen Mikrofon — bei manchen Modellen erst nach einer Verzögerung, bei manchen gar nicht. Zum Testen Bluetooth kurz ausschalten.</li>
+      <li><strong>Die Erlaubnis fehlt.</strong> In Safari links in der Adressleiste auf <em>aA</em> tippen → <em>Einstellungen für diese Website</em> → <em>Mikrofon</em> → <em>Erlauben</em>. Zusätzlich in <em>Einstellungen → Safari → Mikrofon</em> prüfen, dass dort nicht generell <em>Verweigern</em> steht.</li>
+      <li><strong>Die Seite lief im Hintergrund.</strong> Wechselt man zu einer anderen App und kommt zurück, friert iOS die Tonverarbeitung ein. Das Tool taut sie beim nächsten Tippen auf die Seite selbst wieder auf; bleibt es still, hilft „Mikrofon aus" und wieder ein.</li>
+    </ul>
+    <div class="note">
+      <strong>Der Stummschalter am Gehäuserand betrifft nur das Vorspielen, nie die Messung.</strong> Wer die Vokalisen nicht hört, obwohl „Ton an" leuchtet: Schalter umlegen und die Lautstärkewippe drücken, während die Seite offen ist.
+    </div>
+  </div>
 </section>
 
 <footer>Mikrofonsignal wird ausschließlich im Browser verarbeitet — nichts wird gespeichert oder verschickt.</footer>
@@ -428,55 +478,158 @@ const isWhite = m => WHITE_PC.indexOf(((m % 12) + 12) % 12) >= 0;
    ========================================================================== */
 
 let ctx = null, analyser = null, micStream = null, buf = null;
+let srcNode = null, sinkNode = null;
 let micOn = false, soundOn = true;
 let muteDetection = false;     /* während das Tool selbst spielt, wird nicht gemessen */
 
+/* iOS erkennen — Safari auf dem iPad meldet sich als „MacIntel" mit Touch */
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+/* Safari 16.4+ kennt die Audio-Session. Ohne „play-and-record" schaltet iOS beim
+   Öffnen des Mikrofons gern die Tonausgabe ab — oder umgekehrt den Eingang. */
+let audioSessionType = null;
+function setAudioSession(type) {
+  if (audioSessionType === type) return;
+  try {
+    if (navigator.audioSession) { navigator.audioSession.type = type; audioSessionType = type; }
+  } catch (e) { /* egal */ }
+}
+/* Ohne Mikrofon reicht „playback" — damit ignoriert iOS den Stummschalter am Rand */
+function syncAudioSession() { setAudioSession(micOn ? 'play-and-record' : 'playback'); }
+
+function resumeCtx() {
+  if (!ctx) return;
+  /* Safari kennt neben 'suspended' auch 'interrupted' — etwa nach einem Anruf */
+  if (ctx.state !== 'running') {
+    const p = ctx.resume();
+    if (p && p.catch) p.catch(() => {});
+  }
+}
+
 function ensureCtx() {
-  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-  if (ctx.state === 'suspended') ctx.resume();
+  if (!ctx) {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    ctx.onstatechange = () => {
+      if (micOn && ctx.state !== 'running') setMicState('Audio pausiert — kurz auf die Seite tippen.', 'var(--warn)');
+    };
+  }
+  resumeCtx();
   return ctx;
 }
+
+/* iOS friert den Audio-Kontext beim Wegschalten ein und taut ihn nicht von selbst
+   wieder auf. Jede Berührung der Seite ist eine gültige Nutzergeste zum Aufwecken. */
+['pointerdown', 'touchend'].forEach(ev =>
+  document.addEventListener(ev, () => { if (ctx) resumeCtx(); }, { passive: true, capture: true }));
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && ctx) resumeCtx();
+});
 
 function setMicState(txt, cls) {
   $('micState').textContent = txt;
   $('micState').style.color = cls || 'var(--text-muted)';
 }
 
+/* Die drei Filter verbiegen die Tonhöhe — für ein Stimmgerät sind sie Gift.
+   Manche Geräte weigern sich aber, sie abzuschalten; dann lieber ein
+   gefiltertes Signal als gar keines. */
+async function requestStream() {
+  const raw = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+  try {
+    return await navigator.mediaDevices.getUserMedia({ audio: raw });
+  } catch (e) {
+    if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError' || e.name === 'NotFoundError')) throw e;
+    return await navigator.mediaDevices.getUserMedia({ audio: true });
+  }
+}
+
+function buildGraph() {
+  srcNode = ctx.createMediaStreamSource(micStream);
+  analyser = ctx.createAnalyser();
+  analyser.fftSize = pickFftSize(ctx.sampleRate);
+  analyser.smoothingTimeConstant = 0;
+  buf = new Float32Array(analyser.fftSize);
+  srcNode.connect(analyser);
+  /* Safari zieht nur an Zweigen, die irgendwo im Ausgang enden. Ein Analyser als
+     Sackgasse bleibt dort stumm — deshalb ein Abfluss mit Lautstärke null. */
+  sinkNode = ctx.createGain();
+  sinkNode.gain.value = 0;
+  analyser.connect(sinkNode);
+  sinkNode.connect(ctx.destination);
+
+  micStream.getAudioTracks().forEach(t => {
+    t.addEventListener('ended', () => { if (micOn) { setMicState('Das Mikrofon wurde vom System getrennt.', 'var(--warn)'); stopMic(); } });
+    t.addEventListener('mute', () => { if (micOn) setMicState('Mikrofon gerade stumm — hat eine andere App es übernommen?', 'var(--warn)'); });
+    t.addEventListener('unmute', () => { if (micOn) setMicState('Mikrofon läuft.', 'var(--good)'); });
+  });
+}
+
+function teardownGraph() {
+  try { if (srcNode) srcNode.disconnect(); } catch (e) {}
+  try { if (analyser) analyser.disconnect(); } catch (e) {}
+  try { if (sinkNode) sinkNode.disconnect(); } catch (e) {}
+  srcNode = null; analyser = null; sinkNode = null; buf = null;
+}
+
 async function startMic() {
-  ensureCtx();
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     showMicHint('nogum');
     return;
   }
+  setMicState('Mikrofon wird angefragt …');
+  setAudioSession('play-and-record');
   try {
-    micStream = await navigator.mediaDevices.getUserMedia({
-      /* Diese drei Filter verbiegen die Tonhöhe — für ein Stimmgerät sind sie Gift */
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-    });
+    micStream = await requestStream();
   } catch (e) {
-    showMicHint(e && e.name === 'NotAllowedError' ? 'denied' : 'error', e);
+    micStream = null;
+    showMicHint(e && (e.name === 'NotAllowedError' || e.name === 'SecurityError') ? 'denied' : 'error', e);
     return;
   }
-  const src = ctx.createMediaStreamSource(micStream);
-  analyser = ctx.createAnalyser();
-  analyser.fftSize = 2048;
-  buf = new Float32Array(analyser.fftSize);
-  src.connect(analyser);
+  /* Erst jetzt den Kontext bauen bzw. wecken: Auf iOS wechselt das System beim
+     Öffnen des Mikrofons die Abtastrate, und ein vorher gestarteter Kontext
+     liefert danach eine Tonspur aus lauter Nullen. */
+  ensureCtx();
+  try { await ctx.resume(); } catch (e) { /* egal */ }
+  buildGraph();
+
   micOn = true;
   soundOn = true;
+  deadSince = 0;
   $('soundBtn').classList.add('on');
   $('micBtn').textContent = 'Mikrofon aus';
   $('micBtn').classList.add('rec');
+  $('levelRow').hidden = false;
+  $('sensRow').hidden = false;
   setMicState('Mikrofon läuft.', 'var(--good)');
   $('micHint').innerHTML = '';
-  loop();
+  drawGate();
+}
+
+/* Letzte Rettung, wenn der Eingang trotz laufender Aufnahme nur Nullen liefert:
+   den kompletten Audio-Kontext wegwerfen und alles neu aufbauen. */
+async function restartMic() {
+  restartTried = true;
+  setMicState('Eingang blieb stumm — Neustart …', 'var(--warn)');
+  if (micStream) micStream.getTracks().forEach(t => t.stop());
+  micStream = null;
+  teardownGraph();
+  if (ctx) { try { await ctx.close(); } catch (e) {} ctx = null; }
+  micOn = false;
+  await startMic();
+  if (micOn) deadSince = 0;
 }
 
 function stopMic() {
   if (micStream) micStream.getTracks().forEach(t => t.stop());
-  micStream = null; analyser = null; micOn = false;
+  micStream = null;
+  teardownGraph();
+  micOn = false;
+  setAudioSession('playback');
   $('micBtn').textContent = 'Mikrofon einschalten';
   $('micBtn').classList.remove('rec');
+  $('levelRow').hidden = true;
+  $('sensRow').hidden = true;
   setMicState('Mikrofon aus.');
   updateReadout(null);
 }
@@ -485,18 +638,49 @@ function showMicHint(kind, err) {
   const secure = window.isSecureContext;
   let html = '';
   if (kind === 'denied') {
-    html = '<div class="warn"><strong>Der Zugriff wurde abgelehnt.</strong> In der Adressleiste lässt sich die Mikrofon-Berechtigung für diese Seite wieder erlauben. ' +
-      'Ohne Mikrofon funktionieren Zielton, Klaviatur und das Vorspielen der Vokalisen trotzdem — es fehlt nur die Rückmeldung zum eigenen Ton.</div>';
+    html = '<div class="warn"><strong>Der Zugriff wurde abgelehnt.</strong> ' +
+      (IS_IOS
+        ? 'Auf dem iPhone steht die Erlaubnis links in der Adressleiste hinter dem Symbol „aA" unter <em>Einstellungen für diese Website</em> → <em>Mikrofon</em> → <em>Erlauben</em>. Danach die Seite neu laden. Wurde die Seite zum Home-Bildschirm hinzugefügt, fragt sie beim ersten Start erneut.'
+        : 'In der Adressleiste lässt sich die Mikrofon-Berechtigung für diese Seite wieder erlauben.') +
+      ' Ohne Mikrofon funktionieren Zielton, Klaviatur und das Vorspielen der Vokalisen trotzdem — es fehlt nur die Rückmeldung zum eigenen Ton.</div>';
   } else if (!secure) {
     html = '<div class="warn"><strong>Kein sicherer Kontext.</strong> Browser geben das Mikrofon nur über <code>https://</code> oder <code>localhost</code> frei — beim Öffnen der Datei per Doppelklick (<code>file://</code>) also nicht. ' +
       'Zum lokalen Testen im Ordner der Datei <code>python3 -m http.server</code> starten und die Seite über <code>http://localhost:8000/einsingen.html</code> aufrufen.</div>';
+  } else if (kind === 'nogum') {
+    html = '<div class="warn"><strong>Dieser Browser gibt kein Mikrofon frei.</strong> ' +
+      'Auf dem iPhone können das andere Browser als Safari sein — dort läuft zwar Safaris Technik darunter, der Mikrofonzugriff ist aber teils gesperrt. Mit Safari öffnen.</div>';
   } else {
     html = '<div class="warn"><strong>Das Mikrofon ließ sich nicht öffnen.</strong> ' +
       (err && err.message ? '<span class="mono">' + err.message + '</span>. ' : '') +
+      'Häufigster Grund auf dem Telefon: Eine andere App belegt das Mikrofon gerade — Sprachmemos, ein laufender Anruf oder eine Videokonferenz. ' +
       'Alles außer der Tonhöhenerkennung funktioniert weiterhin.</div>';
   }
   $('micHint').innerHTML = html;
   setMicState('Kein Mikrofon.', 'var(--warn)');
+}
+
+/* --- Eingangspegel und Empfindlichkeit ---------------------------------- */
+
+/* Schwelle logarithmisch: ganz rechts sehr empfindlich, ganz links nur laute Töne */
+function gateLevel() {
+  const v = parseInt($('sens').value, 10);
+  return 0.0015 * Math.pow(20, (100 - v) / 100);
+}
+const dbOf = x => 20 * Math.log10(Math.max(x, 1e-7));
+const dbToPct = db => Math.max(0, Math.min(100, (db + 60) / 60 * 100));
+
+function drawGate() {
+  $('levelGate').style.left = dbToPct(dbOf(gateLevel())) + '%';
+}
+
+let lastRms = 0;
+function updateLevel() {
+  if ($('levelRow').hidden) return;
+  const pct = dbToPct(dbOf(lastRms));
+  const fill = $('levelFill');
+  fill.style.width = pct + '%';
+  fill.classList.toggle('over', lastRms >= gateLevel());
+  $('levelTxt').textContent = lastRms < 1e-5 ? 'still' : Math.round(dbOf(lastRms)) + ' dB';
 }
 
 /* --- Töne ausgeben ------------------------------------------------------ */
@@ -507,6 +691,7 @@ const volume = () => parseInt($('vol').value, 10) / 100 * 0.35;
 /* Ein Ton mit weichen Flanken — harte Kanten knacken hörbar */
 function playTone(freq, dur, when) {
   if (!soundOn) return;
+  syncAudioSession();
   ensureCtx();
   const t0 = when != null ? when : ctx.currentTime;
   const osc = ctx.createOscillator();
@@ -526,6 +711,7 @@ function playTone(freq, dur, when) {
 function holdTone(freq) {
   stopHold();
   if (!soundOn) return;
+  syncAudioSession();
   ensureCtx();
   const osc = ctx.createOscillator(), g = ctx.createGain();
   osc.type = 'triangle';
@@ -552,52 +738,105 @@ function stopHold() {
    Tonhöhenerkennung — normalisierte Autokorrelation
    ========================================================================== */
 
-function detectPitch(b, sr) {
-  const N = b.length;
-  let rms = 0;
-  for (let i = 0; i < N; i++) rms += b[i] * b[i];
-  rms = Math.sqrt(rms / N);
-  if (rms < 0.012) return null;                       /* zu leise — Atem, Raumgeräusch */
+const F_MIN = 65, F_MAX = 1200;
 
-  const minLag = Math.max(2, Math.floor(sr / 1100));
-  const maxLag = Math.min(N - 2, Math.floor(sr / 70));
-  const nsdf = new Float32Array(maxLag + 2);
-  for (let lag = minLag; lag <= maxLag; lag++) {
-    let acf = 0, m = 0;
-    for (let i = 0; i + lag < N; i++) {
-      acf += b[i] * b[i + lag];
-      m += b[i] * b[i] + b[i + lag] * b[i + lag];
-    }
-    nsdf[lag] = m > 0 ? (2 * acf) / m : 0;
+/* Das Fenster muss mindestens rund 85 ms lang sein, sonst passt bei tiefen
+   Stimmen keine ganze Schwingung hinein. Auf dem iPhone läuft die Audio-Hardware
+   meist mit 48 000 Werten pro Sekunde — dort reichen 2048 Werte dafür nicht. */
+function pickFftSize(sr) {
+  let n = 2048;
+  while (n < 32768 && n / sr < 0.085) n *= 2;
+  return n;
+}
+
+/* Normalisierte Autokorrelation für eine einzelne Verschiebung */
+function nsdfAt(b, N, lag) {
+  let acf = 0, m = 0;
+  const lim = N - lag;
+  for (let i = 0; i < lim; i++) {
+    const x = b[i], y = b[i + lag];
+    acf += x * y;
+    m += x * x + y * y;
   }
+  return m > 0 ? (2 * acf) / m : 0;
+}
+
+let decBuf = null, coarse = null;
+let lastPeak = 0;
+
+function detectPitch(b, sr, gate) {
+  const N = b.length;
+  let sum = 0, peak = 0;
+  for (let i = 0; i < N; i++) {
+    const v = b[i];
+    sum += v * v;
+    const a = v < 0 ? -v : v;
+    if (a > peak) peak = a;
+  }
+  lastRms = Math.sqrt(sum / N);
+  lastPeak = peak;
+  if (lastRms < gate) return null;                    /* zu leise — Atem, Raumgeräusch */
+
+  /* Erst grob suchen: Das Signal wird auf rund 12 000 Werte pro Sekunde
+     eingedampft. Das kostet ein Zehntel der Rechenzeit — entscheidend auf dem
+     Telefon, wo die volle Suche 60-mal pro Sekunde den Bildschirm ausbremst.
+     Danach wird nur noch die gefundene Stelle in voller Auflösung nachgemessen. */
+  const D = Math.max(1, Math.round(sr / 12000));
+  const N2 = Math.floor(N / D), sr2 = sr / D;
+  if (!decBuf || decBuf.length !== N2) decBuf = new Float32Array(N2);
+  for (let i = 0; i < N2; i++) {
+    let s = 0;
+    const o = i * D;
+    for (let k = 0; k < D; k++) s += b[o + k];
+    decBuf[i] = s / D;
+  }
+
+  const minLag2 = Math.max(2, Math.floor(sr2 / F_MAX));
+  const maxLag2 = Math.min(N2 - 3, Math.ceil(sr2 / F_MIN));
+  if (maxLag2 <= minLag2 + 2) return null;
+  if (!coarse || coarse.length < maxLag2 + 2) coarse = new Float32Array(maxLag2 + 2);
+  for (let lag = minLag2; lag <= maxLag2 + 1; lag++) coarse[lag] = nsdfAt(decBuf, N2, lag);
 
   /* Lokale Maxima sammeln und den ERSTEN hinreichend guten nehmen.
      Der höchste wäre oft die halbe Frequenz — daher kommen Oktavfehler. */
   let maxV = 0;
   const peaks = [];
-  for (let lag = minLag + 1; lag < maxLag; lag++) {
-    if (nsdf[lag] > nsdf[lag - 1] && nsdf[lag] >= nsdf[lag + 1]) {
+  for (let lag = minLag2 + 1; lag <= maxLag2; lag++) {
+    if (coarse[lag] > coarse[lag - 1] && coarse[lag] >= coarse[lag + 1]) {
       peaks.push(lag);
-      if (nsdf[lag] > maxV) maxV = nsdf[lag];
+      if (coarse[lag] > maxV) maxV = coarse[lag];
     }
   }
-  if (!peaks.length || maxV < 0.5) return null;
+  if (!peaks.length || maxV < 0.45) return null;
   const thresh = 0.9 * maxV;
-  let best = -1;
-  for (const lag of peaks) if (nsdf[lag] >= thresh) { best = lag; break; }
-  if (best < 0) return null;
+  let best2 = -1;
+  for (const lag of peaks) if (coarse[lag] >= thresh) { best2 = lag; break; }
+  if (best2 < 0) return null;
 
-  /* Parabel durch die drei Punkte um den Peak — sonst wäre die Auflösung grob */
-  const y1 = nsdf[best - 1], y2 = nsdf[best], y3 = nsdf[best + 1];
+  /* Feinsuche in voller Auflösung rund um die grob gefundene Verschiebung */
+  const lo = Math.max(2, (best2 - 1) * D - 1);
+  const hi = Math.min(N - 3, (best2 + 1) * D + 1);
+  let best = lo, bv = -2;
+  for (let lag = lo; lag <= hi; lag++) {
+    const v = nsdfAt(b, N, lag);
+    if (v > bv) { bv = v; best = lag; }
+  }
+  if (best <= lo || best >= hi) {
+    /* Am Rand des Suchfensters ist die Parabel unbrauchbar */
+    if (bv < 0.75) return null;
+  }
+
+  /* Parabel durch die drei Punkte um den Gipfel — sonst wäre die Auflösung grob */
+  const y1 = nsdfAt(b, N, best - 1), y2 = bv, y3 = nsdfAt(b, N, best + 1);
   const den = y1 - 2 * y2 + y3;
   const delta = den !== 0 ? 0.5 * (y1 - y3) / den : 0;
   const lag = best + Math.max(-1, Math.min(1, delta));
   const clarity = y2;
-  if (clarity < 0.8) return null;
+  if (clarity < 0.75) return null;
 
   const freq = sr / lag;
-  if (!isFinite(freq) || freq < 65 || freq > 1200) return null;
-  return { freq, clarity, rms };
+  if (!isFinite(freq) || freq < F_MIN || freq > F_MAX) return null;
+  return { freq, clarity, rms: lastRms };
 }
 
 /* ==========================================================================
@@ -606,15 +845,17 @@ function detectPitch(b, sr) {
 
 const hist = [];      /* { t, midiFloat } der letzten 10 s */
 let rafId = null;
+let deadSince = 0, restartTried = false, frameNo = 0;
 
 function loop() {
   rafId = requestAnimationFrame(loop);
+  frameNo++;
   if (!micOn || !analyser) return;
   analyser.getFloatTimeDomainData(buf);
 
   let res = null;
   if (!muteDetection) {
-    const p = detectPitch(buf, ctx.sampleRate);
+    const p = detectPitch(buf, ctx.sampleRate, gateLevel());
     if (p) {
       const mf = freqToMidiFloat(p.freq);
       const nearest = Math.round(mf);
@@ -622,6 +863,25 @@ function loop() {
     }
   }
   const now = performance.now() / 1000;
+
+  /* Wachhund: Liefert der Eingang trotz laufender Aufnahme nur Nullen, ist auf
+     iOS meist der Audio-Kontext eingeschlafen. Einmal komplett neu aufbauen. */
+  if (!muteDetection) {
+    if (lastPeak < 1e-5) {
+      if (!deadSince) deadSince = now;
+      else if (now - deadSince > 2.5 && !restartTried) { deadSince = 0; restartMic(); }
+      else if (now - deadSince > 6 && restartTried && !$('micHint').innerHTML) {
+        $('micHint').innerHTML = '<div class="warn"><strong>Es kommt kein Signal an.</strong> ' +
+          'Das Mikrofon ist erlaubt, liefert aber Stille. Das passiert, wenn eine andere App es noch belegt ' +
+          '(Sprachmemos, Telefonat, Videokonferenz) oder ein Bluetooth-Kopfhörer als Eingang gewählt ist. ' +
+          'Andere Apps schließen, gegebenenfalls Bluetooth trennen, danach „Mikrofon aus" und wieder „Mikrofon einschalten".</div>';
+      }
+    } else if (deadSince) {
+      deadSince = 0;
+    }
+    if (frameNo % 3 === 0) updateLevel();
+  }
+
   if (res) hist.push({ t: now, m: res.midiFloat });
   while (hist.length && now - hist[0].t > 10) hist.shift();
 
@@ -1134,7 +1394,16 @@ tabsEl.addEventListener('click', e => {
   if (b) showPanel(b.dataset.t);
 });
 
-$('micBtn').addEventListener('click', () => { micOn ? stopMic() : startMic(); });
+let micBusy = false;
+$('micBtn').addEventListener('click', async () => {
+  if (micBusy) return;
+  micBusy = true;
+  $('micBtn').disabled = true;
+  /* Ein Klick des Menschen ist immer ein frischer Versuch — auch für den Wachhund */
+  try { if (micOn) stopMic(); else { restartTried = false; await startMic(); } }
+  finally { micBusy = false; $('micBtn').disabled = false; }
+});
+$('sens').addEventListener('input', drawGate);
 $('soundBtn').addEventListener('click', () => {
   ensureCtx();
   soundOn = !soundOn;
@@ -1147,11 +1416,16 @@ fillPatterns();
 rebuildNames();
 renderExTable();
 updateReadout(null);
+drawGate();
 if (!window.isSecureContext) {
   $('micHint').innerHTML = '<div class="warn"><strong>Diese Seite läuft nicht in einem sicheren Kontext.</strong> ' +
     'Browser geben das Mikrofon nur über <code>https://</code> oder <code>localhost</code> frei — beim Öffnen per Doppelklick (<code>file://</code>) also nicht. ' +
     'Zum lokalen Testen im Ordner der Datei <code>python3 -m http.server</code> starten und <code>http://localhost:8000/einsingen.html</code> aufrufen. ' +
     'Töne, Klaviatur und das Vorspielen der Vokalisen funktionieren auch hier.</div>';
+} else if (IS_IOS) {
+  $('micHint').innerHTML = '<div class="note"><strong>Auf dem iPhone:</strong> Safari fragt beim Antippen von „Mikrofon einschalten" einmal nach der Erlaubnis — die Frage kann kurz dauern. ' +
+    'Danach zeigt der Balken „Eingang" sofort, ob wirklich Signal ankommt. Bewegt er sich beim Singen nicht, liegt es am Mikrofon und nicht am Ton; ' +
+    'die häufigsten Gründe stehen im Tab <em>Erklärung</em> unten.</div>';
 }
 showPanel('p-tuner');
 /* Auch ohne Mikrofon läuft die Schleife — sie zeichnet dann nur nichts ein */
