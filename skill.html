@@ -388,7 +388,7 @@
       <div class="flow-step">
         <div class="step-n">⚙️</div>
         <strong>Execute</strong>
-        Claude folgt den Instruktionen
+        Der Agent folgt den Instruktionen
       </div>
       <div class="flow-arrow">→</div>
       <div class="flow-step">
@@ -409,20 +409,20 @@
       </div>
       <div class="card">
         <h3>🎯 Triggering</h3>
-        <p>Claude sieht nur <em>name + description</em>. Die Description ist das primäre Triggering-Mechanismus — sie muss präzise sein.</p>
+        <p>Der Agent sieht zu Beginn nur <em>name + description</em>. Die Description ist der primäre Triggering-Mechanismus — sie muss präzise sein.</p>
         <span class="pill pill-green">Spezifisch</span>
         <span class="pill pill-green">Aktiv-formuliert</span>
       </div>
       <div class="card">
         <h3>📐 Progressive Disclosure</h3>
         <p>3 Ladeschichten: Metadata → SKILL.md Body → Bundled Resources. Nur was gebraucht wird, kommt in den Kontext.</p>
-        <span class="pill pill-yellow">~100 Wörter</span>
-        <span class="pill pill-yellow">&lt;500 Zeilen</span>
+        <span class="pill pill-yellow">~100 Tokens</span>
+        <span class="pill pill-yellow">&lt;500 Zeilen · &lt;5000 Tokens</span>
       </div>
     </div>
 
     <div class="spacer-24"></div>
-    <div class="tip-box">💡 <strong>Kernprinzip:</strong> Ein Skill löst ein Problem, das Claude alleine nicht zuverlässig lösen kann. Einfache 1-Schritt-Aufgaben brauchen keinen Skill — nur komplexe, mehrstufige oder spezialisierte Workflows profitieren davon.</div>
+    <div class="tip-box">💡 <strong>Kernprinzip:</strong> Ein Skill löst ein Problem, das der Agent alleine nicht zuverlässig lösen kann. Einfache 1-Schritt-Aufgaben brauchen keinen Skill — nur komplexe, mehrstufige oder spezialisierte Workflows profitieren davon.</div>
   </div>
 
   <!-- ANATOMY -->
@@ -442,7 +442,7 @@
       <div class="layer" onclick="toggleLayer(1)">
         <div class="layer-num" style="background:#14432a;color:var(--green)">2</div>
         <div>
-          <strong>SKILL.md Body</strong> <span class="tag">&lt;500 Zeilen ideal</span>
+          <strong>SKILL.md Body</strong> <span class="tag">&lt;500 Zeilen · &lt;5000 Tokens ideal</span>
           <div style="font-size:12px;color:var(--muted)">Instruktionen, Workflow, Entscheidungsregeln, Beispiele</div>
         </div>
         <span style="margin-left:auto;color:var(--muted)">▾</span>
@@ -477,7 +477,7 @@
   <!-- COMPLEXITY LEVELS -->
   <div id="levels" class="section">
     <h2>Komplexitätsstufen</h2>
-    <p>Wähle eine Stufe, um ein annotiertes Beispiel zu sehen.</p>
+    <p>Wähle eine Stufe, um ein annotiertes Beispiel zu sehen. Hinweis: Diese Stufen sind eine Lernhilfe — die Spec definiert sie nicht.</p>
 
     <div class="complexity-tabs">
       <button class="ctab active" onclick="showLevel('simple')">🟢 Simple</button>
@@ -521,10 +521,10 @@
 - Immer Deutsch, auch wenn PDF englisch</pre>
         <div class="annotations">
           <div class="ann"><strong>name</strong> Kurz, lowercase, mit Bindestrich. Eindeutiger Identifier.</div>
-          <div class="ann"><strong>description</strong> Enthält explizite Trigger-Phrasen ("fasse zusammen", "tldr"). Claude matcht darauf.</div>
+          <div class="ann"><strong>description</strong> Enthält explizite Trigger-Phrasen ("fasse zusammen", "tldr"). Der Agent matcht darauf.</div>
           <div class="ann"><strong>Vorgehen</strong> Nummerierte Schritte = deterministischer Ablauf.</div>
           <div class="ann"><strong>Output-Format</strong> Explizites Schema verhindert kreative Ausreißer.</div>
-          <div class="ann"><strong>Constraints</strong> Grenzen helfen Claude, Scope zu halten.</div>
+          <div class="ann"><strong>Constraints</strong> Grenzen helfen dem Agenten, Scope zu halten.</div>
         </div>
       </div>
     </div>
@@ -550,9 +550,9 @@
 
 <span class="hl-head"># DOCX Report Creator</span>
 
-<span class="hl-head">## Lies zuerst</span>
-Lese <span class="hl-str">`/mnt/skills/public/docx/SKILL.md`</span>
-bevor du Code schreibst.
+<span class="hl-head">## Lies bei Bedarf</span>
+Lese <span class="hl-str">`references/docx-format.md`</span>
+erst wenn Tabellen-Formatierung gefragt ist.
 
 <span class="hl-head">## Entscheidungslogik</span>
 
@@ -565,8 +565,8 @@ bevor du Code schreibst.
 1. Input analysieren (Typ, Umfang)
 2. Gliederung vorschlagen → User bestätigt
 3. Script ausführen: <span class="hl-str">`scripts/generate.py`</span>
-4. File nach <span class="hl-str">`/mnt/user-data/outputs/`</span>
-5. <span class="hl-str">`present_files`</span> aufrufen
+4. Output-Dateien ins Arbeitsverzeichnis schreiben
+5. Ergebnis dem User präsentieren
 
 <span class="hl-head">## Fehlerbehandlung</span>
 - Fehlende Daten → nachfragen, nicht raten
@@ -574,7 +574,7 @@ bevor du Code schreibst.
 - Unklarer Scope → immer zuerst klären</pre>
         <div class="annotations">
           <div class="ann"><strong>description</strong> "Auch wenn..." — aktive Formulierung erhöht Trigger-Rate. Mehrere Phrasen-Varianten.</div>
-          <div class="ann"><strong>Lies zuerst</strong> Verweist auf weiteres Skill-File. Spart Platz in der SKILL.md.</div>
+          <div class="ann"><strong>Lies bei Bedarf</strong> Verweist auf ein Reference-File mit relativem Pfad (eine Ebene tief). Spart Platz in der SKILL.md.</div>
           <div class="ann"><strong>Entscheidungslogik</strong> Wenn-Dann-Regeln machen den Skill robuster als eine Einheitslösung.</div>
           <div class="ann"><strong>Workflow</strong> Schritt 2 enthält User-Checkpoint — verhindert falsche Annahmen.</div>
           <div class="ann"><strong>Fehlerbehandlung</strong> Explizite Fallbacks = kein stilles Scheitern.</div>
@@ -587,7 +587,7 @@ bevor du Code schreibst.
         <h3 style="color:var(--red)">🔴 Complex Skill</h3>
         <p>Multi-Domain, mehrere Scripts, eigene Reference-Files, sub-skill Verweise, iterativer Loop, 300–500 Zeilen SKILL.md.</p>
         <span class="pill pill-red">Multi-Domain</span>
-        <span class="pill pill-red">Sub-Agents</span>
+        <span class="pill pill-red">Opt. Sub-Agents</span>
         <span class="pill pill-red">Iterativer Loop</span>
         <span class="pill pill-red">Reference-Files</span>
       </div>
@@ -610,9 +610,9 @@ Entscheide anhand des User-Inputs, welcher:
 
 | Input | Workflow |
 |-------|---------|
-| Rohdaten + "Ausreißer" | anomaly.md |
-| Marktdaten + "Benchmark" | benchmark.md |
-| Ergebnisse vorhanden | report.md |
+| Rohdaten + "Ausreißer" | references/anomaly.md |
+| Marktdaten + "Benchmark" | references/benchmark.md |
+| Ergebnisse vorhanden | references/report.md |
 
 <span class="hl-head">## Reference Files (bei Bedarf laden)</span>
 - <span class="hl-str">`references/anomaly.md`</span> — Isolation Forest, Z-Score
@@ -636,10 +636,10 @@ Entscheide anhand des User-Inputs, welcher:
 - Fehlende Felder &gt;20% → User warnen
 - Immer Konfidenz-Intervalle angeben</pre>
         <div class="annotations">
-          <div class="ann"><strong>Routing-Tabelle</strong> Klar definierter Entscheidungsbaum — Claude weiß immer, welchen Pfad es nimmt.</div>
+          <div class="ann"><strong>Routing-Tabelle</strong> Klar definierter Entscheidungsbaum — der Agent weiß immer, welchen Pfad er nimmt.</div>
           <div class="ann"><strong>Reference Files</strong> Werden NUR geladen wenn nötig. Spart Kontext-Budget.</div>
-          <div class="ann"><strong>Scripts</strong> Deterministischer Code für repetitive Berechnungen — nicht Claude überlassen.</div>
-          <div class="ann"><strong>Iterativer Loop</strong> Explizite User-Checkpoints verhindern, dass Claude zu weit läuft.</div>
+          <div class="ann"><strong>Scripts</strong> Deterministischer Code für repetitive Berechnungen — nicht dem Agenten überlassen.</div>
+          <div class="ann"><strong>Iterativer Loop</strong> Explizite User-Checkpoints verhindern, dass der Agent zu weit läuft.</div>
           <div class="ann"><strong>Qualitäts-Gates</strong> Verhindert falsche Ergebnisse bei schlechten Daten. Statistik-Ethik.</div>
         </div>
       </div>
@@ -670,7 +670,7 @@ description: |
 
       <div class="card">
         <h3>📋 User-Checkpoints einbauen</h3>
-        <p>Bei mehrstufigen Workflows immer Bestätigungs-Punkte einbauen, bevor Claude irreversible Schritte ausführt.</p>
+        <p>Bei mehrstufigen Workflows immer Bestätigungs-Punkte einbauen, bevor der Agent irreversible Schritte ausführt.</p>
         <pre style="font-size:11px"><span class="hl-head">## Workflow</span>
 1. Analysiere Input
 2. <span class="hl-warn">Schlage Gliederung vor → warte auf OK</span>
@@ -682,7 +682,7 @@ description: |
 
       <div class="card">
         <h3>🗂 Progressive Disclosure</h3>
-        <p>Nur das in die SKILL.md schreiben, was Claude immer braucht. Alles andere auslagern.</p>
+        <p>Nur das in die SKILL.md schreiben, was der Agent immer braucht. Alles andere auslagern — und dazuschreiben, <em>wann</em> jede Datei zu laden ist.</p>
         <pre style="font-size:11px"><span class="hl-comment"># In SKILL.md:</span>
 <span class="hl-head">## API-Referenz</span>
 Für Details zur REST-API:
@@ -710,14 +710,14 @@ Für Details zur REST-API:
 
 | Wenn User sagt | Dann nutze |
 |----------------|------------|
-| "Ausreißer"    | detect.md  |
-| "Benchmark"    | bench.md   |
-| "Report"       | report.md  |</pre>
+| "Ausreißer"    | references/detect.md  |
+| "Benchmark"    | references/bench.md   |
+| "Report"       | references/report.md  |</pre>
       </div>
 
       <div class="card">
         <h3>🧪 Testbarkeit einplanen</h3>
-        <p>Formuliere den Skill so, dass er mit konkreten Test-Prompts überprüfbar ist. Vage Skills sind schwer zu evaluieren.</p>
+        <p>Formuliere den Skill so, dass er mit konkreten Test-Prompts überprüfbar ist. Vage Skills sind schwer zu evaluieren. Teste jeden Prompt mit und ohne Skill (Baseline).</p>
         <pre style="font-size:11px"><span class="hl-head">## Erwarteter Output</span>
 Input: <span class="hl-str">salary_data.csv</span> mit 50 Zeilen
 Output:
@@ -738,19 +738,21 @@ Output:
     <div class="spacer-16"></div>
     <h3>📝 Spezifikation</h3>
     <div class="checklist" id="cl1">
-      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Name ist kurz, lowercase, mit Bindestrich (z.B. <code>pdf-summary</code>)</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Name: 1–64 Zeichen, lowercase a-z 0-9 -, kein führendes/folgendes -, kein --, = Ordnername (z.B. <code>pdf-summary</code>)</span></div>
       <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Description enthält konkrete Trigger-Phrasen, die User tatsächlich verwenden</span></div>
-      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Description ist aktiv formuliert ("Nutzen wenn...", nicht nur "Hilft bei...")</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Description ist aktiv formuliert ("Nutzen wenn...", nicht nur "Hilft bei..."), max. 1024 Zeichen</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Optionale Felder nur bei Bedarf: license, compatibility (max. 500), metadata-Map, allowed-tools (experimentell)</span></div>
       <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Scope ist klar abgegrenzt — was der Skill NICHT tut, ist implizit oder explizit klar</span></div>
     </div>
 
     <div class="spacer-16"></div>
     <h3>⚙️ Struktur & Inhalt</h3>
     <div class="checklist" id="cl2">
-      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>SKILL.md Body unter 500 Zeilen (oder: klar auf Sub-Files verweisend)</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>SKILL.md Body unter 500 Zeilen und 5000 Tokens (oder: klar auf Sub-Files verweisend)</span></div>
       <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Workflow ist nummeriert und linear (kein Sprungwirrwarr)</span></div>
       <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Output-Format ist explizit spezifiziert</span></div>
       <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Bundled Resources (Scripts, Refs) sind nur bei Bedarf geladen, nicht standardmäßig</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Skill validiert mit <code>skills-ref validate ./my-skill</code></span></div>
     </div>
 
     <div class="spacer-16"></div>
@@ -764,14 +766,14 @@ Output:
     <div class="spacer-16"></div>
     <h3>🧪 Testbarkeit</h3>
     <div class="checklist" id="cl4">
-      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Mindestens 2 konkrete Test-Prompts existieren oder sind geplant</span></div>
+      <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Mindestens 2 konkrete Test-Prompts existieren oder sind geplant (mit vs. ohne Skill als Baseline)</span></div>
       <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Erwarteter Output ist klar definiert (sodass "richtig/falsch" prüfbar ist)</span></div>
       <div class="check-item" onclick="toggle(this)"><span class="ico"></span><span>Skill wurde mindestens einmal manuell mit einem Test-Prompt verifiziert</span></div>
     </div>
 
     <div class="spacer-16"></div>
     <div id="checklist-progress" style="background:var(--surface2);border-radius:8px;padding:14px 18px;display:flex;align-items:center;gap:16px">
-      <span id="progress-text" style="font-size:13px;color:var(--muted)">0 / 13 abgehakt</span>
+      <span id="progress-text" style="font-size:13px;color:var(--muted)">0 / 15 abgehakt</span>
       <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
         <div id="progress-bar" style="height:100%;width:0%;background:var(--accent);border-radius:3px;transition:width .3s"></div>
       </div>
@@ -818,6 +820,7 @@ Output:
             <button class="btn" onclick="copyTemplate()">📋 Kopieren</button>
             <button class="btn btn-outline" onclick="resetBuilder()">↺ Reset</button>
           </div>
+          <div class="warn-box" style="margin-top:4px;font-size:11px">⚠️ Limits: name 1–64 Zeichen (= Ordnername), description max. 1024 Zeichen. Danach <code>skills-ref validate</code> ausführen.</div>
         </div>
       </div>
 
@@ -847,20 +850,25 @@ Output:
     {
       title: "Layer 1: YAML Frontmatter",
       color: "var(--accent)",
-      content: `<strong style="color:var(--accent)">Immer im Kontext</strong> · ~100 Wörter · Das Einzige was Claude sieht bevor es den Skill öffnet.
+      content: `<strong style="color:var(--accent)">Immer im Kontext</strong> · ~100 Tokens · Das Einzige was der Agent sieht bevor er den Skill öffnet.
 <br><br>
 <strong>Pflichtfelder:</strong><br>
-• <code>name</code> — Kurz, lowercase, Bindestrich<br>
-• <code>description</code> — Was der Skill tut UND wann er triggern soll<br><br>
+• <code>name</code> — 1–64 Zeichen, lowercase a-z 0-9 -, kein führendes/folgendes -, kein --, = Ordnername<br>
+• <code>description</code> — 1–1024 Zeichen, was der Skill tut UND wann er triggern soll<br><br>
+<strong>Optionale Felder:</strong><br>
+• <code>license</code> — Lizenzname oder bundled License-File<br>
+• <code>compatibility</code> — max. 500 Zeichen, nur bei Env-Bedarf (Produkt, Pakete, Netzwerk)<br>
+• <code>metadata</code> — freie String-Key-Value-Map<br>
+• <code>allowed-tools</code> — experimentell, Space-separierte Tool-Liste<br><br>
 <strong>Best Practices für die Description:</strong><br>
+• Konkret + imperativ ("Use this skill when..."), User-Intent statt Implementierung<br>
 • Konkrete Trigger-Phrasen einbauen ("wenn User sagt...")<br>
-• Aktiv formulieren ("Nutzen wenn...", nicht "Kann helfen...")<br>
-• Leicht "pushy" sein — Claude unter-triggert tendenziell`
+• Leicht "pushy" sein — Agenten unter-triggern tendenziell`
     },
     {
       title: "Layer 2: SKILL.md Body",
       color: "var(--green)",
-      content: `<strong style="color:var(--green)">In Kontext wenn Skill triggered</strong> · Idealerweise &lt;500 Zeilen<br><br>
+      content: `<strong style="color:var(--green)">In Kontext wenn Skill triggered</strong> · Idealerweise &lt;500 Zeilen und &lt;5000 Tokens<br><br>
 <strong>Typische Abschnitte:</strong><br>
 • Überblick / Was dieser Skill tut<br>
 • Entscheidungslogik / Routing<br>
@@ -874,8 +882,8 @@ Output:
       title: "Layer 3: Bundled Resources",
       color: "var(--yellow)",
       content: `<strong style="color:var(--yellow)">Nur bei Bedarf geladen</strong> · Unbegrenzte Größe<br><br>
-<strong>scripts/</strong> — Python/R/Bash Scripts für deterministische, repetitive Aufgaben<br>
-<strong>references/</strong> — Tiefe Dokumentation, API-Specs, Domain-Wissen<br>
+<strong>scripts/</strong> — Python/Bash/JavaScript für deterministische, repetitive Aufgaben. Nicht-interaktiv, mit --help, strukturierter Output nach stdout / Diagnose nach stderr, Deps inline + gepinnt, Env-Bedarf → <code>compatibility</code>-Feld<br>
+<strong>references/</strong> — Tiefe Dokumentation, API-Specs, Domain-Wissen. Klein halten, mit Ladebedingung verweisen ("lies X wenn Y")<br>
 <strong>assets/</strong> — Templates, Icons, Fonts, Starter-Files<br><br>
 <strong>Wichtig:</strong> Scripts können ausgeführt werden OHNE geladen zu werden — spart Kontext. Reference Files erst laden wenn wirklich gebraucht.`
     }
