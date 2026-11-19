@@ -277,3 +277,26 @@ def test_row_with_leverage_one_shows_a_message_not_a_number(open_tool):
     expect(detail).to_contain_text("leverage h = 1")
     expect(detail).not_to_contain_text("would not meaningfully change the model")
     assert not tool.problems, "\n".join(tool.problems)
+
+
+def test_new_run_resets_the_sort_and_shows_the_most_influential_rows(open_tool):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    page.click("#demo3")
+    run(page)
+    page.select_option("#topN", "15")
+    page.click('#diagTable th[data-key="c3"]')  # the rooms column
+    expect(page.locator("#diagTable th.active")).to_have_attribute("data-key", "c3")
+    page.uncheck('#xList input[value="age"]')
+    page.uncheck('#xList input[value="rooms"]')
+    run(page)
+    assert not tool.problems, "\n".join(tool.problems)
+
+    expect(page.locator("#diagTable th.active")).to_have_attribute("data-key", "maxabs")
+    terms = ["(Intercept)", "size"]
+    X, y = design_from_csv(page.input_value("#dataIn"), terms)
+    worst_first = np.argsort(-np.abs(brute_force_dfbetas(X, y)).max(axis=1))
+    expected_labels = [str(i + 1) for i in worst_first[:15]]
+    assert "36" in expected_labels
+    shown = page.locator("#diagTable tbody td.idx").all_inner_texts()
+    assert shown == expected_labels

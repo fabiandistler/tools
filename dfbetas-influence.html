@@ -1096,6 +1096,10 @@ function clearResults() {
 function run() {
   msg("modelMsg", "", "");
   msg("fitMsg", "", "");
+  // Every run starts on the default view: an old sort key can name a coefficient
+  // the new model does not have, which sorts nothing and hides the worst rows.
+  S.sortKey = "maxabs";
+  S.sortAsc = false;
   let D;
   try { D = buildDesign(); }
   catch (err) { clearResults(); msg("modelMsg", "err", esc(err.message)); return; }
