@@ -246,7 +246,7 @@
       <select id="sep">
         <option value="auto" selected>auto-detect</option>
         <option value=",">comma ,</option>
-        <option value=";">semicolon ; (decimal comma)</option>
+        <option value=";">semicolon ;</option>
         <option value="\t">tab</option>
         <option value="|">pipe |</option>
         <option value=" ">whitespace</option>
@@ -721,14 +721,42 @@ function isMissing(raw) {
   return s === "" || /^(na|n\.a\.|nan|null|nil|none|missing|n\/a|\.|-|--|\?)$/i.test(s);
 }
 
-function toNumber(raw, decimalComma) {
-  let s = String(raw).trim().replace(/^"|"$/g, "");
-  if (isMissing(s)) return null;
-  if (decimalComma) s = s.replace(/\./g, "").replace(",", ".");
-  else if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) s = s.replace(/,/g, ""); // 1,234.56
-  s = s.replace(/\s|%| /g, "");
-  const v = Number(s);
-  return Number.isFinite(v) ? v : null;
+/**
+ * Whole-cell number formats per decimal mark; the other mark may group thousands.
+ * A group starts with 1-9, so "0.125" is never read as 125.
+ */
+const NUMBER_FORMAT = {
+  ".": /^[+-]?(?:(?:[1-9]\d{0,2}(?:,\d{3})+|\d+)(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?$/,
+  ",": /^[+-]?(?:(?:[1-9]\d{0,2}(?:\.\d{3})+|\d+)(?:,\d+)?|,\d+)(?:[eE][+-]?\d+)?$/
+};
+
+/**
+ * Reads one cell as a number with the given decimal mark ("." or ","): 1234.50,
+ * 1,234.50 and 1.234,50 all work. The whole cell must match, so "10 kg", "1.2.3"
+ * or "12%" give NaN instead of a partial number, and so does a non-finite result.
+ */
+function parseNumber(raw, decimalMark) {
+  const s = String(raw).trim().replace(/^"|"$/g, "");
+  if (!NUMBER_FORMAT[decimalMark].test(s)) return NaN;
+  const groupMark = decimalMark === "." ? "," : ".";
+  const v = Number(s.split(groupMark).join("").replace(decimalMark, "."));
+  return Number.isFinite(v) ? v : NaN;
+}
+
+/**
+ * The decimal mark the cells themselves show: "," when more cells read only with a
+ * comma (2,5 or 1.234,50) than only with a point (2.5 or 1,234.50), else ".".
+ * Cells such as 1.234, which read either way, do not count. The field separator
+ * never decides: semicolon files with decimal points exist.
+ */
+function detectDecimalMark(cells) {
+  let pointOnly = 0, commaOnly = 0;
+  for (const cell of cells) {
+    const asPoint = parseNumber(cell, "."), asComma = parseNumber(cell, ",");
+    if (Number.isNaN(asComma) && !Number.isNaN(asPoint)) pointOnly++;
+    else if (Number.isNaN(asPoint) && !Number.isNaN(asComma)) commaOnly++;
+  }
+  return commaOnly > pointOnly ? "," : ".";
 }
 
 /**
@@ -736,14 +764,15 @@ function toNumber(raw, decimalComma) {
  * kind: "num" | "cat"
  */
 function parseData(text, sepChoice, hasHeader) {
-  const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+  const lines = text.split(/\r?\n/)
+    .map((line, i) => ({ line, lineNumber: i + 1 }))
+    .filter(l => l.line.trim().length > 0);
   if (lines.length < 2) throw new Error("Need at least 2 non-empty lines.");
 
   let sep = sepChoice === "auto" ? detectSep(text)
           : sepChoice === "\\t" ? "\t" : sepChoice;
-  const decimalComma = sep === ";";
 
-  const rows = lines.map(l => splitLine(l, sep).map(c => c.trim().replace(/^"|"$/g, "")));
+  const rows = lines.map(l => splitLine(l.line, sep).map(c => c.trim().replace(/^"|"$/g, "")));
   const width = Math.max(...rows.map(r => r.length));
   const bad = rows.findIndex(r => r.length !== width);
   if (bad >= 0 && rows.filter(r => r.length !== width).length > rows.length * 0.1)
@@ -753,22 +782,31 @@ function parseData(text, sepChoice, hasHeader) {
     ? rows[0].map((h, i) => h || `V${i + 1}`)
     : rows[0].map((_, i) => `V${i + 1}`);
   const body = hasHeader ? rows.slice(1) : rows;
+  const bodyLineNumbers = lines.slice(hasHeader ? 1 : 0).map(l => l.lineNumber);
   if (!body.length) throw new Error("No data rows found.");
+  const decimalMark = detectDecimalMark(body.flat());
 
   const columns = names.map((name, j) => {
     const raw = body.map(r => (r[j] === undefined ? "" : r[j]));
-    const nums = raw.map(v => toNumber(v, decimalComma));
+    const nums = raw.map(v => (isMissing(v) ? null : parseNumber(v, decimalMark)));
     // Missing markers must not count against a column being numeric — otherwise a
-    // perfectly good numeric column with two NAs is treated as a factor.
+    // perfectly good numeric column with two NAs is treated as a factor. Most present
+    // cells must be numbers; the others are rejected and named, so one bad cell in a
+    // short column does not silently turn it into text.
     const present = raw.filter(v => !isMissing(v)).length;
-    const numeric = nums.filter(v => v !== null).length;
-    const isNum = present > 0 && numeric >= present * 0.95;
-    if (isNum) return { name, kind: "num", values: nums, raw, nMissing: raw.length - present };
+    const numeric = nums.filter(v => Number.isFinite(v)).length;
+    const isNum = present > 0 && numeric > present / 2;
+    if (isNum) {
+      // A present cell that is not a number is left out like a missing one, and named.
+      const rejectedLines = nums.flatMap((v, i) => (Number.isNaN(v) ? [bodyLineNumbers[i]] : []));
+      return { name, kind: "num", values: nums.map(v => (Number.isNaN(v) ? null : v)), raw,
+               nMissing: raw.length - present, rejectedLines };
+    }
     const levels = [...new Set(raw.filter(v => !isMissing(v)))].sort();
     return { name, kind: "cat", values: raw, raw, levels, nMissing: raw.length - present };
   });
 
-  return { columns, nRows: body.length, sep, decimalComma };
+  return { columns, nRows: body.length, sep, decimalMark };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -904,10 +942,22 @@ function readData() {
 
   const numCols = parsed.columns.filter(c => c.kind === "num");
   const sepName = { ",": "comma", ";": "semicolon", "\t": "tab", "|": "pipe", " ": "whitespace" }[parsed.sep] || parsed.sep;
+  const markName = parsed.decimalMark === "," ? "decimal comma" : "decimal point";
   msg("parseMsg", "info",
     `Read <strong>${parsed.nRows}</strong> rows × <strong>${parsed.columns.length}</strong> columns ` +
-    `(separator: ${sepName}${parsed.decimalComma ? ", decimal comma" : ""}). ` +
+    `(separator: ${sepName}, ${markName}). ` +
     `${numCols.length} numeric, ${parsed.columns.length - numCols.length} categorical/text.`);
+  const rejected = numCols.filter(c => c.rejectedLines.length);
+  if (rejected.length) {
+    // Pasted line numbers, as the reader sees them; the first ten in full.
+    const lineList = lineNumbers => lineNumbers.slice(0, 10).join(", ") +
+      (lineNumbers.length > 10 ? ` and ${lineNumbers.length - 10} more` : "");
+    $("parseMsg").insertAdjacentHTML("beforeend",
+      `<div class="msg warn">Not a number with a ${markName}, so left out like a missing value — ` +
+      rejected.map(c => `<code>${esc(c.name)}</code>: line${c.rejectedLines.length > 1 ? "s" : ""} ` +
+                         lineList(c.rejectedLines)).join("; ") +
+      `.</div>`);
+  }
 
   if (!numCols.length) {
     msg("parseMsg", "err", "No numeric column found — check the separator and the decimal mark.");
@@ -1074,7 +1124,7 @@ function run() {
   S.cut = currentCutoff(n);
 
   if (D.dropped > 0)
-    msg("modelMsg", "warn", `${D.dropped} row(s) dropped because of missing values.`);
+    msg("modelMsg", "warn", `${D.dropped} row(s) dropped because of missing or rejected values.`);
 
   renderFit();
   renderDiagnostics();

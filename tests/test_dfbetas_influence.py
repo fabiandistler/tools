@@ -48,6 +48,17 @@ def fitted_dfbetas(page: Page) -> tuple[list[str], np.ndarray]:
     return fit["names"], np.array(fit["dfbetas"])
 
 
+def fitted_coefficients(page: Page) -> dict[str, float]:
+    fit = page.evaluate("() => ({names: S.fit.names, b: Array.from(S.fit.b)})")
+    return dict(zip(fit["names"], fit["b"], strict=True))
+
+
+def ols(x: list[float], y: list[float]) -> dict[str, float]:
+    X = np.column_stack([np.ones(len(x)), x])
+    intercept, slope = np.linalg.lstsq(X, np.array(y), rcond=None)[0]
+    return {"(Intercept)": intercept, "x": slope}
+
+
 def design_from_csv(text: str, terms: list[str]) -> tuple[np.ndarray, np.ndarray]:
     """Build X and y from comma-separated demo text, independently of the tool."""
     rows = list(csv.DictReader(io.StringIO(text)))
@@ -94,3 +105,131 @@ def test_demo_dfbetas_match_brute_force_refit(open_tool, demo, terms):
     X, y = design_from_csv(page.input_value("#dataIn"), terms)
     expected = brute_force_dfbetas(X, y)
     np.testing.assert_allclose(actual, expected, rtol=0, atol=DFBETAS_TOLERANCE)
+
+
+# The audit repro: semicolon-separated, decimal points.
+X_VALUES = [1.5, 2.5, 3.5, 4.5, 5.5, 6.5]
+Y_VALUES = [2.1, 3.9, 6.2, 8.1, 9.7, 12.4]
+
+
+def as_text(sep: str, x_cells: list[str], y_cells: list[str]) -> str:
+    return "\n".join([f"x{sep}y"] + [f"{a}{sep}{b}" for a, b in zip(x_cells, y_cells)])
+
+
+def as_cells(values: list[float], decimal_mark: str) -> list[str]:
+    return [f"{v:g}".replace(".", decimal_mark) for v in values]
+
+
+@pytest.mark.parametrize(
+    ("sep", "decimal_mark"),
+    [(";", "."), (";", ","), (",", "."), ("\t", ","), ("\t", ".")],
+    ids=["semicolon-point", "semicolon-comma", "comma-point", "tab-comma", "tab-point"],
+)
+def test_decimal_mark_comes_from_the_values_not_the_separator(
+    open_tool, sep, decimal_mark
+):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    x_cells = as_cells(X_VALUES, decimal_mark)
+    y_cells = as_cells(Y_VALUES, decimal_mark)
+    read_data(page, as_text(sep, x_cells, y_cells))
+    mark_name = "decimal point" if decimal_mark == "." else "decimal comma"
+    expect(page.locator("#parseMsg")).to_contain_text(mark_name)
+    run(page)
+    assert not tool.problems, "\n".join(tool.problems)
+
+    expected = ols(X_VALUES, Y_VALUES)
+    # The audit read -10.25 here, from 1.5 taken as 15.
+    assert expected["(Intercept)"] == pytest.approx(-1.02, abs=0.005)
+    assert fitted_coefficients(page) == pytest.approx(expected, abs=1e-9)
+
+
+# Issue #11's repro, read once with each decimal mark and grouping style.
+REVENUE = [1234.50, 2345.00, 3456.75, 4567.25, 5678.00, 6789.90]
+COST = [10, 12, 15, 16, 19, 23]
+REVENUE_FORMATS = {
+    "german-grouped": (
+        ";",
+        ["1.234,50", "2.345,00", "3.456,75", "4.567,25", "5.678,00", "6.789,90"],
+    ),
+    "german-plain": (
+        ";",
+        ["1234,50", "2345,00", "3456,75", "4567,25", "5678,00", "6789,90"],
+    ),
+    "point-plain": (
+        ",",
+        ["1234.50", "2345.00", "3456.75", "4567.25", "5678.00", "6789.90"],
+    ),
+    "point-grouped": (
+        ",",
+        [
+            '"1,234.50"',
+            '"2,345.00"',
+            '"3,456.75"',
+            '"4,567.25"',
+            '"5,678.00"',
+            '"6,789.90"',
+        ],
+    ),
+    "german-grouped-quoted": (
+        ",",
+        [
+            '"1.234,50"',
+            '"2.345,00"',
+            '"3.456,75"',
+            '"4.567,25"',
+            '"5.678,00"',
+            '"6.789,90"',
+        ],
+    ),
+}
+
+
+@pytest.mark.parametrize("cells", REVENUE_FORMATS.values(), ids=REVENUE_FORMATS.keys())
+def test_thousands_grouping_and_decimal_mark_give_the_same_fit(open_tool, cells):
+    sep, revenue_cells = cells
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    read_data(page, as_text(sep, revenue_cells, [str(c) for c in COST]))
+    run(page)
+    assert not tool.problems, "\n".join(tool.problems)
+    assert fitted_coefficients(page) == pytest.approx(ols(REVENUE, COST), rel=1e-9)
+
+
+@pytest.mark.parametrize("n_rows", [24, 7], ids=["24-rows", "7-rows"])
+@pytest.mark.parametrize("bad_cell", ["10 kg", "1.2.3", "12%", "0x10", "1e999", "5."])
+def test_cell_that_is_not_wholly_a_number_is_rejected_and_named(
+    open_tool, bad_cell, n_rows
+):
+    x = [float(i) for i in range(1, n_rows + 1)]
+    y = [2.0 + 0.5 * v + (0.3 if i % 2 else -0.3) for i, v in enumerate(x)]
+    y_cells = [f"{v:g}" for v in y]
+    bad_row = 6
+    y_cells[bad_row - 1] = bad_cell
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    read_data(page, as_text(",", [f"{v:g}" for v in x], y_cells))
+    # Pasted line numbers: the header is line 1.
+    expect(page.locator("#parseMsg .msg.warn")).to_contain_text(
+        f"y: line {bad_row + 1}"
+    )
+    run(page)
+    assert not tool.problems, "\n".join(tool.problems)
+
+    expect(page.locator("#modelMsg")).to_contain_text("1 row(s) dropped")
+    kept = [i for i in range(len(x)) if i != bad_row - 1]
+    expected = ols([x[i] for i in kept], [y[i] for i in kept])
+    assert fitted_coefficients(page) == pytest.approx(expected, abs=1e-9)
+
+
+def test_leading_zero_is_not_a_thousands_group(open_tool):
+    # With a decimal comma, "0.125" is no number: a thousands group never
+    # starts with 0, so reading it as 125 would be a silent misread.
+    y_cells = as_cells(Y_VALUES, ",")
+    y_cells[2] = "0.125"
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    read_data(page, as_text(";", as_cells(X_VALUES, ","), y_cells))
+    expect(page.locator("#parseMsg")).to_contain_text("decimal comma")
+    expect(page.locator("#parseMsg .msg.warn")).to_contain_text("y: line 4")
+    assert not tool.problems, "\n".join(tool.problems)
