@@ -202,8 +202,9 @@
     margin: .6rem 0;
   }
 
-  /* No preserveAspectRatio="none": stretching the viewBox distorts the tick labels. */
-  svg.plot { width: 100%; height: auto; aspect-ratio: 1000 / 230; display: block; }
+  /* renderIndexPlot sizes the viewBox to this box in CSS px, so labels and points keep
+     their size on a phone instead of shrinking with a fixed-width drawing. */
+  svg.plot { width: 100%; height: 230px; display: block; }
   .plot-bg { fill: var(--surface2); }
 
   @media (max-width: 640px) {
@@ -1143,11 +1144,12 @@ function run() {
   if (D.dropped > 0)
     msg("modelMsg", "warn", `${D.dropped} row(s) dropped because of missing or rejected values.`);
 
+  // Show the cards first: the index plot is drawn at its rendered width.
+  $("fitCard").classList.remove("hidden");
+  $("diagCard").classList.remove("hidden");
   renderFit();
   renderDiagnostics();
   renderPlotSelector();
-  $("fitCard").classList.remove("hidden");
-  $("diagCard").classList.remove("hidden");
   saveState();
 }
 
@@ -1554,15 +1556,25 @@ function renderIndexPlot() {
   if (!f) return;
   const j = Number($("plotCoef").value);
   const svg = $("indexPlot");
-  const W = 1000, H = 230, padL = 48, padR = 14, padT = 14, padB = 26;
+  // One viewBox unit per CSS pixel. A hidden plot has no width yet; the
+  // ResizeObserver below draws it once it has one.
+  const W = svg.clientWidth, H = 230;
+  if (!W) return;
+  // On a narrow plot the two captions go on separate lines.
+  const narrow = W < 520;
   const vals = Array.from({ length: f.n }, (_, i) => f.dfbetas[i][j]);
   const maxAbs = Math.max(S.cut * 1.4, ...vals.map(v => Math.abs(v)).filter(isFinite)) || 1;
   // A single huge DFBETAS otherwise squashes every other row onto the zero line. The
   // signed square root keeps sign and ordering; the ticks still carry true values.
   const compress = $("plotSqrt").checked;
+  const ticks = (compress ? [1, 0.25, 0, -0.25, -1] : [1, 0.5, 0, -0.5, -1]).map(q => maxAbs * q);
+  // The left margin fits the longest tick label (12 px monospace is ~7.2 px a character).
+  const padL = 12 + Math.ceil(7.2 * Math.max(...ticks.map(v => fmt(v, 2).length)));
+  const padR = 14, padT = 14, padB = narrow ? 40 : 26;
   const T = v => (compress ? Math.sign(v) * Math.sqrt(Math.abs(v)) : v);
   const tMax = T(maxAbs);
-  const x = i => padL + (f.n <= 1 ? 0 : (W - padL - padR) * i / (f.n - 1));
+  const step = f.n <= 1 ? W - padL - padR : (W - padL - padR) / (f.n - 1);
+  const x = i => padL + step * i;
   const y = v => padT + (H - padT - padB) * (1 - (T(v) + tMax) / (2 * tMax));
 
   let s = `<rect class="plot-bg" x="0" y="0" width="${W}" height="${H}" rx="6"/>`;
@@ -1573,30 +1585,32 @@ function renderIndexPlot() {
       s += `<line x1="${padL}" x2="${W - padR}" y1="${y(c)}" y2="${y(c)}" stroke="#f59e0b" stroke-width="1" stroke-dasharray="5 4"/>`;
   }
   // y-axis ticks — evenly spaced in the *plotted* scale, labelled with true values
-  for (const q of (compress ? [1, 0.25, 0, -0.25, -1] : [1, 0.5, 0, -0.5, -1])) {
-    const v = maxAbs * q;
-    s += `<text x="${padL - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#64748b" font-family="monospace">${fmt(v, 2)}</text>`;
+  for (const v of ticks) {
+    s += `<text x="${padL - 6}" y="${y(v) + 4}" text-anchor="end" font-size="12" fill="#64748b" font-family="monospace">${fmt(v, 2)}</text>`;
   }
-  // stems
+  // stems; each row's tap target is its whole column, one step wide and plot high
   vals.forEach((v, i) => {
     if (!isFinite(v)) return;
     const over = Math.abs(v) > S.cut;
     const sel = S.selected === i;
     const col = sel ? "#0f172a" : over ? (v >= 0 ? "#dc2626" : "#2563eb") : "#94a3b8";
+    s += `<g data-i="${i}" style="cursor:pointer"><title>${esc(f.design.labels[i])}: ${fmt(v, 3)}</title>`;
+    s += `<rect x="${x(i) - step / 2}" y="${padT}" width="${step}" height="${H - padT - padB}" fill="transparent"/>`;
     s += `<line x1="${x(i)}" x2="${x(i)}" y1="${y(0)}" y2="${y(v)}" stroke="${col}" stroke-width="${sel ? 3 : over ? 2 : 1}"/>`;
-    s += `<circle cx="${x(i)}" cy="${y(v)}" r="${sel ? 5 : over ? 3.5 : 2}" fill="${col}"
-            data-i="${i}" style="cursor:pointer"><title>${esc(f.design.labels[i])}: ${fmt(v, 3)}</title></circle>`;
+    s += `<circle cx="${x(i)}" cy="${y(v)}" r="${sel ? 5 : over ? 3.5 : 2}" fill="${col}"/></g>`;
   });
-  s += `<text x="${padL}" y="${H - 6}" font-size="11" fill="#64748b">observation order →</text>`;
-  s += `<text x="${W - padR}" y="${H - 6}" font-size="11" fill="#64748b" text-anchor="end">` +
+  s += `<text x="${padL}" y="${H - (narrow ? 22 : 6)}" font-size="12" fill="#64748b">observation order →</text>`;
+  s += `<text x="${W - padR}" y="${H - 6}" font-size="12" fill="#64748b" text-anchor="end">` +
        `dashed = ±${fmt(S.cut, 3)}${compress ? " · axis compressed" : ""}</text>`;
 
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.innerHTML = s;
-  svg.querySelectorAll("circle").forEach(c => {
-    c.onclick = () => { S.selected = Number(c.dataset.i); renderDiagnostics(); renderDetail(); renderIndexPlot(); };
+  svg.querySelectorAll("g[data-i]").forEach(g => {
+    g.onclick = () => { S.selected = Number(g.dataset.i); renderDiagnostics(); renderDetail(); renderIndexPlot(); };
   });
 }
+// Redraw at the new width after a rotation or resize, and on first show.
+new ResizeObserver(() => renderIndexPlot()).observe($("indexPlot"));
 
 /* ══════════════════════════════════════════════════════════════
    Export

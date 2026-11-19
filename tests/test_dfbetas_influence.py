@@ -316,3 +316,44 @@ def test_text_only_data_retires_the_previous_model(open_tool):
     expect(page.locator("#fitCard")).to_be_hidden()
     expect(page.locator("#diagCard")).to_be_hidden()
     assert not tool.problems, "\n".join(tool.problems)
+
+
+def test_index_plot_is_readable_and_tappable_on_a_phone(open_tool):
+    tool = open_tool(TOOL, "phone")
+    page = tool.page
+    # Demo 2 has 24 rows and DFBETAS past 10, so a long tick label.
+    page.click("#demo2")
+    run(page)
+    plot = page.locator("#indexPlot")
+    plot.scroll_into_view_if_needed()
+
+    label_heights = plot.locator("text").evaluate_all(
+        "texts => texts.map(t => t.getBoundingClientRect().height)"
+    )
+    assert min(label_heights) >= 11, label_heights
+    plot_box = plot.bounding_box()
+    assert plot_box is not None
+    label_lefts = plot.locator("text").evaluate_all(
+        "texts => texts.map(t => t.getBoundingClientRect().left)"
+    )
+    assert min(label_lefts) >= plot_box["x"], "a tick label is cut off"
+    captions = plot.locator("text").evaluate_all(
+        "texts => texts.slice(-2).map(t => t.getBoundingClientRect())"
+        ".map(b => [b.left, b.top, b.right, b.bottom])"
+    )
+    (l1, t1, r1, b1), (l2, t2, r2, b2) = captions
+    assert r1 <= l2 or r2 <= l1 or b1 <= t2 or b2 <= t1, "bottom captions overlap"
+
+    # A finger lands near a point, not on it: 3 px beside and 10 px below row 5.
+    point = plot.locator("circle").nth(4).bounding_box()
+    assert point is not None
+    page.touchscreen.tap(
+        point["x"] + point["width"] / 2 + 3, point["y"] + point["height"] / 2 + 10
+    )
+    expect(page.locator("#detail h2")).to_have_text("Why row 5?")
+
+    page.set_viewport_size({"width": 700, "height": 812})
+    expect(plot).to_have_attribute(
+        "viewBox", re.compile(rf"^0 0 {plot.evaluate('svg => svg.clientWidth')} ")
+    )
+    assert not tool.problems, "\n".join(tool.problems)
