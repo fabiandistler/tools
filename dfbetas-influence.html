@@ -651,35 +651,45 @@ function fitOLS(cols, y, names) {
   const cook = new Float64Array(n);
   const dffits = new Float64Array(n);
   const sDel = new Float64Array(n);
+  // h = 1: the row is the only one that pins down some coefficient (say, the only
+  // row of a category), so the model without it is not identified and every
+  // deletion diagnostic is 0/0. Rounding leaves h within ~1e-15 of 1; a gap under
+  // 1e-10 is treated as h = 1. Such rows get NaN, never a number.
+  const hOne = Array.from(h, hi => 1 - hi < 1e-10);
 
   for (let i = 0; i < n; i++) {
-    const oneMinusH = Math.max(1 - h[i], 1e-12);
-    const s2i = dfDel > 0
+    const oneMinusH = 1 - h[i];
+    const s2i = dfDel > 0 && !hOne[i]
       ? Math.max((sse - e[i] * e[i] / oneMinusH) / dfDel, 0)
       : NaN;
     const si = Math.sqrt(s2i);
     sDel[i] = si;
 
-    tDel[i] = si > 0 ? e[i] / (si * Math.sqrt(oneMinusH)) : (e[i] === 0 ? 0 : Infinity);
-    cook[i] = (e[i] * e[i] * h[i]) / (p * s2 * oneMinusH * oneMinusH);
-    dffits[i] = tDel[i] * Math.sqrt(h[i] / oneMinusH);
+    if (hOne[i]) {
+      tDel[i] = cook[i] = dffits[i] = NaN;
+    } else {
+      tDel[i] = si > 0 ? e[i] / (si * Math.sqrt(oneMinusH)) : (e[i] === 0 ? 0 : Infinity);
+      cook[i] = (e[i] * e[i] * h[i]) / (p * s2 * oneMinusH * oneMinusH);
+      dffits[i] = tDel[i] * Math.sqrt(h[i] / oneMinusH);
+    }
 
     // v_i = C x_i = Rinv q_i   (q_i = row i of Q)
     const rowD = new Float64Array(p), rowPL = new Float64Array(p), rowRaw = new Float64Array(p);
     for (let j = 0; j < p; j++) {
       let v = 0;
       for (let k = j; k < p; k++) v += Rinv[j][k] * Q[k][i];
+      rowPL[j] = (v * v) / C[j][j];                // partial leverage in [0,1]
+      if (hOne[i]) { rowRaw[j] = rowD[j] = NaN; continue; }
       const shift = v * e[i] / oneMinusH;          // b_j - b_j(i)
       rowRaw[j] = shift;
       rowD[j] = si > 0 ? shift / (si * Math.sqrt(C[j][j])) : (shift === 0 ? 0 : Infinity);
-      rowPL[j] = (v * v) / C[j][j];                // partial leverage in [0,1]
     }
     dfbetas.push(rowD); partLev.push(rowPL); dfbetaRaw.push(rowRaw);
   }
 
   return { n, p, names, b, se, tval, pval, C, cols, y, fitted, e, h,
            sse, s2, dfRes, dfDel, r2, r2adj, rmse: Math.sqrt(s2),
-           dfbetas, dfbetaRaw, partLev, tDel, cook, dffits, sDel };
+           dfbetas, dfbetaRaw, partLev, tDel, cook, dffits, sDel, hOne };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1212,6 +1222,7 @@ function conditionNumber(f) {
    ══════════════════════════════════════════════════════════════ */
 
 function maxAbsDfb(f, i) {
+  if (f.hOne[i]) return { m: NaN, arg: 0 };
   let m = 0, arg = 0;
   for (let j = 0; j < f.p; j++) {
     const a = Math.abs(f.dfbetas[i][j]);
@@ -1234,6 +1245,7 @@ function rowFlags(f, i) {
 
 /** Blue → white → red, saturating at 1.5× the cut-off. */
 function dfbColor(v) {
+  if (Number.isNaN(v)) return "transparent";
   const t = Math.min(Math.abs(v) / Math.max(S.cut * 1.5, 1e-9), 1);
   const a = 0.08 + 0.72 * t;
   return v >= 0 ? `rgba(220,38,38,${a})` : `rgba(37,99,235,${a})`;
@@ -1270,6 +1282,16 @@ function renderDiagnostics() {
       `<code>${esc(hottest.nm)}</code> by <strong>${fmt(hottest.best, 2)}</strong> standard errors.`;
   }
   summary += `</div>`;
+  const hOneRows = Array.from({ length: n }, (_, i) => i).filter(i => f.hOne[i]);
+  if (hOneRows.length) {
+    const one = hOneRows.length === 1;
+    summary += `<div class="msg warn">` +
+      `${one ? "Row" : "Rows"} <strong>${hOneRows.map(i => esc(label(i))).join(", ")}</strong> ` +
+      `${one ? "has" : "have"} leverage h = 1: ${one ? "it is" : "each is"} the only row that pins down ` +
+      `part of the model (for example the only row of a category), so the model cannot be fitted without ` +
+      `${one ? "it" : "that row"}. DFBETAS, Cook's D, DFFITS and the studentized residual are undefined ` +
+      `there, not zero.</div>`;
+  }
 
   const perCoef = worstPerCoef
     .filter(c => c.cnt > 0)
@@ -1296,8 +1318,11 @@ function renderDiagnostics() {
       }
     }
   };
-  order.sort((a, b) => (S.sortAsc ? keyVal(a) - keyVal(b) : keyVal(b) - keyVal(a)));
-  if ($("onlyFlagged").checked) order = order.filter(i => rowFlags(f, i).dfb);
+  // An undefined key (h = 1) sorts above every number, so those rows lead the default view.
+  const sortVal = i => { const k = keyVal(i); return Number.isNaN(k) ? Infinity : k; };
+  const cmp = (a, b) => (a === b ? 0 : a < b ? -1 : 1);
+  order.sort((a, b) => (S.sortAsc ? cmp(sortVal(a), sortVal(b)) : cmp(sortVal(b), sortVal(a))));
+  if ($("onlyFlagged").checked) order = order.filter(i => rowFlags(f, i).dfb || f.hOne[i]);
   const topN = Number($("topN").value);
   const shown = topN > 0 ? order.slice(0, topN) : order;
 
@@ -1327,7 +1352,7 @@ function renderDiagnostics() {
     return `<tr data-i="${i}" class="${fl.dfb ? "flagged" : ""} ${S.selected === i ? "selected" : ""}">
       <td class="left idx">${esc(f.design.labels[i])}</td>
       ${cells}
-      <td class="num"><strong>${fmt(m, 3)}</strong></td>
+      <td class="num">${f.hOne[i] ? `<span title="undefined: no fit without this row">h = 1</span>` : `<strong>${fmt(m, 3)}</strong>`}</td>
       <td class="num" style="${f.cook[i] > cutCook ? "color:var(--warn);font-weight:600" : ""}">${fmt(f.cook[i], 3)}</td>
       <td class="num" style="${fl.lev ? "color:var(--warn);font-weight:600" : ""}">${fmt(f.h[i], 3)}</td>
       <td class="num" style="${Math.abs(f.tDel[i]) > 3 ? "color:var(--warn);font-weight:600" : ""}">${fmt(f.tDel[i], 2)}</td>
@@ -1377,7 +1402,7 @@ function renderDetail() {
     const dfb = f.dfbetas[i][j];
     const pl = f.partLev[i][j];
     const over = Math.abs(dfb) > S.cut;
-    const w = Math.min(Math.abs(dfb) / Math.max(S.cut * 2, 1e-9), 1) * 50;
+    const w = Number.isNaN(dfb) ? 0 : Math.min(Math.abs(dfb) / Math.max(S.cut * 2, 1e-9), 1) * 50;
     const bar = `<div class="bar-track"><div class="zero"></div>
         <div class="bar" style="background:${dfb >= 0 ? "var(--pos)" : "var(--neg)"};
         ${dfb >= 0 ? `left:50%;width:${w}%` : `right:50%;width:${w}%`}"></div></div>`;
@@ -1427,7 +1452,11 @@ function renderDetail() {
   const fl = rowFlags(f, i);
 
   let story;
-  if (maxD <= S.cut) {
+  if (f.hOne[i]) {
+    story = `Row <strong>${esc(lab)}</strong> has leverage h = 1: it is the only row that pins down part of ` +
+            `the model (for example the only row of a category), so the model cannot be fitted without it. ` +
+            `Its DFBETAS are undefined, not zero: this row alone decides the coefficients it identifies.`;
+  } else if (maxD <= S.cut) {
     story = `Row <strong>${esc(lab)}</strong> stays below the cut-off on every coefficient — ` +
             `dropping it would not meaningfully change the model.`;
   } else {

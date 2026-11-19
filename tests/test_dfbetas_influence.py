@@ -6,6 +6,7 @@ compute DFBETAS from its definition. Issue #12 lists the repros.
 
 import csv
 import io
+import re
 
 import numpy as np
 import pytest
@@ -232,4 +233,47 @@ def test_leading_zero_is_not_a_thousands_group(open_tool):
     read_data(page, as_text(";", as_cells(X_VALUES, ","), y_cells))
     expect(page.locator("#parseMsg")).to_contain_text("decimal comma")
     expect(page.locator("#parseMsg .msg.warn")).to_contain_text("y: line 4")
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+# The only "b" row (row 3) has leverage 1: without it, the g=b dummy is all zero.
+SINGLE_LEVEL_ROW = 3
+SINGLE_LEVEL_DATA = (
+    "g,x,y\na,1,2\na,2,4.1\nb,3,5.9\na,4,8.2\na,5,9.8\nc,6,12.1\na,7,14\nc,8,16.3"
+)
+SINGLE_LEVEL_TERMS = ["(Intercept)", "g=b", "g=c", "x"]
+
+
+def test_row_with_leverage_one_shows_a_message_not_a_number(open_tool):
+    X, y = design_from_csv(SINGLE_LEVEL_DATA, SINGLE_LEVEL_TERMS)
+    others = np.arange(len(y)) != SINGLE_LEVEL_ROW - 1
+    # The refit without that row is not identified, so DFBETAS has no value.
+    assert np.linalg.matrix_rank(X[others]) < X.shape[1]
+
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    read_data(page, SINGLE_LEVEL_DATA)
+    page.check('#xList input[value="g"]')
+    run(page)
+    names, actual = fitted_dfbetas(page)
+    assert names == SINGLE_LEVEL_TERMS
+    assert np.isnan(actual[SINGLE_LEVEL_ROW - 1]).all()
+    # Every other row still matches the brute-force refit.
+    expected = brute_force_dfbetas(X, y)
+    np.testing.assert_allclose(
+        actual[others], expected[others], rtol=0, atol=DFBETAS_TOLERANCE
+    )
+
+    expect(page.locator("#diagSummary")).to_contain_text(
+        f"Row {SINGLE_LEVEL_ROW} has leverage h = 1"
+    )
+    row = page.locator(f'#diagTable tbody tr[data-i="{SINGLE_LEVEL_ROW - 1}"]')
+    for cell in row.locator("td.cell").all_inner_texts():
+        assert not re.search(r"\d", cell), cell
+    expect(row).to_contain_text("h = 1")
+
+    row.click()
+    detail = page.locator("#detail")
+    expect(detail).to_contain_text("leverage h = 1")
+    expect(detail).not_to_contain_text("would not meaningfully change the model")
     assert not tool.problems, "\n".join(tool.problems)
