@@ -202,3 +202,44 @@ def test_reset_clears_a_rejected_name(open_tool):
     page.locator("#builder button", has_text="Reset").click()
     expect_accepted(page)
     assert not tool.problems, "\n".join(tool.problems)
+
+
+# --- Komplexitätsstufen: annotated examples on a phone ----------------------
+
+
+def open_level(page: Page, level: str) -> None:
+    open_section(page, "Komplexitätsstufen", "levels")
+    page.locator(".ctab", has_text=level.capitalize()).click()
+    expect(page.locator(f"#level-{level}")).to_be_visible()
+
+
+@pytest.mark.parametrize("level", ["simple", "medium", "complex"])
+def test_level_example_code_gets_the_full_width_on_phone(open_tool, level):
+    tool = open_tool(TOOL, "phone")
+    page = tool.page
+    open_level(page, level)
+    example = page.locator(f"#level-{level} .annotation-box")
+    code = example.locator("pre").bounding_box()
+    notes = example.locator(".annotations").bounding_box()
+    assert code and notes
+
+    # The notes go below the code instead of squeezing it to a narrow strip.
+    assert code["width"] == pytest.approx(notes["width"], abs=1)
+    assert notes["y"] >= code["y"] + code["height"] - 1
+    # And every note is shown in full, not cut off inside a scroll box.
+    notes_overflow = example.locator(".annotations").evaluate(
+        "notes => notes.scrollHeight - notes.clientHeight"
+    )
+    assert notes_overflow <= 0
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+def test_level_example_keeps_notes_beside_code_on_desktop(open_tool):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    open_level(page, "simple")
+    example = page.locator("#level-simple .annotation-box")
+    code = example.locator("pre").bounding_box()
+    notes = example.locator(".annotations").bounding_box()
+    assert code and notes
+    assert notes["x"] >= code["x"] + code["width"] - 1
