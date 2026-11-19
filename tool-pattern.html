@@ -288,6 +288,7 @@
     .chat-bubble {
       background: var(--surface2); border-radius: var(--radius); padding: 11px 14px;
       font-size: .95rem; line-height: 1.6; margin-top: 10px; border-left: 3px solid var(--accent);
+      white-space: pre-wrap;
     }
 
     /* ── ÜBERSICHT ── */
@@ -1217,6 +1218,16 @@ Alice,25,Berlin</textarea>
 </main>
 
 <script>
+// Builds an element from literal attribute values and children. Strings among
+// the children become text nodes, so text from the network, a file, the
+// clipboard or the model shows as written and is never parsed as HTML.
+function makeElement(tag, attrs, ...children) {
+  const node = document.createElement(tag);
+  for (const [name, value] of Object.entries(attrs)) node.setAttribute(name, value);
+  node.append(...children);
+  return node;
+}
+
 // ── NAVIGATION ──────────────────────────────────────────────────
 function showPanel(id) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -1243,8 +1254,10 @@ document.addEventListener('paste', (e) => {
   const fmtsEl = document.getElementById('clip-formats');
   const fmts = Array.from(items).map(i => i.type);
   fmtsEl.classList.remove('empty');
-  fmtsEl.innerHTML = '<strong>Mitgeliefert (' + items.length + ' Teile, ' + files.length + ' Dateien):</strong>\n' +
-    fmts.map(f => '<span class="format-tag">' + f + '</span>').join('');
+  fmtsEl.replaceChildren(
+    makeElement('strong', {}, 'Mitgeliefert (' + items.length + ' Teile, ' + files.length + ' Dateien):'),
+    '\n',
+    ...fmts.map(f => makeElement('span', { class: 'format-tag' }, f)));
 
   const contentEl = document.getElementById('clip-content');
   contentEl.classList.remove('empty');
@@ -1259,7 +1272,7 @@ document.addEventListener('paste', (e) => {
     if (item.type.startsWith('image/')) {
       const file = item.getAsFile();
       const url = URL.createObjectURL(file);
-      contentEl.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:200px;border-radius:4px">';
+      contentEl.replaceChildren(makeElement('img', { src: url, style: 'max-width:100%;max-height:200px;border-radius:4px' }));
       shown = true; break;
     }
   }
@@ -1401,9 +1414,10 @@ async function handleFile(file) {
 
   if (file.type.startsWith('image/')) {
     const url = URL.createObjectURL(file);
-    outEl.innerHTML = '<div style="color:var(--text-muted);margin-bottom:8px">📷 ' + file.name +
-      ' (' + (file.size / 1024).toFixed(1) + ' KB)</div>' +
-      '<img src="' + url + '" style="max-width:100%;max-height:250px;border-radius:6px">';
+    outEl.replaceChildren(
+      makeElement('div', { style: 'color:var(--text-muted);margin-bottom:8px' },
+        '📷 ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)'),
+      makeElement('img', { src: url, style: 'max-width:100%;max-height:250px;border-radius:6px' }));
   } else {
     try {
       const text = await file.text();
@@ -1466,18 +1480,20 @@ async function fetchPyPI() {
     if (!res.ok) throw new Error('Die Gegenseite antwortet mit Fehler ' + res.status);
     const data = await res.json();
     const info = data.info;
-    outEl.innerHTML =
-      '<div class="result-item"><strong>' + info.name + '</strong> Version ' + info.version +
-        ' <span>von ' + (info.author || 'unbekannt') + '</span></div>' +
-      '<div class="result-item">' + (info.summary || 'keine Kurzbeschreibung') + '</div>' +
-      '<div class="result-item"><span>Lizenz:</span> ' + (info.license || 'unbekannt') +
-        ' &nbsp;|&nbsp; <span>braucht Python:</span> ' + (info.requires_python || 'beliebig') + '</div>' +
-      '<div class="result-item"><span>veröffentlichte Fassungen:</span> ' + Object.keys(data.releases).length + '</div>';
+    outEl.replaceChildren(
+      makeElement('div', { class: 'result-item' },
+        makeElement('strong', {}, info.name), ' Version ' + info.version + ' ',
+        makeElement('span', {}, 'von ' + (info.author || 'unbekannt'))),
+      makeElement('div', { class: 'result-item' }, info.summary || 'keine Kurzbeschreibung'),
+      makeElement('div', { class: 'result-item' },
+        makeElement('span', {}, 'Lizenz:'), ' ' + (info.license || 'unbekannt') + ' \u00a0|\u00a0 ',
+        makeElement('span', {}, 'braucht Python:'), ' ' + (info.requires_python || 'beliebig')),
+      makeElement('div', { class: 'result-item' },
+        makeElement('span', {}, 'veröffentlichte Fassungen:'), ' ' + Object.keys(data.releases).length));
   } catch (e) {
     const netz = e instanceof TypeError;   /* fetch wirft TypeError, wenn gar keine Verbindung zustande kam */
-    outEl.innerHTML = '<div class="status err">' +
-      (netz ? 'Keine Verbindung zu pypi.org — Netz weg, oder etwas dazwischen blockiert die Anfrage.' : e.message) +
-      '</div>';
+    outEl.replaceChildren(makeElement('div', { class: 'status err' },
+      netz ? 'Keine Verbindung zu pypi.org — Netz weg, oder etwas dazwischen blockiert die Anfrage.' : e.message));
   }
 }
 
@@ -1490,11 +1506,12 @@ async function checkCORS() {
     const res = await fetch(url, { method: 'HEAD' });
     const cors = res.headers.get('access-control-allow-origin');
     if (cors) {
-      outEl.innerHTML = '<div class="status ok">✓ Erlaubt — diese Adresse lässt sich direkt aus einer Seite heraus abfragen.<br>' +
-        'Sie schickt <code>Access-Control-Allow-Origin: ' + cors + '</code> mit.</div>';
+      outEl.replaceChildren(makeElement('div', { class: 'status ok' },
+        '✓ Erlaubt — diese Adresse lässt sich direkt aus einer Seite heraus abfragen.', makeElement('br', {}),
+        'Sie schickt ', makeElement('code', {}, 'Access-Control-Allow-Origin: ' + cors), ' mit.'));
     } else {
-      outEl.innerHTML = '<div class="status info">Die Anfrage ging durch (Antwort ' + res.status +
-        '), eine ausdrückliche Erlaubnis war aber nicht dabei. Bei echten Abfragen kann es trotzdem klemmen.</div>';
+      outEl.replaceChildren(makeElement('div', { class: 'status info' }, 'Die Anfrage ging durch (Antwort ' + res.status +
+        '), eine ausdrückliche Erlaubnis war aber nicht dabei. Bei echten Abfragen kann es trotzdem klemmen.'));
     }
   } catch (e) {
     outEl.innerHTML = '<div class="status err">✗ Der Browser hat blockiert. Diese Adresse erlaubt keine direkten Abfragen ' +
@@ -1556,10 +1573,12 @@ async function callClaude() {
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
-    outEl.innerHTML = '<div class="chat-bubble">🤖 ' + data.content[0].text + '</div>';
+    outEl.replaceChildren(makeElement('div', { class: 'chat-bubble' }, '🤖 ' + data.content[0].text));
   } catch (e) {
-    outEl.innerHTML = '<div class="status err">Hat nicht geklappt: ' + e.message +
-      '<br><span style="color:var(--text-muted)">Meist stimmt der Schlüssel nicht oder das Guthaben ist aufgebraucht.</span></div>';
+    outEl.replaceChildren(makeElement('div', { class: 'status err' },
+      'Hat nicht geklappt: ' + e.message, makeElement('br', {}),
+      makeElement('span', { style: 'color:var(--text-muted)' },
+        'Meist stimmt der Schlüssel nicht oder das Guthaben ist aufgebraucht.')));
   } finally {
     loadEl.style.display = 'none';
   }
@@ -1587,10 +1606,9 @@ function renderKeys() {
   if (activeKeys.size === 0) {
     keyArea.innerHTML = '<span style="color:var(--text-muted)">Hier hineinklicken, dann Tasten drücken …</span>';
   } else {
-    keyArea.innerHTML = Array.from(activeKeys).map(k =>
-      '<span style="display:inline-block;background:var(--accent);color:#10131c;border-radius:6px;' +
-      'padding:6px 14px;margin:4px;font-size:.9rem;font-weight:700">' + (k === ' ' ? 'Leertaste' : k) + '</span>'
-    ).join('');
+    keyArea.replaceChildren(...Array.from(activeKeys).map(k =>
+      makeElement('span', { style: 'display:inline-block;background:var(--accent);color:#10131c;border-radius:6px;' +
+        'padding:6px 14px;margin:4px;font-size:.9rem;font-weight:700' }, k === ' ' ? 'Leertaste' : k)));
   }
   keyLog.textContent = 'Zuletzt: ' + keyHistory.map(h => h.key + ' (' + h.code + ')').join(' → ');
 }
