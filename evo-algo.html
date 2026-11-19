@@ -71,10 +71,13 @@
     }
 
     @media (max-width: 768px) {
-      .panel { position: relative; top: 0; left: 0; right: 0; width: 100%; border-radius: 0; border: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
+      /* ID selectors, so these beat #left-panel and #right-panel above. */
+      #left-panel, #right-panel { position: relative; top: 0; left: 0; right: 0; width: 100%; border-radius: 0; border: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
       #interaction-hint { display: none; }
-      body { overflow-y: auto; }
-      canvas { position: fixed; z-index: -1; }
+      /* The canvas stays fixed under the scrolling panels, which start below
+         its top 60vh, so a tap there reaches it and places food. */
+      body { overflow-y: auto; padding-top: 60vh; }
+      canvas { position: fixed; top: 0; left: 0; }
     }
   </style>
 </head>

@@ -1,4 +1,4 @@
-"""evo-algo.html: a default run evolves within a minute.
+"""evo-algo.html: a default run evolves within a minute, and a phone tap places food.
 
 The simulation takes one step per animation frame and draws every number from
 ``Math.random``. The tests replace ``Math.random`` with a seeded generator and
@@ -38,6 +38,8 @@ for (const method of ["fill", "fillRect", "stroke"]) {
 FRAME_MS = 16
 FRAMES_PER_SECOND = 60
 START_POPULATION = 40
+# Where the audit tapped on an iPhone 13; it is on screen at the phone profile too.
+PHONE_TAP = (370, 300)
 
 
 def reload_with_time_stopped(page: Page, *init_scripts: str) -> None:
@@ -67,3 +69,24 @@ def test_default_run_keeps_population_and_passes_generation_10(
     generation = int(page.locator("#stat-gen").inner_text())
     assert population >= START_POPULATION
     assert generation > 10
+
+
+def test_phone_panels_span_the_screen(open_tool):
+    page = open_tool(TOOL, "phone").page
+    screen_width = page.viewport_size["width"]
+    for panel in ["#left-panel", "#right-panel"]:
+        box = page.locator(panel).bounding_box()
+        assert (box["x"], box["width"]) == (0, screen_width), panel
+
+
+def test_phone_tap_places_food(open_tool):
+    tool = open_tool(TOOL, "phone")
+    page = tool.page
+    # With time stopped, only the tap adds or removes food.
+    reload_with_time_stopped(page)
+    food_before = page.evaluate("food.length")
+
+    page.touchscreen.tap(*PHONE_TAP)
+
+    assert page.evaluate("food.length") == food_before + 5
+    assert not tool.problems, "\n".join(tool.problems)
