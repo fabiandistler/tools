@@ -667,7 +667,10 @@ function renderFactors() {
       wrap.className = 'field';
       const lab = document.createElement('label');
       lab.textContent = spec.label;
-      const inp = mkInput('number', f[spec.key]);
+      // Equal returns are derived here and in compute(); the entered βf stays
+      // in state, so unticking brings it back.
+      const derived = spec.key === 'bf' && state.equalReturns;
+      const inp = mkInput('number', derived ? f.bm : f[spec.key]);
       inp.step = 'any';
       if (spec.key === 'bf') inp.disabled = state.equalReturns;
       inp.addEventListener('input', () => {
@@ -845,7 +848,6 @@ const wageF = document.getElementById('wageF');
 
 document.getElementById('equalReturns').addEventListener('change', e => {
   state.equalReturns = e.target.checked;
-  if (state.equalReturns) state.factors.forEach(f => { f.bf = f.bm; });
   renderFactors();
   update();
 });

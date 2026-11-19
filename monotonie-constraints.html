@@ -99,6 +99,7 @@
   .verdict ul { margin: 0 0 0 20px; font-size: .9rem; color: var(--text-light); }
   .verdict ul li { margin-bottom: 3px; }
 
+  .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: .9rem; }
   th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
   th { color: var(--text-light); font-weight: 600; font-size: .82rem; text-transform: uppercase; letter-spacing: .03em; }
@@ -183,13 +184,13 @@
   <h2><span class="num">5</span> Validierung &amp; Dokumentation</h2>
   <p class="sec-hint">Ein Constraint ist erst dann gesetzt, wenn seine Wirkung und sein Preis gemessen sind.</p>
   <ul class="checklist">
-    <li><label><input type="checkbox"> Baseline ohne Constraints trainiert, Metrik (MAE/RMSE, CV) festgehalten</label></li>
-    <li><label><input type="checkbox"> Constrained-Modell trainiert, Delta gemessen — Faustregel: über ~2–3 % Verschlechterung Constraint hinterfragen statt hinnehmen</label></li>
-    <li><label><input type="checkbox"> PDP/ALE je constrainedem Merkmal geplottet: ist die Richtung im Endmodell tatsächlich sichtbar?</label></li>
-    <li><label><input type="checkbox"> Randbereiche geprüft (dünn besetzte Level, Extremwerte, Extrapolation über den Trainingsbereich hinaus)</label></li>
-    <li><label><input type="checkbox"> Fehlende Werte geprüft — NA-Behandlung kann Monotonie faktisch aushebeln</label></li>
-    <li><label><input type="checkbox"> Pay-Equity-Auswertung nach Modelländerung wiederholt (Constraints sind kein Fairness-Fix)</label></li>
-    <li><label><input type="checkbox"> Entscheidungen mit Begründung und Datum dokumentiert und abgestimmt</label></li>
+    <li><label><input type="checkbox" data-check="baseline"> Baseline ohne Constraints trainiert, Metrik (MAE/RMSE, CV) festgehalten</label></li>
+    <li><label><input type="checkbox" data-check="delta"> Constrained-Modell trainiert, Delta gemessen — Faustregel: über ~2–3 % Verschlechterung Constraint hinterfragen statt hinnehmen</label></li>
+    <li><label><input type="checkbox" data-check="pdp-ale"> PDP/ALE je constrainedem Merkmal geplottet: ist die Richtung im Endmodell tatsächlich sichtbar?</label></li>
+    <li><label><input type="checkbox" data-check="randbereiche"> Randbereiche geprüft (dünn besetzte Level, Extremwerte, Extrapolation über den Trainingsbereich hinaus)</label></li>
+    <li><label><input type="checkbox" data-check="fehlende-werte"> Fehlende Werte geprüft — NA-Behandlung kann Monotonie faktisch aushebeln</label></li>
+    <li><label><input type="checkbox" data-check="pay-equity"> Pay-Equity-Auswertung nach Modelländerung wiederholt (Constraints sind kein Fairness-Fix)</label></li>
+    <li><label><input type="checkbox" data-check="dokumentiert"> Entscheidungen mit Begründung und Datum dokumentiert und abgestimmt</label></li>
   </ul>
   <div class="row" style="margin-top:16px">
     <button class="ghost" id="copyMd">Protokoll als Markdown kopieren</button>
@@ -325,7 +326,7 @@ function decide(f) {
 
 // ---------------------------------------------------------------- State
 const KEY = 'monotonie-constraints-v1';
-let state = { features: [], sel: null, tab: 'lightgbm' };
+let state = { features: [], sel: null, tab: 'lightgbm', checks: {} };
 
 function save()  { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
 function load()  {
@@ -421,7 +422,7 @@ function renderSummary() {
   const el = $('summary');
   if (!state.features.length) { el.innerHTML = '<p class="empty">Noch nichts zu zeigen.</p>'; return; }
 
-  let html = '<table><thead><tr><th>#</th><th>Merkmal</th><th>Constraint</th><th>Empfehlung</th><th>Hinweis</th></tr></thead><tbody>';
+  let html = '<div class="table-wrap"><table><thead><tr><th>#</th><th>Merkmal</th><th>Constraint</th><th>Empfehlung</th><th>Hinweis</th></tr></thead><tbody>';
   let set = 0, open = 0;
   state.features.forEach((f, i) => {
     const d = decide(f);
@@ -430,7 +431,7 @@ function renderSummary() {
     html += '<tr><td>' + i + '</td><td>' + esc(f.name) + '</td><td><span class="badge ' + d.cls + '">' + d.code +
       '</span></td><td>' + d.label + '</td><td class="note">' + (d.notes.join(', ') || '–') + '</td></tr>';
   });
-  html += '</tbody></table>';
+  html += '</tbody></table></div>';
 
   const n = state.features.length;
   const pct = Math.round(set / n * 100);
@@ -491,7 +492,7 @@ function renderCode() {
       '    tree_method="hist", n_estimators=800, learning_rate=0.05,\n' +
       ')\nmodel.fit(X[feature_cols], y)';
   } else if (state.tab === 'catboost') {
-    out = 'from catboost import CatBoostRegressor\n\n' +
+    out = 'from catboost import CatBoostRegressor\n\n' + cols + '\n\n' +
       '# CatBoost akzeptiert ein Dict — unabhängig von der Spaltenreihenfolge, deshalb robuster.\n' +
       'monotone_constraints = {\n' + dict + ',\n}\n\n' +
       'model = CatBoostRegressor(\n' +
@@ -549,7 +550,15 @@ function markdown() {
     md += '### ' + f.name + ' → `' + d.code + '`\n' + d.reasons.map(x => '- ' + x).join('\n') + '\n\n';
   });
   md += '## Constraint-Vektor (Reihenfolge der Merkmale)\n\n```python\nmonotone_constraints = ' + pyList(vector()) + '\n```\n';
+  md += '\n## Validierung\n\n' + checklist().map(c => '- [' + (c.erledigt ? 'x' : ' ') + '] ' + c.punkt).join('\n') + '\n';
   return md;
+}
+
+// Section 5: each box is saved under its data-check key, so the stored ticks
+// survive a reworded or reordered item.
+const checkboxes = [...document.querySelectorAll('.checklist input[data-check]')];
+function checklist() {
+  return checkboxes.map(cb => ({ punkt: cb.closest('label').textContent.trim(), erledigt: cb.checked }));
 }
 
 function flash(msg) {
@@ -602,7 +611,8 @@ $('dlJson').onclick = () => {
         richtung: f.dir, geschuetzt: f.prot, evidenz: f.evi, governance: f.gov, importance: f.imp
       }, begruendung: d.reasons };
     }),
-    constraint_vektor: vector().map(Number)
+    constraint_vektor: vector().map(Number),
+    validierung: checklist()
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -627,8 +637,13 @@ TABS.forEach(([id, label]) => {
   tabsEl.appendChild(b);
 });
 
+checkboxes.forEach(cb => {
+  cb.onchange = () => { state.checks[cb.dataset.check] = cb.checked; save(); };
+});
+
 load();
 [...tabsEl.children].forEach(c => c.classList.toggle('active', c.dataset.id === state.tab));
+checkboxes.forEach(cb => { cb.checked = state.checks[cb.dataset.check] === true; });
 render();
 </script>
 </body>
