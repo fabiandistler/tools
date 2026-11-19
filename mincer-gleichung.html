@@ -553,9 +553,10 @@ function drawChart() {
   const plotH = cssH - pad.t - pad.b;
 
   // Y-Bereich aus allen gezeichneten Kurven ableiten
-  const levels = LEVELS.concat(
-    LEVELS.some(l => l.s === person.s) ? [] : [{ s: person.s, color: '#0f172a' }]
-  );
+  // An empty or unreadable S field gives NaN: then the person adds no curve,
+  // since a NaN wage would turn the whole y-range into NaN.
+  const personCurve = Number.isFinite(person.s) && !LEVELS.some(l => l.s === person.s);
+  const levels = LEVELS.concat(personCurve ? [{ s: person.s, color: '#0f172a' }] : []);
   let yMax = 0;
   levels.forEach(l => {
     for (let x = 0; x <= X_MAX; x += 1) yMax = Math.max(yMax, wage(l.s, x));
