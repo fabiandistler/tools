@@ -269,3 +269,47 @@ def test_mouse_click_adds_and_shift_click_removes(open_tool):
     page.keyboard.up("Shift")
     assert point_count(page) == 12
     assert not tool.problems, "\n".join(tool.problems)
+
+
+# --- Dragging a point --------------------------------------------------------
+
+
+def test_dragged_point_stays_under_the_pointer_near_the_top_edge(open_tool):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    open_tab(page, "p-ols")
+    box = page.locator("#ols-canvas").bounding_box()
+    assert box is not None
+    plot = plot_geometry(page)
+    top_right = 11
+
+    def y_under_pointer(py: float) -> float:
+        # Inverse of the y axis of the plot as it was when the drag started.
+        span = plot["h"] - plot["t"] - plot["b"]
+        return plot["ymin"] + (plot["h"] - plot["b"] - py) / span * (
+            plot["ymax"] - plot["ymin"]
+        )
+
+    x, y = point_on_screen(page, top_right)
+    page.mouse.move(x, y)
+    page.mouse.down()
+    # Repro from issue #11: 15 px below the top edge, then a 1 px jitter.
+    for move in range(10):
+        py = 15 + move % 2
+        page.mouse.move(x, box["y"] + py)
+        dragged_y = page.evaluate("i => ws.pts[i].y", top_right)
+        assert dragged_y == pytest.approx(y_under_pointer(py), abs=0.01), (
+            f"move {move + 1}: the point left the pointer"
+        )
+    page.mouse.up()
+
+    # After the drop the y axis fits the points and the line again, with the
+    # page's 12 % margin, so the dragged point is no longer at the top edge.
+    assert point_count(page) == 12
+    points, b0, b1 = page.evaluate("() => [ws.pts, ws.b0, ws.b1]")
+    heights = [p["y"] for p in points] + [b0 + b1 * p["x"] for p in points]
+    low, high = min(heights), max(heights)
+    assert page.evaluate("() => wsPlot.ymax") == pytest.approx(
+        high + 0.12 * (high - low)
+    )
+    assert not tool.problems, "\n".join(tool.problems)
