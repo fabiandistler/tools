@@ -931,6 +931,11 @@ Output:
   }
 
   // BUILDER
+  // Everything a YAML parser reads as a line break (YAML 1.1 adds NEL, LS and
+  // PS to CR and LF). Each one has to start a new indented line of the
+  // description block, or the parser ends the block there.
+  const YAML_LINE_BREAK = /\r\n|[\n\r\u0085\u2028\u2029]/;
+
   function buildTemplate() {
     const name = document.getElementById('b-name').value.trim().replace(/\s+/g, '-').toLowerCase() || 'my-skill';
     const what = document.getElementById('b-what').value.trim() || 'Beschreibung fehlt noch.';
@@ -940,8 +945,13 @@ Output:
     const output = document.getElementById('b-output').value.trim() || 'Noch nicht definiert.';
 
     const triggerLine = triggers
-      ? `  Nutzen wenn User sagt: ${triggers.split(',').map(t => `"${t.trim()}"`).join(', ')}.`
-      : '  Nutzen wenn: [Trigger-Phrasen eintragen]';
+      ? `Nutzen wenn User sagt: ${triggers.split(',').map(t => `"${t.trim()}"`).join(', ')}.`
+      : 'Nutzen wenn: [Trigger-Phrasen eintragen]';
+    // A literal block scalar ("|") keeps every line as written once each line
+    // is indented; an empty line needs no indentation.
+    const descriptionBlock = [...what.split(YAML_LINE_BREAK), triggerLine]
+      .map(line => line && `  ${line}`)
+      .join('\n');
 
     const steps = stepsRaw
       ? stepsRaw.split('\n').filter(Boolean).map((s, i) => `${i + 1}. ${s}`).join('\n')
@@ -953,7 +963,7 @@ Output:
       complex: `\n## Reference Files (bei Bedarf laden)\n- \`references/details.md\` — Tiefe Spezifikation\n\n## Scripts\n- \`scripts/main.py\` — Hauptlogik\n\n## Fehlerbehandlung\n- Fehlende Pflichtfelder → nachfragen, nicht raten\n- Script-Fehler → Fallback auf manuelle Analyse\n- Edge Cases → immer warnen\n`
     }[level];
 
-    const tpl = `---\nname: ${name}\ndescription: |\n  ${what}\n${triggerLine}\n---\n\n# ${name.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}\n\n## Workflow\n${steps}\n\n## Output-Format\n${output}\n${levelExtras || ''}`;
+    const tpl = `---\nname: ${name}\ndescription: |\n${descriptionBlock}\n---\n\n# ${name.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}\n\n## Workflow\n${steps}\n\n## Output-Format\n${output}\n${levelExtras || ''}`;
 
     const pre = document.getElementById('template-output');
     pre.textContent = tpl;
