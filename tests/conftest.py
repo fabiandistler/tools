@@ -76,6 +76,11 @@ class _QuietHandler(http.server.SimpleHTTPRequestHandler):
 
 @pytest.fixture(scope="session")
 def site_url() -> Iterator[str]:
+    """Serve the repository root on a free port.
+
+    Under pytest-xdist every worker is its own session, so each starts its own
+    server and no port is shared.
+    """
     handler = functools.partial(_QuietHandler, directory=REPO_ROOT)
     with http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler) as server:
         threading.Thread(target=server.serve_forever, daemon=True).start()

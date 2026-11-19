@@ -33,7 +33,8 @@ generic or synthetic data.
   local machine.
 - While fixing one tool, run its tests and smoke rows with `-k <tool-name>`
   (either spelling, e.g. `-k dfbetas-influence`) and leave the whole suite to
-  CI.
+  CI. CI runs it in parallel (`-n auto`); local runs stay serial, because
+  agents share the CPUs.
 
 ## Deploy gate
 
