@@ -24,6 +24,9 @@ generic or synthetic data.
   like `tests/test_data_workflow.py`.
 - `tests/test_smoke.py` already covers every root tool; `tests/conftest.py`
   holds the local server, the network block and the `open_tool` fixture.
+- Every test that opens a tool ends with the end-state check (no sideways
+  scroll on a phone, no visible `NaN`); `tests/end_state.py` says how to mark
+  a known bug or a legitimate exception.
 - Run the suite with `uv run pytest`. In a cloud session, use the installed
   Chrome with `uv run pytest --browser-channel chrome` and never
   `playwright install`. `README.md` has the one-time browser setup for a

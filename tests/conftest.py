@@ -2,7 +2,8 @@
 
 Every root ``*.html`` file is a tool, so a new tool is tested without an edit
 here. Tests reach the tools through ``http://127.0.0.1``, not ``file://``, so
-origin, ``localStorage`` and relative URLs behave as on GitHub Pages.
+origin, ``localStorage`` and relative URLs behave as on GitHub Pages. Every
+test that opens a tool ends with the checks in ``end_state.py``.
 """
 
 import functools
@@ -13,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import end_state
 import pytest
 from playwright.sync_api import ConsoleMessage, Error, Page, Request, Response, Route
 
@@ -61,10 +63,34 @@ def site_url() -> Iterator[str]:
 
 @dataclass
 class OpenedTool:
+    tool_file: str
+    viewport: str
     page: Page
     # Console errors, page errors, failed same-origin requests and external
     # requests, in the order they happened. A clean tool leaves it empty.
     problems: list[str]
+
+
+OPENED_TOOLS = pytest.StashKey[list[OpenedTool]]()
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_runtest_call(item: pytest.Item) -> Iterator[None]:
+    """After a test passes its own asserts, check the pages it ends on.
+
+    The check runs in the call phase, not in a fixture teardown, so a strict
+    xfail sees its failure. ``tryfirst`` wraps pytest-playwright's own hook,
+    which keeps its frames out of the failure report.
+    """
+    __tracebackhide__ = True
+    outcome = yield
+    failures = [
+        failure
+        for tool in item.stash.get(OPENED_TOOLS, [])
+        for failure in end_state.find_failures(tool.page, tool.tool_file, tool.viewport)
+    ]
+    end_state.check(item, failures)
+    return outcome
 
 
 def _answer_external_request(route: Route, problems: list[str]) -> None:
@@ -79,12 +105,13 @@ def _answer_external_request(route: Route, problems: list[str]) -> None:
 
 @pytest.fixture
 def open_tool(
-    new_context: Callable[..., Any], site_url: str
+    new_context: Callable[..., Any], site_url: str, request: pytest.FixtureRequest
 ) -> Callable[[str, str], OpenedTool]:
     """Open a root tool at a named viewport and record everything that goes wrong."""
 
     def open_(tool_file: str, viewport: str) -> OpenedTool:
         context = new_context(**VIEWPORTS[viewport])
+        context.add_init_script(end_state.RECORD_CANVAS_TEXT)
         problems: list[str] = []
         context.route(
             lambda url: not url.startswith(f"{site_url}/"),
@@ -114,6 +141,8 @@ def open_tool(
         page.on("requestfailed", on_request_failed)
         page.on("response", on_response)
         page.goto(f"{site_url}/{tool_file}", wait_until="networkidle")
-        return OpenedTool(page=page, problems=problems)
+        tool = OpenedTool(tool_file, viewport, page, problems)
+        request.node.stash.setdefault(OPENED_TOOLS, []).append(tool)
+        return tool
 
     return open_
