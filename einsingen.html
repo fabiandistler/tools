@@ -507,11 +507,17 @@ function resumeCtx() {
   }
 }
 
+const PAUSED_TXT = 'Audio pausiert — kurz auf die Seite tippen.';
+
 function ensureCtx() {
   if (!ctx) {
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
-    ctx.onstatechange = () => {
-      if (micOn && ctx.state !== 'running') setMicState('Audio pausiert — kurz auf die Seite tippen.', 'var(--warn)');
+    const created = new (window.AudioContext || window.webkitAudioContext)();
+    ctx = created;
+    created.onstatechange = () => {
+      if (created !== ctx || !micOn) return;
+      if (created.state !== 'running') setMicState(PAUSED_TXT, 'var(--warn)');
+      /* Running again: take back the pause message, but leave any other warning */
+      else if ($('micState').textContent === PAUSED_TXT) setMicState('Mikrofon läuft.', 'var(--good)');
     };
   }
   resumeCtx();
@@ -609,7 +615,10 @@ async function startMic() {
   $('micBtn').classList.add('rec');
   $('levelRow').hidden = false;
   $('sensRow').hidden = false;
-  setMicState('Mikrofon läuft.', 'var(--good)');
+  /* A context the system refuses to start would leave the readout empty
+     under a running message; a tap on the page wakes it (resumeCtx). */
+  if (ctx.state === 'running') setMicState('Mikrofon läuft.', 'var(--good)');
+  else setMicState(PAUSED_TXT, 'var(--warn)');
   $('micHint').innerHTML = '';
   drawGate();
   if (heldFreq != null) holdTone(heldFreq);
@@ -880,10 +889,15 @@ function loop() {
   rafId = requestAnimationFrame(loop);
   frameNo++;
   if (!micOn || !analyser) return;
-  analyser.getFloatTimeDomainData(buf);
+  /* A suspended or interrupted context hands out its last buffer over and
+     over: measuring it would hold a stale note that looks live. */
+  const running = ctx.state === 'running';
+  if (running) analyser.getFloatTimeDomainData(buf);
+  else deadSince = 0;
+  const measuring = running && !muteDetection;
 
   let res = null;
-  if (!muteDetection) {
+  if (measuring) {
     const p = detectPitch(buf, ctx.sampleRate, gateLevel());
     if (p) {
       const mf = freqToMidiFloat(p.freq);
@@ -895,7 +909,7 @@ function loop() {
 
   /* Wachhund: Liefert der Eingang trotz laufender Aufnahme nur Nullen, ist auf
      iOS meist der Audio-Kontext eingeschlafen. Einmal komplett neu aufbauen. */
-  if (!muteDetection) {
+  if (measuring) {
     if (lastPeak < 1e-5) {
       if (!deadSince) deadSince = now;
       else if (now - deadSince > 2.5 && !restartTried) { deadSince = 0; restartMic(); }

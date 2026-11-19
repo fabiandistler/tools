@@ -34,6 +34,14 @@ FAKE_MICROPHONE = """
       log.push('close context ' + this.logId);
       return super.close();
     }
+    // Set by a test to play a context that the system refuses to start: it
+    // stays suspended and so never fires statechange.
+    get state() {
+      return window.contextNeverRuns ? 'suspended' : super.state;
+    }
+    set onstatechange(handler) {
+      if (!window.contextNeverRuns) super.onstatechange = handler;
+    }
     createMediaStreamSource(stream) {
       log.push('microphone on context ' + this.logId);
       return super.createMediaStreamSource(stream);
@@ -221,4 +229,40 @@ def test_a_held_tone_keeps_sounding_when_the_microphone_starts(open_tool):
 
     assert page.evaluate("() => heldOsc !== null && heldOsc.osc.context === ctx")
     expect(page.locator("#holdTarget")).to_have_class("ghost on")
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+def test_a_suspended_context_stops_the_readout_until_it_runs_again(open_tool):
+    tool = open_with_fake_microphone(open_tool)
+    page = tool.page
+    switch_microphone_on(page)
+    note = page.locator("#noteName")
+    expect(note).to_have_text("A3")
+
+    page.evaluate("() => ctx.suspend()")
+    expect(note).to_have_text("—")
+    expect(page.locator("#micState")).to_have_text(
+        "Audio pausiert — kurz auf die Seite tippen."
+    )
+    newest_point = "() => hist.length ? hist[hist.length - 1].t : null"
+    newest_while_paused = page.evaluate(newest_point)
+    page.wait_for_timeout(300)
+    assert page.evaluate(newest_point) == newest_while_paused
+
+    page.evaluate("() => ctx.resume()")
+    expect(page.locator("#micState")).to_have_text("Mikrofon läuft.")
+    expect(note).to_have_text("A3")
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+def test_a_context_that_never_starts_shows_the_pause_message(open_tool):
+    tool = open_with_fake_microphone(open_tool)
+    page = tool.page
+    page.evaluate("() => { window.contextNeverRuns = true; }")
+    page.click("#micBtn")
+
+    expect(page.locator("#micState")).to_have_text(
+        "Audio pausiert — kurz auf die Seite tippen."
+    )
+    expect(page.locator("#noteName")).to_have_text("—")
     assert not tool.problems, "\n".join(tool.problems)
