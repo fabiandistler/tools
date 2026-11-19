@@ -295,7 +295,7 @@
 <pre>{ 
   "user": {
     "name": "Alice",
-    "email": "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="593835303a3c193c21383429353c773a3634">[email&#160;protected]</a>"
+    "email": "alice@example.com"
   }
 }</pre>
             </div>
@@ -307,7 +307,7 @@
             <div class="code-example">
 <pre>&lt;user&gt;
   &lt;name&gt;Alice&lt;/name&gt;
-  &lt;email&gt;<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="583934313b3d183d20393528343d763b3735">[email&#160;protected]</a>&lt;/email&gt;
+  &lt;email&gt;alice@example.com&lt;/email&gt;
 &lt;/user&gt;</pre>
             </div>
           </div>
@@ -317,8 +317,8 @@
             <div class="option-desc">Ideal für einfache Tabellendaten und Spreadsheet-Kompatibilität.</div>
             <div class="code-example">
 <pre>name,email
-Alice,<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="46272a2f252306233e272b362a236825292b">[email&#160;protected]</a>
-Bob,<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="8eece1ecceebf6efe3fee2eba0ede1e3">[email&#160;protected]</a></pre>
+Alice,alice@example.com
+Bob,bob@example.com</pre>
             </div>
           </div>
 
@@ -328,7 +328,7 @@ Bob,<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="8ee
             <div class="code-example">
 <pre>user:
   name: Alice
-  email: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6e0f02070d0b2e0b160f031e020b400d0103">[email&#160;protected]</a></pre>
+  email: alice@example.com</pre>
             </div>
           </div>
         </div>
@@ -510,7 +510,7 @@ entityManager.persist(user);</pre>
     </div>
   </div>
 
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+  <script>
     const state = {
       currentStep: 1,
       selections: {
@@ -602,7 +602,7 @@ entityManager.persist(user);</pre>
 
     function goToStep(step) {
       document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
-      document.getElementById(`step${step === 4 ? 'result' : step}`).classList.add('active');
+      document.getElementById(step === 4 ? 'result' : `step${step}`).classList.add('active');
       state.currentStep = step;
       updateProgress();
     }
