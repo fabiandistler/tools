@@ -113,3 +113,66 @@ def test_paste_outside_a_field_still_feeds_the_inspector(open_tool, site_url):
     expect(page.locator("#clip-content")).to_have_text("Hallo Welt")
     expect(page.locator("#transform-input")).to_have_value("")
     assert not tool.problems, "\n".join(tool.problems)
+
+
+# --- Blocked browser storage -------------------------------------------------
+
+# Safari with "Alle Cookies blockieren" (and Chrome with site data blocked)
+# throws on every read of window.localStorage.
+BLOCK_STORAGE = """
+Object.defineProperty(window, 'localStorage', {
+  configurable: true,
+  get() { throw new DOMException('The operation is insecure.', 'SecurityError'); },
+});
+"""
+STORAGE_BLOCKED = "kein Speichern zu"
+
+
+def test_blocked_storage_leaves_the_rest_of_the_page_working(open_tool):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    page.add_init_script(BLOCK_STORAGE)
+    page.reload(wait_until="networkidle")
+
+    # Set up after the first storage read: drag and drop, the key display and
+    # the LLM status.
+    drop_prevented = page.evaluate(
+        """() => {
+            const event = new DragEvent('dragover', {bubbles: true, cancelable: true});
+            document.getElementById('drop-zone').dispatchEvent(event);
+            return event.defaultPrevented;
+        }"""
+    )
+    assert drop_prevented, "the drop zone has no dragover listener"
+    assert page.evaluate("document.getElementById('key-display-area').tabIndex") == 0
+
+    open_panel(page, "llm")
+    expect(page.locator("#llm-key-status")).to_contain_text(STORAGE_BLOCKED)
+
+    open_panel(page, "localstorage")
+    expect(page.locator("#ls-status")).to_contain_text(STORAGE_BLOCKED)
+    expect(page.locator("#key-status")).to_contain_text(STORAGE_BLOCKED)
+
+    page.fill("#ls-editor", "eine Notiz")
+    expect(page.locator("#ls-wordcount")).to_have_text("2 Wörter")
+    page.wait_for_timeout(1000)  # the draft is saved 800 ms after typing stops
+    expect(page.locator("#ls-status")).to_contain_text(STORAGE_BLOCKED)
+
+    page.once("dialog", lambda dialog: dialog.accept("beispiel-schluessel-1234"))
+    page.click("button:has-text('Beispiel-Schlüssel setzen')")
+    expect(page.locator("#key-status")).to_contain_text(STORAGE_BLOCKED)
+
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+def test_draft_is_kept_across_a_reload_when_storage_works(open_tool):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    open_panel(page, "localstorage")
+    page.fill("#ls-editor", "eine Notiz")
+    expect(page.locator("#ls-status")).to_contain_text("gespeichert ✓")
+
+    page.reload(wait_until="networkidle")
+    expect(page.locator("#ls-editor")).to_have_value("eine Notiz")
+    expect(page.locator("#ls-status")).to_have_text("aus dem Browser-Speicher geholt")
+    assert not tool.problems, "\n".join(tool.problems)

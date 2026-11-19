@@ -1336,15 +1336,32 @@ function syncToURL() {
 })();
 
 // ── BROWSER-SPEICHER ───────────────────────────────────────────
+// With site data blocked (Safari "Alle Cookies blockieren", some private
+// windows) every localStorage access throws a DOMException. The demos then
+// keep working without memory and say so instead of stopping the script.
+const STORAGE_BLOCKED_MSG = '⚠ Der Browser lässt hier kein Speichern zu (privates Fenster oder blockierte ' +
+  'Websitedaten) — die Demo läuft, merkt sich aber nichts.';
+let storageBlocked = false;
+function withStorage(useStorage) {
+  try {
+    return useStorage(window.localStorage);
+  } catch (e) {
+    if (!(e instanceof DOMException)) throw e;
+    storageBlocked = true;
+    return null;
+  }
+}
+
 const LS_DRAFT_KEY = 'html-bausteine-notiz';
 const editor = document.getElementById('ls-editor');
 const lsDot = document.getElementById('ls-dot');
 const lsStatus = document.getElementById('ls-status');
 let saveTimer;
 
-editor.value = localStorage.getItem(LS_DRAFT_KEY) || '';
+editor.value = withStorage(s => s.getItem(LS_DRAFT_KEY)) || '';
 updateWordCount();
-if (editor.value) { lsDot.classList.add('saved'); lsStatus.textContent = 'aus dem Browser-Speicher geholt'; }
+if (storageBlocked) lsStatus.textContent = STORAGE_BLOCKED_MSG;
+else if (editor.value) { lsDot.classList.add('saved'); lsStatus.textContent = 'aus dem Browser-Speicher geholt'; }
 
 editor.addEventListener('input', () => {
   lsDot.classList.remove('saved');
@@ -1353,15 +1370,11 @@ editor.addEventListener('input', () => {
   updateWordCount();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    try {
-      localStorage.setItem(LS_DRAFT_KEY, editor.value);
-      lsDot.classList.remove('saving', 'pulsing');
-      lsDot.classList.add('saved');
-      lsStatus.textContent = 'gespeichert ✓ ' + new Date().toLocaleTimeString();
-    } catch (e) {
-      lsDot.classList.remove('saving', 'pulsing');
-      lsStatus.textContent = '⚠ Der Browser lässt das Speichern nicht zu (privates Fenster?)';
-    }
+    withStorage(s => s.setItem(LS_DRAFT_KEY, editor.value));
+    lsDot.classList.remove('saving', 'pulsing');
+    if (storageBlocked) { lsStatus.textContent = STORAGE_BLOCKED_MSG; return; }
+    lsDot.classList.add('saved');
+    lsStatus.textContent = 'gespeichert ✓ ' + new Date().toLocaleTimeString();
   }, 800);
 });
 
@@ -1372,18 +1385,21 @@ function updateWordCount() {
 
 function clearDraft() {
   if (!confirm('Notiz wirklich aus dem Browser-Speicher löschen?')) return;
-  localStorage.removeItem(LS_DRAFT_KEY);
+  withStorage(s => s.removeItem(LS_DRAFT_KEY));
   editor.value = '';
   lsDot.classList.remove('saved', 'saving', 'pulsing');
-  lsStatus.textContent = 'gelöscht';
+  lsStatus.textContent = storageBlocked ? STORAGE_BLOCKED_MSG : 'gelöscht';
   updateWordCount();
 }
 
 const LS_KEY_KEY = 'html-bausteine-beispielschluessel';
 function updateKeyDisplay() {
-  const key = localStorage.getItem(LS_KEY_KEY);
+  const key = withStorage(s => s.getItem(LS_KEY_KEY));
   const el = document.getElementById('key-status');
-  if (key) {
+  if (storageBlocked) {
+    el.style.color = 'var(--warning)';
+    el.textContent = STORAGE_BLOCKED_MSG;
+  } else if (key) {
     el.style.color = 'var(--success)';
     el.textContent = '✓ hinterlegt: ' + key.substring(0, 8) + '…' + key.slice(-4);
   } else {
@@ -1395,9 +1411,9 @@ updateKeyDisplay();
 
 function promptForKey() {
   const key = prompt('Irgendetwas eingeben — für diese Demo genügt jede Eingabe:');
-  if (key) { localStorage.setItem(LS_KEY_KEY, key); updateKeyDisplay(); }
+  if (key) { withStorage(s => s.setItem(LS_KEY_KEY, key)); updateKeyDisplay(); }
 }
-function clearKey() { localStorage.removeItem(LS_KEY_KEY); updateKeyDisplay(); }
+function clearKey() { withStorage(s => s.removeItem(LS_KEY_KEY)); updateKeyDisplay(); }
 
 // ── DATEIEN ÖFFNEN ─────────────────────────────────────────────
 const dropZone = document.getElementById('drop-zone');
@@ -1548,9 +1564,13 @@ async function checkCORS() {
 const LLM_KEY_LS = 'html-bausteine-llm-schluessel';
 
 function updateLLMKeyStatus() {
-  const key = localStorage.getItem(LLM_KEY_LS);
+  const key = withStorage(s => s.getItem(LLM_KEY_LS));
   const el = document.getElementById('llm-key-status');
-  if (key) {
+  if (storageBlocked) {
+    el.className = 'status err';
+    el.textContent = 'Der Browser lässt hier kein Speichern zu, also lässt sich kein Schlüssel hinterlegen — ' +
+      'diese Demo bleibt stumm. Alle anderen Bausteine funktionieren trotzdem.';
+  } else if (key) {
     el.className = 'status ok';
     el.textContent = '✓ Schlüssel hinterlegt: ' + key.substring(0, 8) + '…  (nur in diesem Browser)';
   } else {
@@ -1562,12 +1582,12 @@ updateLLMKeyStatus();
 
 function setLLMKey() {
   const key = prompt('Zugangsschlüssel von Anthropic eingeben (beginnt mit sk-ant-…):');
-  if (key) { localStorage.setItem(LLM_KEY_LS, key); updateLLMKeyStatus(); }
+  if (key) { withStorage(s => s.setItem(LLM_KEY_LS, key)); updateLLMKeyStatus(); }
 }
-function clearLLMKey() { localStorage.removeItem(LLM_KEY_LS); updateLLMKeyStatus(); }
+function clearLLMKey() { withStorage(s => s.removeItem(LLM_KEY_LS)); updateLLMKeyStatus(); }
 
 async function callClaude() {
-  const key = localStorage.getItem(LLM_KEY_LS);
+  const key = withStorage(s => s.getItem(LLM_KEY_LS));
   const outEl = document.getElementById('llm-output');
   if (!key) {
     outEl.innerHTML = '<div class="status err">Erst einen Zugangsschlüssel hinterlegen.</div>';
