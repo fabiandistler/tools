@@ -492,7 +492,7 @@ function renderCode() {
       '    tree_method="hist", n_estimators=800, learning_rate=0.05,\n' +
       ')\nmodel.fit(X[feature_cols], y)';
   } else if (state.tab === 'catboost') {
-    out = 'from catboost import CatBoostRegressor\n\n' +
+    out = 'from catboost import CatBoostRegressor\n\n' + cols + '\n\n' +
       '# CatBoost akzeptiert ein Dict — unabhängig von der Spaltenreihenfolge, deshalb robuster.\n' +
       'monotone_constraints = {\n' + dict + ',\n}\n\n' +
       'model = CatBoostRegressor(\n' +
