@@ -300,3 +300,19 @@ def test_new_run_resets_the_sort_and_shows_the_most_influential_rows(open_tool):
     assert "36" in expected_labels
     shown = page.locator("#diagTable tbody td.idx").all_inner_texts()
     assert shown == expected_labels
+
+
+def test_text_only_data_retires_the_previous_model(open_tool):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    page.click("#demo1")
+    run(page)
+    read_data(page, "a,b\nfoo,bar\nbaz,qux\nx,z")
+
+    expect(page.locator("#parseMsg .msg.err")).to_contain_text("No numeric column")
+    # The old model card would fit the new data with the old column names.
+    expect(page.locator("#modelCard")).to_be_hidden()
+    expect(page.locator("#runBtn")).to_be_hidden()
+    expect(page.locator("#fitCard")).to_be_hidden()
+    expect(page.locator("#diagCard")).to_be_hidden()
+    assert not tool.problems, "\n".join(tool.problems)

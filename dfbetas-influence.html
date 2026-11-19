@@ -970,6 +970,9 @@ function readData() {
   }
 
   if (!numCols.length) {
+    // Retire the model card too: its selects still name the previous data's columns.
+    S.parsed = null;
+    $("modelCard").classList.add("hidden");
     msg("parseMsg", "err", "No numeric column found — check the separator and the decimal mark.");
     return;
   }
