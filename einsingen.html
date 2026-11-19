@@ -739,6 +739,11 @@ function stopHold() {
    ========================================================================== */
 
 const F_MIN = 65, F_MAX = 1200;
+/* An earlier coarse peak is measured at full resolution only if it reaches
+   this share of the highest. A true period never read below 0.74 in a C2-D6
+   sweep of sawtooth and vowel-like tones; formant ripples mostly stay lower,
+   and skipping them keeps a frame about as cheap as the coarse search alone. */
+const CANDIDATE_MIN = 0.5;
 
 /* Das Fenster muss mindestens rund 85 ms lang sein, sonst passt bei tiefen
    Stimmen keine ganze Schwingung hinein. Auf dem iPhone läuft die Audio-Hardware
@@ -759,6 +764,18 @@ function nsdfAt(b, N, lag) {
     m += x * x + y * y;
   }
   return m > 0 ? (2 * acf) / m : 0;
+}
+
+/* Highest full-resolution point within one coarse step of coarse lag lag2 */
+function refinePeak(b, N, lag2, D) {
+  const lo = Math.max(2, (lag2 - 1) * D - 1);
+  const hi = Math.min(N - 3, (lag2 + 1) * D + 1);
+  let best = lo, bv = -2;
+  for (let lag = lo; lag <= hi; lag++) {
+    const v = nsdfAt(b, N, lag);
+    if (v > bv) { bv = v; best = lag; }
+  }
+  return { lag: best, v: bv, atEdge: best <= lo || best >= hi };
 }
 
 let decBuf = null, coarse = null;
@@ -791,7 +808,9 @@ function detectPitch(b, sr, gate) {
     decBuf[i] = s / D;
   }
 
-  const minLag2 = Math.max(2, Math.floor(sr2 / F_MAX));
+  /* One step below the F_MAX period, so that a peak there still has a left
+     neighbour and counts as a local maximum */
+  const minLag2 = Math.max(2, Math.floor(sr2 / F_MAX) - 1);
   const maxLag2 = Math.min(N2 - 3, Math.ceil(sr2 / F_MIN));
   if (maxLag2 <= minLag2 + 2) return null;
   if (!coarse || coarse.length < maxLag2 + 2) coarse = new Float32Array(maxLag2 + 2);
@@ -808,23 +827,24 @@ function detectPitch(b, sr, gate) {
     }
   }
   if (!peaks.length || maxV < 0.45) return null;
-  const thresh = 0.9 * maxV;
-  let best2 = -1;
-  for (const lag of peaks) if (coarse[lag] >= thresh) { best2 = lag; break; }
-  if (best2 < 0) return null;
 
-  /* Feinsuche in voller Auflösung rund um die grob gefundene Verschiebung */
-  const lo = Math.max(2, (best2 - 1) * D - 1);
-  const hi = Math.min(N - 3, (best2 + 1) * D + 1);
-  let best = lo, bv = -2;
-  for (let lag = lo; lag <= hi; lag++) {
-    const v = nsdfAt(b, N, lag);
-    if (v > bv) { bv = v; best = lag; }
+  /* The coarse grid meets a peak only every D samples, often beside its top.
+     A high, harmonic-rich note has peaks so narrow that its own period can
+     read lower there than twice the period, which then won: the note came out
+     an octave low. So the candidates are compared at full resolution, as in
+     the single-stage search: the first peak that reaches 90 % of the highest. */
+  let top = 0;
+  for (let i = 1; i < peaks.length; i++) if (coarse[peaks[i]] > coarse[peaks[top]]) top = i;
+  const highest = refinePeak(b, N, peaks[top], D);
+  let pick = highest;
+  for (let i = 0; i < top; i++) {
+    if (coarse[peaks[i]] < CANDIDATE_MIN * maxV) continue;
+    const r = refinePeak(b, N, peaks[i], D);
+    if (r.v >= 0.9 * highest.v) { pick = r; break; }
   }
-  if (best <= lo || best >= hi) {
-    /* Am Rand des Suchfensters ist die Parabel unbrauchbar */
-    if (bv < 0.75) return null;
-  }
+  const best = pick.lag, bv = pick.v;
+  /* Am Rand des Suchfensters ist die Parabel unbrauchbar */
+  if (pick.atEdge && bv < 0.75) return null;
 
   /* Parabel durch die drei Punkte um den Gipfel — sonst wäre die Auflösung grob */
   const y1 = nsdfAt(b, N, best - 1), y2 = bv, y3 = nsdfAt(b, N, best + 1);
