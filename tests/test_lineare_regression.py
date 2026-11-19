@@ -131,6 +131,40 @@ def test_cells_that_are_not_whole_numbers_are_rejected_and_named(open_tool):
     assert not tool.problems, "\n".join(tool.problems)
 
 
+@pytest.mark.parametrize(
+    ("pasted", "expected_columns", "decimal_name"),
+    [
+        # Decimal comma: "0.125" is no thousands group, so line 4 is skipped
+        # instead of being read as 125.
+        pytest.param(
+            "x;y\n1,5;2,1\n2,5;3,9\n3,5;0.125\n4,5;8,1",
+            [[1.5, 2.5, 4.5], [2.1, 3.9, 8.1]],
+            "Komma",
+            id="comma-rejects-0.125",
+        ),
+        # Decimal point: "0.125" can only be a decimal, so it votes for the
+        # point and outweighs the one "4,5".
+        pytest.param(
+            "x;y\n1;0.125\n2;0.250\n3;0.375\n4;4,5",
+            [[1.0, 2.0, 3.0], [0.125, 0.25, 0.375]],
+            "Punkt",
+            id="point-wins-with-0.125",
+        ),
+    ],
+)
+def test_a_thousands_group_never_starts_with_zero(
+    open_tool, pasted, expected_columns, decimal_name
+):
+    tool = open_tool(TOOL, "desktop")
+    read_data(tool.page, pasted)
+    message = tool.page.locator("#d-msg")
+    expect(message).to_contain_text(f"Dezimaltrennzeichen: {decimal_name}")
+    expect(message).to_contain_text("Übersprungen")
+    expect(message).to_contain_text("Zeile 4" if decimal_name == "Komma" else "Zeile 5")
+    assert parsed_columns(tool.page) == expected_columns
+    assert not tool.problems, "\n".join(tool.problems)
+
+
 def test_too_few_numeric_rows_names_the_rejected_lines(open_tool):
     tool = open_tool(TOOL, "desktop")
     read_data(tool.page, "x;y\n1;10 kg\n2;20 kg\n3;30\n4;40")
