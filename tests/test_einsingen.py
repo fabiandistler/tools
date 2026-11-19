@@ -5,13 +5,52 @@ The pitch tests synthesize their own tones and feed them to the page's
 ``pickFftSize(sampleRate)`` samples and the gate at the default sensitivity.
 The expected note is the one the tone was built from, never a value the page
 computes.
+
+The microphone tests replace ``getUserMedia`` with a stream that carries a
+steady A3 and log every ``AudioContext`` the page creates, closes and connects
+the microphone to.
 """
 
 import math
 
 import pytest
+from playwright.sync_api import Page, expect
 
 TOOL = "einsingen.html"
+
+# Installed before the page's own script runs.
+FAKE_MICROPHONE = """
+(() => {
+  const NativeContext = window.AudioContext;
+  const log = (window.audioLog = []);
+  let count = 0;
+  window.AudioContext = class extends NativeContext {
+    constructor(...args) {
+      super(...args);
+      this.logId = ++count;
+      log.push('new context ' + this.logId);
+    }
+    close() {
+      log.push('close context ' + this.logId);
+      return super.close();
+    }
+    createMediaStreamSource(stream) {
+      log.push('microphone on context ' + this.logId);
+      return super.createMediaStreamSource(stream);
+    }
+  };
+  navigator.mediaDevices.getUserMedia = async () => {
+    log.push('getUserMedia');
+    const singer = new NativeContext();
+    const tone = singer.createOscillator();
+    tone.frequency.value = 220;
+    const stream = singer.createMediaStreamDestination();
+    tone.connect(stream);
+    tone.start();
+    return stream.stream;
+  };
+})();
+"""
 
 SAMPLE_RATES = [44100, 48000]
 # C2 (65.4 Hz) to D6 (1174.7 Hz): every semitone between the detector's
@@ -119,4 +158,67 @@ def test_harmonic_tones_read_in_the_right_octave(open_tool, waveform, sample_rat
     assert not wrong, f"{len(wrong)} of {len(MIDI_NOTES)} notes wrong: " + "; ".join(
         wrong
     )
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+# --- Microphone and audio context ------------------------------------------
+
+
+def open_with_fake_microphone(open_tool):
+    tool = open_tool(TOOL, "desktop")
+    tool.page.context.add_init_script(FAKE_MICROPHONE)
+    tool.page.reload(wait_until="networkidle")
+    return tool
+
+
+def open_tab(page: Page, panel_id: str) -> None:
+    page.click(f'#tabs button[data-t="{panel_id}"]')
+    expect(page.locator(f"#{panel_id}")).to_be_visible()
+
+
+def tap_a3_key(page: Page) -> None:
+    page.click('#kbTuner .key[data-m="57"]')
+
+
+def start_exercise(page: Page) -> None:
+    open_tab(page, "p-uebung")
+    page.click("#exStart")
+
+
+def switch_microphone_on(page: Page) -> None:
+    page.click("#micBtn")
+    expect(page.locator("#micState")).to_have_text("Mikrofon läuft.")
+
+
+@pytest.mark.parametrize("first_sound", [tap_a3_key, start_exercise])
+def test_microphone_gets_a_context_started_after_its_stream(open_tool, first_sound):
+    tool = open_with_fake_microphone(open_tool)
+    page = tool.page
+    first_sound(page)
+    switch_microphone_on(page)
+
+    # On iOS a context started before the microphone opened hears only zeros.
+    assert page.evaluate("() => audioLog") == [
+        "new context 1",
+        "getUserMedia",
+        "close context 1",
+        "new context 2",
+        "microphone on context 2",
+    ]
+    if first_sound is start_exercise:
+        page.click("#exStop")  # detection is muted while the exercise plays
+    open_tab(page, "p-tuner")
+    expect(page.locator("#noteName")).to_have_text("A3")
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+def test_a_held_tone_keeps_sounding_when_the_microphone_starts(open_tool):
+    tool = open_with_fake_microphone(open_tool)
+    page = tool.page
+    tap_a3_key(page)
+    page.click("#holdTarget")
+    switch_microphone_on(page)
+
+    assert page.evaluate("() => heldOsc !== null && heldOsc.osc.context === ctx")
+    expect(page.locator("#holdTarget")).to_have_class("ghost on")
     assert not tool.problems, "\n".join(tool.problems)

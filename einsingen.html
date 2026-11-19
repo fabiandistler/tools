@@ -586,9 +586,17 @@ async function startMic() {
     showMicHint(e && (e.name === 'NotAllowedError' || e.name === 'SecurityError') ? 'denied' : 'error', e);
     return;
   }
-  /* Erst jetzt den Kontext bauen bzw. wecken: Auf iOS wechselt das System beim
-     Öffnen des Mikrofons die Abtastrate, und ein vorher gestarteter Kontext
-     liefert danach eine Tonspur aus lauter Nullen. */
+  /* Build the context only now, in this tap: on iOS the system switches the
+     sample rate when the microphone opens, and a context started before then
+     delivers only zeros. A context that a key, a tone or an exercise already
+     started is therefore replaced, not woken; a held tone moves along. */
+  let heldFreq = null;
+  if (ctx) {
+    if (heldOsc) { heldFreq = heldOsc.osc.frequency.value; heldOsc = null; }
+    const earlier = ctx;
+    ctx = null;
+    await earlier.close();
+  }
   ensureCtx();
   try { await ctx.resume(); } catch (e) { /* egal */ }
   buildGraph();
@@ -604,6 +612,7 @@ async function startMic() {
   setMicState('Mikrofon läuft.', 'var(--good)');
   $('micHint').innerHTML = '';
   drawGate();
+  if (heldFreq != null) holdTone(heldFreq);
 }
 
 /* Letzte Rettung, wenn der Eingang trotz laufender Aufnahme nur Nullen liefert:
