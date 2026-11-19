@@ -670,11 +670,13 @@ function showMicHint(kind, err) {
       'Auf dem iPhone können das andere Browser als Safari sein — dort läuft zwar Safaris Technik darunter, der Mikrofonzugriff ist aber teils gesperrt. Mit Safari öffnen.</div>';
   } else {
     html = '<div class="warn"><strong>Das Mikrofon ließ sich nicht öffnen.</strong> ' +
-      (err && err.message ? '<span class="mono">' + err.message + '</span>. ' : '') +
+      (err && err.message ? '<span class="mono" id="micErr"></span>. ' : '') +
       'Häufigster Grund auf dem Telefon: Eine andere App belegt das Mikrofon gerade — Sprachmemos, ein laufender Anruf oder eine Videokonferenz. ' +
       'Alles außer der Tonhöhenerkennung funktioniert weiterhin.</div>';
   }
   $('micHint').innerHTML = html;
+  /* The browser's error text reaches the page only as text */
+  if ($('micErr')) $('micErr').textContent = err.message;
   setMicState('Kein Mikrofon.', 'var(--warn)');
 }
 

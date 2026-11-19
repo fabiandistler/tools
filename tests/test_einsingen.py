@@ -49,6 +49,10 @@ FAKE_MICROPHONE = """
   };
   navigator.mediaDevices.getUserMedia = async () => {
     log.push('getUserMedia');
+    // Set by a test to make the microphone fail with this message.
+    if (window.microphoneError) {
+      throw new DOMException(window.microphoneError, 'NotReadableError');
+    }
     const singer = new NativeContext();
     const tone = singer.createOscillator();
     tone.frequency.value = 220;
@@ -324,4 +328,18 @@ def test_manual_range_rejects_an_inverted_range(open_tool, first, second, messag
     expect(range_stat(page, "Umfang")).to_have_text("10 Halbtöne")
     page.click("#saveSession")
     assert [(row["low"], row["high"]) for row in saved_ranges(page)] == [(C4, AIS4)]
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+def test_a_microphone_error_message_is_shown_as_text(open_tool):
+    tool = open_with_fake_microphone(open_tool)
+    page = tool.page
+    markup = '<img src="x" onerror="window.injected = true">Gerät belegt'
+    page.evaluate("text => { window.microphoneError = text; }", markup)
+    page.click("#micBtn")
+
+    expect(page.locator("#micState")).to_have_text("Kein Mikrofon.")
+    expect(page.locator("#micHint .mono")).to_have_text(markup)
+    expect(page.locator("#micHint img")).to_have_count(0)
+    assert page.evaluate("() => window.injected") is None
     assert not tool.problems, "\n".join(tool.problems)
