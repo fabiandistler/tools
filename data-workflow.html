@@ -602,7 +602,7 @@ entityManager.persist(user);</pre>
 
     function goToStep(step) {
       document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
-      document.getElementById(`step${step === 4 ? 'result' : step}`).classList.add('active');
+      document.getElementById(step === 4 ? 'result' : `step${step}`).classList.add('active');
       state.currentStep = step;
       updateProgress();
     }
