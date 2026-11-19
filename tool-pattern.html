@@ -1497,26 +1497,49 @@ async function fetchPyPI() {
   }
 }
 
+// The browser never shows a page the Access-Control-Allow-Origin header of a
+// cross-origin response. It hands the response over only when that header
+// allows this origin, and otherwise rejects fetch() with a TypeError, the same
+// error a network failure gives. So the outcome of fetch() is the answer.
 async function checkCORS() {
   const url = document.getElementById('cors-url').value.trim();
   const outEl = document.getElementById('cors-result');
   if (!url) return;
-  outEl.innerHTML = '<span class="spinner"></span> wird geprüft …';
+  let target = null;
   try {
-    const res = await fetch(url, { method: 'HEAD' });
-    const cors = res.headers.get('access-control-allow-origin');
-    if (cors) {
-      outEl.replaceChildren(makeElement('div', { class: 'status ok' },
-        '✓ Erlaubt — diese Adresse lässt sich direkt aus einer Seite heraus abfragen.', makeElement('br', {}),
-        'Sie schickt ', makeElement('code', {}, 'Access-Control-Allow-Origin: ' + cors), ' mit.'));
-    } else {
-      outEl.replaceChildren(makeElement('div', { class: 'status info' }, 'Die Anfrage ging durch (Antwort ' + res.status +
-        '), eine ausdrückliche Erlaubnis war aber nicht dabei. Bei echten Abfragen kann es trotzdem klemmen.'));
-    }
+    target = new URL(url);
   } catch (e) {
-    outEl.innerHTML = '<div class="status err">✗ Der Browser hat blockiert. Diese Adresse erlaubt keine direkten Abfragen ' +
-      'aus einer fremden Seite — dafür bräuchte es einen eigenen Server als Vermittler.</div>';
+    if (!(e instanceof TypeError)) throw e;
   }
+  if (!target || !['http:', 'https:'].includes(target.protocol)) {
+    outEl.replaceChildren(makeElement('div', { class: 'status err' },
+      'Das ist keine vollständige Webadresse — sie beginnt mit https://'));
+    return;
+  }
+  if (target.origin === location.origin) {
+    outEl.replaceChildren(makeElement('div', { class: 'status info' },
+      'Das ist dieselbe Adresse wie diese Seite. Dafür braucht es keine Erlaubnis — eine fremde Adresse eingeben.'));
+    return;
+  }
+  outEl.innerHTML = '<span class="spinner"></span> wird geprüft …';
+  let res;
+  try {
+    res = await fetch(target, { method: 'HEAD' });
+  } catch (e) {
+    if (!(e instanceof TypeError)) throw e;
+    outEl.replaceChildren(makeElement('div', { class: 'status err' },
+      '✗ Keine Antwort — der Browser hat sie der Seite nicht gegeben.', makeElement('br', {}),
+      'Meist fehlt die Erlaubnis ', makeElement('code', {}, 'Access-Control-Allow-Origin'),
+      '; dann bräuchte es einen eigenen Server als Vermittler. Dieselbe Meldung kommt aber auch, wenn die Adresse ' +
+      'gar nicht erreichbar ist (Netz weg, Tippfehler) — welcher Fall es war, verrät der Browser der Seite nicht.'));
+    return;
+  }
+  outEl.replaceChildren(makeElement('div', { class: 'status ok' },
+    '✓ Erlaubt — diese Adresse lässt sich direkt aus einer Seite heraus abfragen (Antwort ' + res.status + ').',
+    makeElement('br', {}),
+    'Woran man das sieht: Den Eintrag ', makeElement('code', {}, 'Access-Control-Allow-Origin'),
+    ' selbst zeigt der Browser der Seite nie. Er gibt ihr die Antwort aber nur, wenn die Gegenseite damit die ' +
+    'Erlaubnis mitgeschickt hat — dass die Antwort ankam, ist der Beleg.'));
 }
 
 // ── KI ─────────────────────────────────────────────────────────
