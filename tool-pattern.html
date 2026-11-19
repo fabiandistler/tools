@@ -1246,6 +1246,8 @@ function showPanel(id) {
 document.addEventListener('paste', (e) => {
   const panel = document.getElementById('panel-clipboard');
   if (!panel.classList.contains('active')) return;
+  // A paste into a text field belongs to that field, such as "Text umformen".
+  if (e.target.closest('input, textarea, [contenteditable]')) return;
 
   e.preventDefault();
   const items = e.clipboardData.items;

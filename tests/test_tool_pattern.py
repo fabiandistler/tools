@@ -75,3 +75,41 @@ def test_cors_checker_only_judges_a_foreign_web_address(
     page.click("button:has-text('Prüfen')")
     expect(page.locator("#cors-result")).to_contain_text(message)
     assert not tool.problems, "\n".join(tool.problems)
+
+
+# --- Baustein 2: clipboard --------------------------------------------------
+
+
+def put_on_clipboard(page: Page, site_url: str, text: str) -> None:
+    page.context.grant_permissions(
+        ["clipboard-read", "clipboard-write"], origin=site_url
+    )
+    page.evaluate("text => navigator.clipboard.writeText(text)", text)
+
+
+def test_paste_into_the_transform_field_lands_in_the_field(open_tool, site_url):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    open_panel(page, "clipboard")
+    put_on_clipboard(page, site_url, "Hallo Welt")
+
+    page.focus("#transform-input")
+    page.keyboard.press("ControlOrMeta+V")
+
+    expect(page.locator("#transform-input")).to_have_value("Hallo Welt")
+    expect(page.locator("#clip-content")).to_have_text("Hier erscheint der Inhalt …")
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+def test_paste_outside_a_field_still_feeds_the_inspector(open_tool, site_url):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    open_panel(page, "clipboard")
+    put_on_clipboard(page, site_url, "Hallo Welt")
+
+    page.click("#panel-clipboard h2")
+    page.keyboard.press("ControlOrMeta+V")
+
+    expect(page.locator("#clip-content")).to_have_text("Hallo Welt")
+    expect(page.locator("#transform-input")).to_have_value("")
+    assert not tool.problems, "\n".join(tool.problems)
