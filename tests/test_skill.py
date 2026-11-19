@@ -8,7 +8,6 @@ import re
 
 import pytest
 import yaml
-from end_state import EndStateFailure
 from playwright.sync_api import Page, expect
 
 TOOL = "skill.html"
@@ -208,7 +207,6 @@ def test_reset_clears_a_rejected_name(open_tool):
 # --- Builder on a phone -------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, raises=EndStateFailure, reason="#22")
 def test_builder_with_a_one_sentence_description_fits_a_phone(open_tool):
     tool = open_tool(TOOL, "phone")
     page = tool.page
