@@ -8,13 +8,8 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-      # Hand edit after generation: the fixers leave the existing tools they
-      # would rewrite alone (53 lines in 5 files, some inside <pre> code
-      # samples). Tool files are not reformatted; new files are checked.
       - id: trailing-whitespace
-        exclude: '^(attention|data-workflow|evo-algo|index|skill)\.html$'
       - id: end-of-file-fixer
-        exclude: '^(data-workflow|skill)\.html$'
       - id: check-yaml
       - id: check-toml
       - id: check-added-large-files
