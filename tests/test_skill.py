@@ -79,3 +79,126 @@ def test_multi_line_description_is_valid_yaml(open_tool, what, description_lines
         "description": "\n".join([*description_lines, EMPTY_TRIGGER_LINE]) + "\n",
     }
     assert not tool.problems, "\n".join(tool.problems)
+
+
+# --- Name and description: the limits the page teaches ----------------------
+
+# The spec as the page states it on the Anatomie tab and in the checklist:
+# name 1-64 characters of a-z, 0-9 and "-", no leading or trailing "-", no
+# "--"; description 1-1024 characters.
+NAME_MAX_LENGTH = 64
+DESCRIPTION_MAX_LENGTH = 1024
+
+
+def expect_rejected(page: Page, error_id: str, message: str) -> None:
+    expect(page.locator(f"#{error_id}")).to_be_visible()
+    expect(page.locator(f"#{error_id}")).to_contain_text(message)
+    expect(page.locator("#b-copy")).to_be_disabled()
+
+
+def expect_accepted(page: Page) -> None:
+    expect(page.locator("#b-name-error")).to_be_hidden()
+    expect(page.locator("#b-what-error")).to_be_hidden()
+    expect(page.locator("#b-copy")).to_be_enabled()
+
+
+@pytest.mark.parametrize(
+    ("typed", "shown", "message"),
+    [
+        pytest.param("my-", "my-", "kein Bindestrich am Anfang oder Ende", id="end"),
+        pytest.param("-my", "-my", "kein Bindestrich am Anfang oder Ende", id="start"),
+        pytest.param("a--b", "a--b", "keine zwei Bindestriche", id="double"),
+        pytest.param(
+            "Mein Skill! Ä", "mein-skill!-ä", "nur Kleinbuchstaben a–z", id="chars"
+        ),
+        pytest.param(
+            "a" * (NAME_MAX_LENGTH + 16),
+            "a" * (NAME_MAX_LENGTH + 16),
+            f"höchstens {NAME_MAX_LENGTH} Zeichen, jetzt {NAME_MAX_LENGTH + 16}",
+            id="too-long",
+        ),
+    ],
+)
+def test_name_against_spec_is_rejected(open_tool, typed, shown, message):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    open_section(page, "Builder", "builder")
+    page.fill("#b-name", typed)
+
+    expect_rejected(page, "b-name-error", message)
+    # The preview follows the input instead of freezing on the last good name.
+    assert frontmatter(page)["name"] == shown
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+@pytest.mark.parametrize(
+    ("typed", "shown"),
+    [
+        pytest.param("pdf-summary", "pdf-summary", id="plain"),
+        pytest.param("PDF Summary", "pdf-summary", id="normalised"),
+        pytest.param("v2-report-2026", "v2-report-2026", id="digits"),
+        pytest.param("a" * NAME_MAX_LENGTH, "a" * NAME_MAX_LENGTH, id="at-limit"),
+    ],
+)
+def test_name_within_spec_is_accepted(open_tool, typed, shown):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    open_section(page, "Builder", "builder")
+    page.fill("#b-name", typed)
+
+    expect_accepted(page)
+    assert frontmatter(page)["name"] == shown
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+def test_typing_a_name_passes_through_a_trailing_hyphen(open_tool):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    open_section(page, "Builder", "builder")
+    name_field = page.locator("#b-name")
+
+    name_field.press_sequentially("my-")
+    expect_rejected(page, "b-name-error", "kein Bindestrich am Anfang oder Ende")
+    name_field.press_sequentially("skill")
+    expect_accepted(page)
+    assert frontmatter(page)["name"] == "my-skill"
+    expect(page.locator("#template-output")).to_contain_text("# My Skill")
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+@pytest.mark.parametrize(
+    "over_limit", [0, 1, 476], ids=["at-limit", "one-over", "1500"]
+)
+def test_description_limit_counts_characters(open_tool, over_limit):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    open_section(page, "Builder", "builder")
+    # The description is "Was macht der Skill?", a newline, the trigger line
+    # and the final newline the block keeps. One emoji makes the text one
+    # character shorter than its JavaScript string length.
+    expected_length = DESCRIPTION_MAX_LENGTH + over_limit
+    filler_length = expected_length - len(EMPTY_TRIGGER_LINE) - 2
+    page.fill("#b-what", "x" * (filler_length - 1) + "😀")
+
+    assert len(frontmatter(page)["description"]) == expected_length
+    if over_limit:
+        expect_rejected(
+            page,
+            "b-what-error",
+            f"{expected_length} von höchstens {DESCRIPTION_MAX_LENGTH} Zeichen",
+        )
+    else:
+        expect_accepted(page)
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+def test_reset_clears_a_rejected_name(open_tool):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    open_section(page, "Builder", "builder")
+    page.fill("#b-name", "a--b")
+    expect_rejected(page, "b-name-error", "keine zwei Bindestriche")
+
+    page.locator("#builder button", has_text="Reset").click()
+    expect_accepted(page)
+    assert not tool.problems, "\n".join(tool.problems)

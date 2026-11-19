@@ -222,6 +222,8 @@
       outline: none;
       border-color: var(--accent);
     }
+    .builder [aria-invalid="true"], .builder [aria-invalid="true"]:focus { border-color: var(--red); }
+    .builder .field-error { color: var(--red); font-size: 12px; margin: 4px 0 0; }
 
     .btn {
       padding: 9px 20px;
@@ -235,6 +237,7 @@
       transition: opacity .15s;
     }
     .btn:hover { opacity: .85; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
     .btn-outline {
       background: none;
       border: 1px solid var(--accent);
@@ -790,11 +793,13 @@ Output:
         <div class="builder">
           <div>
             <label>Skill Name <span style="color:var(--red)">*</span></label>
-            <input type="text" id="b-name" placeholder="z.B. salary-report-generator" oninput="buildTemplate()">
+            <input type="text" id="b-name" placeholder="z.B. salary-report-generator" oninput="buildTemplate()" aria-describedby="b-name-error">
+            <p id="b-name-error" class="field-error" aria-live="polite" hidden></p>
           </div>
           <div>
             <label>Was macht der Skill? (1-2 Sätze)</label>
-            <textarea id="b-what" placeholder="z.B. Erstellt strukturierte Gehaltsberichte aus CSV-Daten..." oninput="buildTemplate()"></textarea>
+            <textarea id="b-what" placeholder="z.B. Erstellt strukturierte Gehaltsberichte aus CSV-Daten..." oninput="buildTemplate()" aria-describedby="b-what-error"></textarea>
+            <p id="b-what-error" class="field-error" aria-live="polite" hidden></p>
           </div>
           <div>
             <label>Trigger-Phrasen (kommagetrennt)</label>
@@ -817,7 +822,7 @@ Output:
             <input type="text" id="b-output" placeholder="z.B. Markdown-Report + CSV-Datei" oninput="buildTemplate()">
           </div>
           <div style="display:flex;gap:8px">
-            <button class="btn" onclick="copyTemplate()">📋 Kopieren</button>
+            <button class="btn" id="b-copy" onclick="copyTemplate()">📋 Kopieren</button>
             <button class="btn btn-outline" onclick="resetBuilder()">↺ Reset</button>
           </div>
           <div class="warn-box" style="margin-top:4px;font-size:11px">⚠️ Limits: name 1–64 Zeichen (= Ordnername), description max. 1024 Zeichen. Danach <code>skills-ref validate</code> ausführen.</div>
@@ -936,6 +941,36 @@ Output:
   // description block, or the parser ends the block there.
   const YAML_LINE_BREAK = /\r\n|[\n\r\u0085\u2028\u2029]/;
 
+  // The limits of the agentskills.io specification as the Anatomie tab and
+  // the checklist teach them.
+  const NAME_MAX_LENGTH = 64;
+  const DESCRIPTION_MAX_LENGTH = 1024;
+
+  function nameProblems(name) {
+    const problems = [];
+    const length = [...name].length;
+    if (length > NAME_MAX_LENGTH) problems.push(`höchstens ${NAME_MAX_LENGTH} Zeichen, jetzt ${length}`);
+    if (/[^a-z0-9-]/.test(name)) problems.push('nur Kleinbuchstaben a–z, Ziffern 0–9 und Bindestriche');
+    if (name.startsWith('-') || name.endsWith('-')) problems.push('kein Bindestrich am Anfang oder Ende');
+    if (name.includes('--')) problems.push('keine zwei Bindestriche hintereinander');
+    return problems;
+  }
+
+  // Shows the message under the field, or hides it when the message is empty.
+  function showFieldProblem(fieldId, message) {
+    const problem = document.getElementById(`${fieldId}-error`);
+    problem.textContent = message;
+    problem.hidden = !message;
+    document.getElementById(fieldId).setAttribute('aria-invalid', String(Boolean(message)));
+  }
+
+  function showSpecProblems(nameMessage, descriptionMessage) {
+    showFieldProblem('b-name', nameMessage);
+    showFieldProblem('b-what', descriptionMessage);
+    // A template that breaks the spec is not copied.
+    document.getElementById('b-copy').disabled = Boolean(nameMessage || descriptionMessage);
+  }
+
   function buildTemplate() {
     const name = document.getElementById('b-name').value.trim().replace(/\s+/g, '-').toLowerCase() || 'my-skill';
     const what = document.getElementById('b-what').value.trim() || 'Beschreibung fehlt noch.';
@@ -949,9 +984,20 @@ Output:
       : 'Nutzen wenn: [Trigger-Phrasen eintragen]';
     // A literal block scalar ("|") keeps every line as written once each line
     // is indented; an empty line needs no indentation.
-    const descriptionBlock = [...what.split(YAML_LINE_BREAK), triggerLine]
-      .map(line => line && `  ${line}`)
-      .join('\n');
+    const descriptionLines = [...what.split(YAML_LINE_BREAK), triggerLine];
+    const descriptionBlock = descriptionLines.map(line => line && `  ${line}`).join('\n');
+    // The value a YAML parser reads from that block, ending in the one newline
+    // "|" keeps. Its length is counted in characters, not UTF-16 units.
+    const description = descriptionLines.join('\n') + '\n';
+    const descriptionLength = [...description].length;
+
+    const nameIssues = nameProblems(name);
+    showSpecProblems(
+      nameIssues.length ? `Name ungültig: ${nameIssues.join('; ')}.` : '',
+      descriptionLength > DESCRIPTION_MAX_LENGTH
+        ? `Description zu lang: ${descriptionLength} von höchstens ${DESCRIPTION_MAX_LENGTH} Zeichen (Beschreibung plus Trigger-Zeile).`
+        : ''
+    );
 
     const steps = stepsRaw
       ? stepsRaw.split('\n').filter(Boolean).map((s, i) => `${i + 1}. ${s}`).join('\n')
@@ -963,7 +1009,7 @@ Output:
       complex: `\n## Reference Files (bei Bedarf laden)\n- \`references/details.md\` — Tiefe Spezifikation\n\n## Scripts\n- \`scripts/main.py\` — Hauptlogik\n\n## Fehlerbehandlung\n- Fehlende Pflichtfelder → nachfragen, nicht raten\n- Script-Fehler → Fallback auf manuelle Analyse\n- Edge Cases → immer warnen\n`
     }[level];
 
-    const tpl = `---\nname: ${name}\ndescription: |\n${descriptionBlock}\n---\n\n# ${name.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}\n\n## Workflow\n${steps}\n\n## Output-Format\n${output}\n${levelExtras || ''}`;
+    const tpl = `---\nname: ${name}\ndescription: |\n${descriptionBlock}\n---\n\n# ${name.split('-').filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}\n\n## Workflow\n${steps}\n\n## Output-Format\n${output}\n${levelExtras || ''}`;
 
     const pre = document.getElementById('template-output');
     pre.textContent = tpl;
@@ -992,6 +1038,7 @@ Output:
     ['b-name','b-what','b-triggers','b-steps','b-output'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('b-level').value = 'simple';
     document.getElementById('template-output').innerHTML = '<span class="hl-comment"># Fülle die Felder links aus...</span>';
+    showSpecProblems('', '');
   }
 
   buildTemplate();
