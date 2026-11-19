@@ -302,7 +302,7 @@
       updateBehavior(foodList, poisonList) {
         this.targetLine = null; // Reset visual
 
-        let foodAction = this.eat(foodList, 0.2, this.dna[2], false);
+        let foodAction = this.eat(foodList, 0.5, this.dna[2], false);
         let poisonAction = this.eat(poisonList, -0.6, this.dna[3], true);
 
         // Multipliziere den Lenk-Wunsch mit der DNA-Präferenz
@@ -324,7 +324,7 @@
 
       reproduce() {
         // Fortpflanzung wenn gesund genug
-        if (this.health > 1.8) {
+        if (this.health > 1.5) {
           this.health -= 0.8; // Kostet Energie
           
           // DNA Kopieren & Mutieren
@@ -455,11 +455,10 @@
       ctx.fillStyle = 'rgba(15, 23, 42, 0.3)';
       ctx.fillRect(0, 0, width, height);
 
-      // Auto-Spawning
-      if(timer % 10 === 0) {
-        if (Math.random() * 40 < state.foodSpawn) spawnItems(food, 1);
-        if (Math.random() * 40 < state.poisonSpawn) spawnItems(poison, 1);
-      }
+      // Auto-Spawning: a chance every frame. At the default sliders this keeps
+      // 60-80 organisms alive and passes generation 10 within a minute.
+      if (Math.random() * 40 < state.foodSpawn) spawnItems(food, 1);
+      if (Math.random() * 40 < state.poisonSpawn) spawnItems(poison, 1);
 
       // Limits
       if (food.length > 200) food.shift();
