@@ -266,3 +266,62 @@ def test_a_context_that_never_starts_shows_the_pause_message(open_tool):
     )
     expect(page.locator("#noteName")).to_have_text("—")
     assert not tool.problems, "\n".join(tool.problems)
+
+
+# --- Manual range ------------------------------------------------------------
+
+LS_KEY = "einsingen-v1"
+C4, AIS4 = 60, 70
+
+
+def set_range_key(page: Page, mode: str, midi: int) -> None:
+    page.click(f'#p-umfang [data-mode="{mode}"]')
+    page.click(f'#kbRange .key[data-m="{midi}"]')
+
+
+def range_stat(page: Page, caption: str):
+    return page.locator("#rangeStats .stat", has_text=caption).locator(".num")
+
+
+def saved_ranges(page: Page) -> list[dict]:
+    return page.evaluate(f"() => JSON.parse(localStorage.getItem('{LS_KEY}') || '[]')")
+
+
+@pytest.mark.parametrize(
+    ("first", "second", "message"),
+    [
+        pytest.param(
+            ("high", C4),
+            ("low", AIS4),
+            "Der tiefste Ton kann nicht über dem höchsten (C4) liegen.",
+            id="lowest-above-highest",
+        ),
+        pytest.param(
+            ("low", AIS4),
+            ("high", C4),
+            "Der höchste Ton kann nicht unter dem tiefsten (Ais4) liegen.",
+            id="highest-below-lowest",
+        ),
+    ],
+)
+def test_manual_range_rejects_an_inverted_range(open_tool, first, second, message):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    open_tab(page, "p-umfang")
+    set_range_key(page, *first)
+    set_range_key(page, *second)
+
+    expect(range_stat(page, "Umfang")).to_have_text("–")
+    page.click("#saveSession")
+    assert saved_ranges(page) == []
+    expect(page.locator("#rangeMsg")).to_be_visible()
+    expect(page.locator("#rangeMsg")).to_contain_text(message)
+
+    # The same two notes the right way round are a valid range.
+    set_range_key(page, "low", C4)
+    set_range_key(page, "high", AIS4)
+    expect(page.locator("#rangeMsg")).to_be_hidden()
+    expect(range_stat(page, "Umfang")).to_have_text("10 Halbtöne")
+    page.click("#saveSession")
+    assert [(row["low"], row["high"]) for row in saved_ranges(page)] == [(C4, AIS4)]
+    assert not tool.problems, "\n".join(tool.problems)

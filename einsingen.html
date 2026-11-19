@@ -372,6 +372,7 @@
       <button class="ghost" data-mode="pass">Passaggio setzen</button>
     </div>
     <div class="kbwrap" style="margin-top:0.9rem"><div class="keyboard" id="kbRange"></div></div>
+    <div class="warn" id="rangeMsg" role="alert" hidden></div>
     <div id="fachHint"></div>
   </div>
 
@@ -1302,11 +1303,26 @@ const range = { low: null, high: null, pass: null, recording: false, seen: [] };
 let rangeMode = 'none';
 
 function onRangeKey(m) {
+  playTone(midiToFreq(m), 1.0);
+  /* An inverted range would show and save a negative span */
+  if (rangeMode === 'low' && range.high != null && m > range.high) {
+    showRangeMsg('Der tiefste Ton kann nicht über dem höchsten (' + noteName(range.high) + ') liegen. Erst den höchsten Ton höher setzen.');
+    return;
+  }
+  if (rangeMode === 'high' && range.low != null && m < range.low) {
+    showRangeMsg('Der höchste Ton kann nicht unter dem tiefsten (' + noteName(range.low) + ') liegen. Erst den tiefsten Ton tiefer setzen.');
+    return;
+  }
+  showRangeMsg('');
   if (rangeMode === 'low') range.low = m;
   else if (rangeMode === 'high') range.high = m;
   else if (rangeMode === 'pass') range.pass = m;
-  playTone(midiToFreq(m), 1.0);
   refreshRangeKeys();
+}
+
+function showRangeMsg(txt) {
+  $('rangeMsg').textContent = txt;
+  $('rangeMsg').hidden = !txt;
 }
 
 function refreshRangeKeys() {
@@ -1353,6 +1369,7 @@ function updateRangeLive(r) {
   if (!solid.length) { $('rangeLive').textContent = 'höre zu … ' + noteName(m); return; }
   const lo = Math.min.apply(null, solid), hi = Math.max.apply(null, solid);
   range.low = lo; range.high = hi;
+  showRangeMsg('');
   $('rangeLive').textContent = 'erfasst: ' + noteName(lo) + ' bis ' + noteName(hi);
   refreshRangeKeys();
 }
@@ -1370,6 +1387,7 @@ $('rangeRec').addEventListener('click', () => {
 });
 $('rangeReset').addEventListener('click', () => {
   range.low = range.high = range.pass = null; range.seen = [];
+  showRangeMsg('');
   refreshRangeKeys();
 });
 document.querySelectorAll('#p-umfang [data-mode]').forEach(b => {
