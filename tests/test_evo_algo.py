@@ -1,4 +1,5 @@
-"""evo-algo.html: a default run evolves within a minute, and a phone tap places food.
+"""evo-algo.html: a default run evolves within a minute, a phone tap places food,
+and blocked or corrupt storage leaves the simulation running.
 
 The simulation takes one step per animation frame and draws every number from
 ``Math.random``. The tests replace ``Math.random`` with a seeded generator and
@@ -31,6 +32,15 @@ NO_PAINTING = """
 for (const method of ["fill", "fillRect", "stroke"]) {
   CanvasRenderingContext2D.prototype[method] = () => {};
 }
+"""
+
+# Safari with "Block all cookies" throws on every localStorage access.
+BLOCKED_STORAGE = """
+Object.defineProperty(window, "localStorage", {
+  get() {
+    throw new DOMException("The operation is insecure.", "SecurityError");
+  },
+});
 """
 
 # Playwright's fake clock fires requestAnimationFrame every 16 ms; the tool's
@@ -90,3 +100,37 @@ def test_phone_tap_places_food(open_tool):
 
     assert page.evaluate("food.length") == food_before + 5
     assert not tool.problems, "\n".join(tool.problems)
+
+
+def test_settings_survive_a_reload(open_tool):
+    page = open_tool(TOOL, "desktop").page
+    page.locator("#ctrl-food").fill("30")
+    page.reload()
+    expect(page.locator("#val-food")).to_have_text("30")
+    expect(page.locator("#storage-note")).to_be_hidden()
+
+
+def test_blocked_storage_keeps_simulation_running(open_tool):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    reload_with_time_stopped(page, BLOCKED_STORAGE)
+
+    page.locator("#ctrl-food").fill("30")
+
+    assert not tool.problems, "\n".join(tool.problems)
+    expect(page.locator("#stat-pop")).to_have_text(str(START_POPULATION))
+    expect(page.locator("#val-food")).to_have_text("30")
+    expect(page.locator("#storage-note")).to_contain_text("nicht gespeichert")
+
+
+def test_corrupt_saved_settings_fall_back_to_defaults(open_tool):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    page.evaluate("localStorage.setItem('evosim_cfg', '{bad json')")
+    reload_with_time_stopped(page)
+
+    assert not tool.problems, "\n".join(tool.problems)
+    expect(page.locator("#stat-pop")).to_have_text(str(START_POPULATION))
+    expect(page.locator("#val-food")).to_have_text("15")
+    expect(page.locator("#storage-note")).to_contain_text("beschädigt")
+    assert page.evaluate("localStorage.getItem('evosim_cfg')") is None
