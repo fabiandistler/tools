@@ -257,11 +257,11 @@
       .container {
         padding: 10px;
       }
-      
+
       h1 {
         font-size: 1.5rem;
       }
-      
+
       .workflow-container {
         padding: 20px;
       }
@@ -286,13 +286,13 @@
           <span class="step-number">1</span>
           <span>Wähle dein Datenformat</span>
         </div>
-        
+
         <div class="options">
           <div class="option-card" data-value="json">
             <div class="option-title">📄 JSON</div>
             <div class="option-desc">Standard für Web-APIs und Document Databases. Keine nativen Kommentare oder Binärdaten.</div>
             <div class="code-example">
-<pre>{ 
+<pre>{&#32;
   "user": {
     "name": "Alice",
     "email": "alice@example.com"
@@ -344,7 +344,7 @@ Bob,bob@example.com</pre>
           <span class="step-number">2</span>
           <span>Wähle deinen Datenbanktyp</span>
         </div>
-        
+
         <div class="options">
           <div class="option-card" data-value="sql">
             <div class="option-title">🗄️ Relational (SQL)</div>
@@ -355,7 +355,7 @@ Bob,bob@example.com</pre>
   username VARCHAR(50) UNIQUE NOT NULL
 );
 
-INSERT INTO users (username, email) 
+INSERT INTO users (username, email)&#32;
 VALUES (?, ?);</pre>
             </div>
           </div>
@@ -366,9 +366,9 @@ VALUES (?, ?);</pre>
             <div class="code-example">
 <pre>Document post = new Document()
   .append("title", "Getting Started")
-  .append("author", 
+  .append("author",&#32;
     new Document("name", "Jane"));
-    
+&#32;&#32;&#32;&#32;
 collection.insertOne(post);</pre>
             </div>
           </div>
@@ -377,7 +377,7 @@ collection.insertOne(post);</pre>
             <div class="option-title">🔑 Key-Value Store</div>
             <div class="option-desc">Optimiert für Geschwindigkeit. Ideal für Caching und Session-Management.</div>
             <div class="code-example">
-<pre>jedis.setex("session:" + sessionId, 
+<pre>jedis.setex("session:" + sessionId,&#32;
   1800, userJson);
 
 String session = jedis.get(
@@ -389,10 +389,10 @@ String session = jedis.get(
             <div class="option-title">🕸️ Graph Database</div>
             <div class="option-desc">Fokus auf stark vernetzte Daten und komplexe Beziehungen.</div>
             <div class="code-example">
-<pre>tx.run("CREATE (user:Person {name: $name})", 
+<pre>tx.run("CREATE (user:Person {name: $name})",&#32;
   parameters("name", "Alice"));
 
-tx.run("MATCH (a:Person), (b:Person) 
+tx.run("MATCH (a:Person), (b:Person)&#32;
   CREATE (a)-[:FOLLOWS]->(b)");</pre>
             </div>
           </div>
@@ -422,14 +422,14 @@ vectors.query({
           <span class="step-number">3</span>
           <span>Wähle dein Persistenz-Pattern</span>
         </div>
-        
+
         <div class="options">
           <div class="option-card" data-value="direct">
             <div class="option-title">⚡ Direct Access</div>
             <div class="option-desc">Raw SQL für totale Kontrolle über Queries.</div>
             <div class="code-example">
 <pre>ResultSet rs = stmt.executeQuery(
-  "SELECT id, username FROM users 
+  "SELECT id, username FROM users&#32;
    WHERE active = true");
 
 while (rs.next()) {
@@ -445,7 +445,7 @@ while (rs.next()) {
 <pre>public class UserRepository {
   public List&lt;User&gt; findActiveUsers() {
     // Gekapselte SQL-Logik
-    return query("SELECT * FROM users 
+    return query("SELECT * FROM users&#32;
                   WHERE active = true");
   }
 }</pre>
@@ -458,10 +458,10 @@ while (rs.next()) {
             <div class="code-example">
 <pre>@Entity
 public class User {
-  @Id 
-  @GeneratedValue 
+  @Id&#32;
+  @GeneratedValue&#32;
   private Long id;
-  
+&#32;&#32;
   private String username;
 }
 
@@ -481,7 +481,7 @@ entityManager.persist(user);</pre>
       <div class="step" id="result">
         <div class="result">
           <h3>✅ Deine Architektur-Entscheidung</h3>
-          
+
           <div class="result-item">
             <div class="result-label">Datenformat</div>
             <div class="result-value" id="resultFormat"></div>
@@ -559,13 +559,13 @@ entityManager.persist(user);</pre>
 
       const step = card.closest('.step');
       const stepId = step.id;
-      
+
       // Deselect all in current step
       step.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
-      
+
       // Select clicked card
       card.classList.add('selected');
-      
+
       // Store selection
       const value = card.dataset.value;
       if (stepId === 'step1') {
@@ -585,7 +585,7 @@ entityManager.persist(user);</pre>
     document.getElementById('next2').addEventListener('click', () => goToStep(3));
     document.getElementById('back2').addEventListener('click', () => goToStep(1));
     document.getElementById('back3').addEventListener('click', () => goToStep(2));
-    
+
     document.getElementById('finish').addEventListener('click', () => {
       showResult();
       goToStep(4);
@@ -614,25 +614,25 @@ entityManager.persist(user);</pre>
 
     function showResult() {
       const { format, database, pattern } = state.selections;
-      
-      document.getElementById('resultFormat').innerHTML = 
+
+      document.getElementById('resultFormat').innerHTML =
         `<span class="tag">${format.toUpperCase()}</span> ${labels.format[format]}`;
-      
-      document.getElementById('resultDb').innerHTML = 
+
+      document.getElementById('resultDb').innerHTML =
         `<span class="tag">${database.toUpperCase()}</span> ${labels.database[database]}`;
-      
-      document.getElementById('resultPattern').innerHTML = 
+
+      document.getElementById('resultPattern').innerHTML =
         `<span class="tag">${pattern.toUpperCase()}</span> ${labels.pattern[pattern]}`;
 
       // Stack recommendation
       const key = `${format}-${database}-${pattern}`;
       const altKey1 = `${format}-${database}`;
       const altKey2 = `${database}-${pattern}`;
-      
-      let stack = recommendations[key] || recommendations[altKey1] || recommendations[altKey2] || 
+
+      let stack = recommendations[key] || recommendations[altKey1] || recommendations[altKey2] ||
                   ['Custom Stack', 'Kombiniere Libraries manuell', 'Prüfe Dokumentation'];
-      
-      document.getElementById('resultStack').innerHTML = 
+
+      document.getElementById('resultStack').innerHTML =
         stack.map(s => `<span class="tag">${s}</span>`).join('');
     }
 
