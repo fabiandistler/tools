@@ -71,10 +71,13 @@
     }
 
     @media (max-width: 768px) {
-      .panel { position: relative; top: 0; left: 0; right: 0; width: 100%; border-radius: 0; border: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
+      /* ID selectors, so these beat #left-panel and #right-panel above. */
+      #left-panel, #right-panel { position: relative; top: 0; left: 0; right: 0; width: 100%; border-radius: 0; border: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
       #interaction-hint { display: none; }
-      body { overflow-y: auto; }
-      canvas { position: fixed; z-index: -1; }
+      /* The canvas stays fixed under the scrolling panels, which start below
+         its top 60vh, so a tap there reaches it and places food. */
+      body { overflow-y: auto; padding-top: 60vh; }
+      canvas { position: fixed; top: 0; left: 0; }
     }
   </style>
 </head>
@@ -104,6 +107,7 @@
       <label><span>Gift (Rot) Spawn</span><span id="val-pos">5</span></label>
       <input type="range" id="ctrl-pos" min="0" max="40" step="1" value="5">
     </div>
+    <p id="storage-note" class="desc" role="status" hidden></p>
     <button id="btn-reset">Massenaussterben (Neustart)</button>
   </div>
 
@@ -148,6 +152,7 @@
       barFood: document.getElementById('bar-dna-food'), txtFood: document.getElementById('txt-dna-food'),
       barPos: document.getElementById('bar-dna-pos'), txtPos: document.getElementById('txt-dna-pos'),
       barVis: document.getElementById('bar-dna-vis-food'), txtVis: document.getElementById('txt-dna-vis-food'),
+      storageNote: document.getElementById('storage-note'),
     };
 
     // State
@@ -164,13 +169,31 @@
     initCanvas();
 
     // Event Listeners (UI + Interactions + LocalStorage)
+    // Blocked storage (Safari "Block all cookies") throws a DOMException on
+    // every access, and a corrupt saved value throws a SyntaxError. Either way
+    // the simulation runs on the settings in memory and the panel says why.
     function saveLoad(action) {
-      if(action === 'save') localStorage.setItem('evosim_cfg', JSON.stringify(state));
-      else if (localStorage.getItem('evosim_cfg')) {
-        Object.assign(state, JSON.parse(localStorage.getItem('evosim_cfg')));
-        DOM.mut.value = state.mutationRate; DOM.food.value = state.foodSpawn; DOM.pos.value = state.poisonSpawn;
+      try {
+        if(action === 'save') localStorage.setItem('evosim_cfg', JSON.stringify(state));
+        else if (localStorage.getItem('evosim_cfg')) {
+          Object.assign(state, JSON.parse(localStorage.getItem('evosim_cfg')));
+          DOM.mut.value = state.mutationRate; DOM.food.value = state.foodSpawn; DOM.pos.value = state.poisonSpawn;
+        }
+      } catch (err) {
+        if (err instanceof SyntaxError) {
+          localStorage.removeItem('evosim_cfg');
+          showStorageNote('Die gespeicherten Einstellungen waren beschädigt und wurden verworfen. Es gelten die Standardwerte.');
+        } else if (err instanceof DOMException) {
+          showStorageNote('Einstellungen werden nicht gespeichert: Der Browser blockiert den lokalen Speicher.');
+        } else {
+          throw err;
+        }
       }
       updateLabels();
+    }
+    function showStorageNote(text) {
+      DOM.storageNote.textContent = text;
+      DOM.storageNote.hidden = false;
     }
     function updateLabels() {
       DOM.valMut.innerText = Math.round(state.mutationRate * 100) + '%';
@@ -302,7 +325,7 @@
       updateBehavior(foodList, poisonList) {
         this.targetLine = null; // Reset visual
 
-        let foodAction = this.eat(foodList, 0.2, this.dna[2], false);
+        let foodAction = this.eat(foodList, 0.5, this.dna[2], false);
         let poisonAction = this.eat(poisonList, -0.6, this.dna[3], true);
 
         // Multipliziere den Lenk-Wunsch mit der DNA-Präferenz
@@ -324,7 +347,7 @@
 
       reproduce() {
         // Fortpflanzung wenn gesund genug
-        if (this.health > 1.8) {
+        if (this.health > 1.5) {
           this.health -= 0.8; // Kostet Energie
           
           // DNA Kopieren & Mutieren
@@ -455,11 +478,10 @@
       ctx.fillStyle = 'rgba(15, 23, 42, 0.3)';
       ctx.fillRect(0, 0, width, height);
 
-      // Auto-Spawning
-      if(timer % 10 === 0) {
-        if (Math.random() * 40 < state.foodSpawn) spawnItems(food, 1);
-        if (Math.random() * 40 < state.poisonSpawn) spawnItems(poison, 1);
-      }
+      // Auto-Spawning: a chance every frame. At the default sliders this keeps
+      // 60-80 organisms alive and passes generation 10 within a minute.
+      if (Math.random() * 40 < state.foodSpawn) spawnItems(food, 1);
+      if (Math.random() * 40 < state.poisonSpawn) spawnItems(poison, 1);
 
       // Limits
       if (food.length > 200) food.shift();
