@@ -1926,35 +1926,74 @@ function demoCSV() {
   return rows.join('\n');
 }
 
+/* One number rule for every pasted cell: "1.234,50" and "1234.50" both read
+   as numbers. The decimal separator comes from the values, never from the
+   field separator, and a cell counts only if all of it is a number. */
+const NUMBER_FORMATS = {
+  '.': /^[+-]?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?$/i,
+  ',': /^[+-]?(?:(?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d+)?|,\d+)(?:e[+-]?\d+)?$/i
+};
+const DECIMAL_NAMES = { '.': 'Punkt', ',': 'Komma' };
+
+function parseNumber(cell, decimal) {
+  if (!NUMBER_FORMATS[decimal].test(cell)) return NaN;
+  const group = decimal === '.' ? ',' : '.';
+  const value = Number(cell.split(group).join('').replace(decimal, '.'));
+  return Number.isFinite(value) ? value : NaN;
+}
+
+/* A cell that reads as a number with only one of the two separators decides
+   for it; "1.234" or "12" reads either way and does not count. With no
+   decision, the point is the decimal separator. */
+function decimalSeparator(cells) {
+  let point = 0, comma = 0;
+  for (const cell of cells) {
+    const asPoint = Number.isFinite(parseNumber(cell, '.'));
+    const asComma = Number.isFinite(parseNumber(cell, ','));
+    if (asPoint && !asComma) point++;
+    if (asComma && !asPoint) comma++;
+  }
+  return comma > point ? ',' : '.';
+}
+
+/* Pasted line numbers as the reader sees them, the first ten in full. */
+function lineList(lineNumbers) {
+  const shown = lineNumbers.slice(0, 10).join(', ');
+  return 'Zeile ' + shown + (lineNumbers.length > 10 ? ` … (${lineNumbers.length} insgesamt)` : '');
+}
+
 function parseTable(txt) {
-  const lines = txt.trim().split(/\r?\n/).filter(l => l.trim() !== '');
+  const lines = txt.split(/\r?\n/)
+    .map((text, i) => ({ text, lineNumber: i + 1 }))
+    .filter(l => l.text.trim() !== '');
   if (lines.length < 3) throw new Error('Zu wenige Zeilen.');
-  const sep = ['\t', ';', ','].map(s => ({ s, c: (lines[0].match(new RegExp('\\' + s, 'g')) || []).length }))
+  const sep = ['\t', ';', ','].map(s => ({ s, c: (lines[0].text.match(new RegExp('\\' + s, 'g')) || []).length }))
     .sort((a, b) => b.c - a.c)[0];
   if (sep.c === 0) throw new Error('Kein Trennzeichen erkannt (Tabulator, Semikolon oder Komma).');
-  const split = l => l.split(sep.s).map(v => v.trim());
-  const num = v => {
-    const cleaned = sep.s === ',' ? v : v.replace(',', '.');
-    const f = parseFloat(cleaned);
-    return cleaned !== '' && isFinite(f) ? f : NaN;
-  };
+  const split = l => l.text.split(sep.s).map(v => v.trim());
+  const decimal = decimalSeparator(lines.flatMap(split));
   let head = split(lines[0]);
   let start = 1;
-  if (head.every(h => isFinite(num(h)))) {
+  if (head.every(h => Number.isFinite(parseNumber(h, decimal)))) {
     head = head.map((_, i) => 'V' + (i + 1));
     start = 0;
   }
   const cols = head.map(() => []);
-  let dropped = 0;
+  const rejectedLines = [];
   for (let i = start; i < lines.length; i++) {
     const parts = split(lines[i]);
-    if (parts.length !== head.length) { dropped++; continue; }
-    const vals = parts.map(num);
-    if (vals.some(v => !isFinite(v))) { dropped++; continue; }
+    const vals = parts.map(v => parseNumber(v, decimal));
+    if (parts.length !== head.length || vals.some(v => !Number.isFinite(v))) {
+      rejectedLines.push(lines[i].lineNumber);
+      continue;
+    }
     vals.forEach((v, j) => cols[j].push(v));
   }
-  if (cols[0].length < 3) throw new Error('Zu wenige vollständige numerische Zeilen.');
-  return { head, cols, n: cols[0].length, dropped };
+  if (cols[0].length < 3) {
+    throw new Error('Zu wenige vollständige numerische Zeilen.'
+      + (rejectedLines.length ? ` Übersprungen: ${lineList(rejectedLines)}.` : ''));
+  }
+  return { head, cols, n: cols[0].length, decimal, rejectedLines };
 }
 
 let dataset = null;
@@ -1963,8 +2002,11 @@ function loadData(txt) {
   try {
     dataset = parseTable(txt);
     $('d-msg').style.color = 'var(--good)';
-    $('d-msg').textContent = `${dataset.n} Zeilen, ${dataset.head.length} Spalten eingelesen.`
-      + (dataset.dropped ? ` ${dataset.dropped} Zeile(n) mit fehlenden oder nicht numerischen Werten übersprungen.` : '');
+    $('d-msg').textContent = `${dataset.n} Zeilen, ${dataset.head.length} Spalten eingelesen`
+      + ` (Dezimaltrennzeichen: ${DECIMAL_NAMES[dataset.decimal]}).`
+      + (dataset.rejectedLines.length
+        ? ` Übersprungen (Wert fehlt, ist keine Zahl oder Spaltenzahl passt nicht): ${lineList(dataset.rejectedLines)}.`
+        : '');
     $('d-config').style.display = '';
     $('d-y').innerHTML = dataset.head.map((h, i) => `<option value="${i}">${h}</option>`).join('');
     $('d-y').value = dataset.head.length - 1;
