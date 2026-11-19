@@ -157,7 +157,7 @@
   button.solid:hover { filter: brightness(1.08); }
   .btnrow { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.9rem; }
 
-  canvas { width: 100%; height: 320px; display: block; touch-action: none; }
+  canvas { width: 100%; height: 320px; display: block; touch-action: pan-y; }
   canvas.short { height: 230px; }
   canvas.mini { height: 165px; }
 
@@ -1294,9 +1294,17 @@ $('ols-reset').addEventListener('click', () => {
     const r = cv.getBoundingClientRect();
     return [e.clientX - r.left, e.clientY - r.top];
   };
+  /* The canvas lets the page scroll (touch-action: pan-y); only a finger
+     that lands on a point keeps the page still, so the point can be dragged. */
+  cv.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    if (hit(...pos(e.touches[0])) >= 0) e.preventDefault();
+  }, { passive: false });
+  let pressedPoint = -1;
   cv.addEventListener('pointerdown', e => {
     const [px, py] = pos(e);
     const i = hit(px, py);
+    pressedPoint = i;
     if (i >= 0) {
       if (e.shiftKey) {
         if (ws.pts.length > 3) { ws.pts.splice(i, 1); updateWorkshop(); }
@@ -1304,7 +1312,13 @@ $('ols-reset').addEventListener('click', () => {
       }
       ws.drag = i;
       cv.setPointerCapture(e.pointerId);
-    } else if (wsPlot && px > wsPlot.pad.l && px < wsPlot.w - wsPlot.pad.r
+    }
+  });
+  /* A tap or click adds a point; a swipe that scrolls the page sends no click. */
+  cv.addEventListener('click', e => {
+    if (pressedPoint >= 0) return;
+    const [px, py] = pos(e);
+    if (wsPlot && px > wsPlot.pad.l && px < wsPlot.w - wsPlot.pad.r
       && py > wsPlot.pad.t && py < wsPlot.h - wsPlot.pad.b) {
       ws.pts.push({ x: +wsPlot.iX(px).toFixed(2), y: +wsPlot.iY(py).toFixed(2) });
       updateWorkshop();

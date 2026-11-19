@@ -139,3 +139,133 @@ def test_too_few_numeric_rows_names_the_rejected_lines(open_tool):
     expect(message).to_contain_text("Zeile 2, 3")
     expect(tool.page.locator("#d-config")).to_be_hidden()
     assert not tool.problems, "\n".join(tool.problems)
+
+
+# --- Touch on the charts -----------------------------------------------------
+
+
+def touch_swipe(page: Page, x: float, y_from: float, y_to: float) -> None:
+    """Swipe one finger vertically, in viewport pixels, as a phone sends it."""
+    cdp = page.context.new_cdp_session(page)
+    steps = 12
+    cdp.send(
+        "Input.dispatchTouchEvent",
+        {"type": "touchStart", "touchPoints": [{"x": x, "y": y_from}]},
+    )
+    for step in range(1, steps + 1):
+        y = y_from + (y_to - y_from) * step / steps
+        cdp.send(
+            "Input.dispatchTouchEvent",
+            {"type": "touchMove", "touchPoints": [{"x": x, "y": y}]},
+        )
+    cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+    cdp.detach()
+    # Let the compositor apply the scroll before anyone reads scrollY.
+    page.evaluate(
+        "() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
+    )
+
+
+def place_near_viewport_top(page: Page, canvas_id: str) -> dict[str, float]:
+    page.evaluate(
+        "id => window.scrollTo(0, document.getElementById(id)"
+        ".getBoundingClientRect().top + window.scrollY - 120)",
+        canvas_id,
+    )
+    box = page.locator(f"#{canvas_id}").bounding_box()
+    assert box is not None
+    return box
+
+
+def point_count(page: Page) -> int:
+    return page.evaluate("() => ws.pts.length")
+
+
+@pytest.mark.parametrize(
+    ("panel_id", "canvas_id"),
+    [("p-ols", "ols-canvas"), ("p-guete", "g-null"), ("p-inf", "i-hist")],
+)
+def test_swipe_on_a_chart_scrolls_the_page(open_tool, panel_id, canvas_id):
+    tool = open_tool(TOOL, "phone")
+    page = tool.page
+    open_tab(page, panel_id)
+    box = place_near_viewport_top(page, canvas_id)
+    scroll_before = page.evaluate("() => window.scrollY")
+    points_before = point_count(page)
+
+    # Start on the lower right of the chart, away from the OLS points.
+    start_y = box["y"] + box["height"] - 45
+    touch_swipe(page, box["x"] + box["width"] - 30, start_y, start_y - 200)
+
+    scrolled = page.evaluate("() => window.scrollY") - scroll_before
+    assert scrolled > 100, f"page scrolled {scrolled} px for a 200 px swipe"
+    assert point_count(page) == points_before
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+def plot_geometry(page: Page) -> dict[str, float]:
+    return page.evaluate(
+        "() => ({w: wsPlot.w, h: wsPlot.h, l: wsPlot.pad.l, r: wsPlot.pad.r,"
+        " t: wsPlot.pad.t, b: wsPlot.pad.b, xmin: wsPlot.xmin, xmax: wsPlot.xmax,"
+        " ymin: wsPlot.ymin, ymax: wsPlot.ymax})"
+    )
+
+
+def point_on_screen(page: Page, index: int) -> tuple[float, float]:
+    box = page.locator("#ols-canvas").bounding_box()
+    assert box is not None
+    px, py = page.evaluate("i => [wsPlot.X(ws.pts[i].x), wsPlot.Y(ws.pts[i].y)]", index)
+    return box["x"] + px, box["y"] + py
+
+
+def test_tap_on_empty_plot_area_adds_a_point(open_tool):
+    tool = open_tool(TOOL, "phone")
+    page = tool.page
+    open_tab(page, "p-ols")
+    box = place_near_viewport_top(page, "ols-canvas")
+    plot = plot_geometry(page)
+    page.touchscreen.tap(
+        box["x"] + plot["w"] - plot["r"] - 20, box["y"] + plot["h"] - plot["b"] - 20
+    )
+    assert point_count(page) == 13
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+def test_touch_drag_moves_a_point_without_scrolling(open_tool):
+    tool = open_tool(TOOL, "phone")
+    page = tool.page
+    open_tab(page, "p-ols")
+    place_near_viewport_top(page, "ols-canvas")
+    scroll_before = page.evaluate("() => window.scrollY")
+    y_before = page.evaluate("() => ws.pts[5].y")
+
+    x, y = point_on_screen(page, 5)
+    touch_swipe(page, x, y, y + 60)
+
+    assert page.evaluate("() => window.scrollY") == scroll_before
+    assert page.evaluate("() => ws.pts[5].y") < y_before - 5
+    assert point_count(page) == 12
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+def test_mouse_click_adds_and_shift_click_removes(open_tool):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    open_tab(page, "p-ols")
+    box = page.locator("#ols-canvas").bounding_box()
+    assert box is not None
+    plot = plot_geometry(page)
+
+    page.mouse.click(*point_on_screen(page, 3))
+    assert point_count(page) == 12, "a click on a point must not add one"
+
+    page.mouse.click(
+        box["x"] + plot["w"] - plot["r"] - 20, box["y"] + plot["h"] - plot["b"] - 20
+    )
+    assert point_count(page) == 13
+
+    page.keyboard.down("Shift")
+    page.mouse.click(*point_on_screen(page, 0))
+    page.keyboard.up("Shift")
+    assert point_count(page) == 12
+    assert not tool.problems, "\n".join(tool.problems)
