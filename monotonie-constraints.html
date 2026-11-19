@@ -99,6 +99,7 @@
   .verdict ul { margin: 0 0 0 20px; font-size: .9rem; color: var(--text-light); }
   .verdict ul li { margin-bottom: 3px; }
 
+  .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: .9rem; }
   th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
   th { color: var(--text-light); font-weight: 600; font-size: .82rem; text-transform: uppercase; letter-spacing: .03em; }
@@ -421,7 +422,7 @@ function renderSummary() {
   const el = $('summary');
   if (!state.features.length) { el.innerHTML = '<p class="empty">Noch nichts zu zeigen.</p>'; return; }
 
-  let html = '<table><thead><tr><th>#</th><th>Merkmal</th><th>Constraint</th><th>Empfehlung</th><th>Hinweis</th></tr></thead><tbody>';
+  let html = '<div class="table-wrap"><table><thead><tr><th>#</th><th>Merkmal</th><th>Constraint</th><th>Empfehlung</th><th>Hinweis</th></tr></thead><tbody>';
   let set = 0, open = 0;
   state.features.forEach((f, i) => {
     const d = decide(f);
@@ -430,7 +431,7 @@ function renderSummary() {
     html += '<tr><td>' + i + '</td><td>' + esc(f.name) + '</td><td><span class="badge ' + d.cls + '">' + d.code +
       '</span></td><td>' + d.label + '</td><td class="note">' + (d.notes.join(', ') || '–') + '</td></tr>';
   });
-  html += '</tbody></table>';
+  html += '</tbody></table></div>';
 
   const n = state.features.length;
   const pct = Math.round(set / n * 100);
