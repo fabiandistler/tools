@@ -1,0 +1,34 @@
+[project]
+name = "tools"
+version = "0.1.0"
+description = "Browser smoke tests for the single-file HTML tools in the repository root"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pip-audit>=2.10.1",
+    "pytest>=9.2.0",
+    "pytest-cov>=7.1.0",
+    "pytest-playwright>=0.10.0",
+    "ruff>=0.17.5",
+    "ty>=0.0.101",
+]
+
+[tool.pytest]
+testpaths = ["tests"]
+# Strict config, markers and xfail: a known failure that gets fixed turns the
+# run red until its xfail mark is removed.
+strict = true
+
+[tool.ruff.lint]
+extend-select = ["S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.coverage.run]
+branch = true
+
+[tool.uv]
+exclude-newer = "7 days"
