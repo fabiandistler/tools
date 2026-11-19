@@ -9,6 +9,7 @@
         ul { line-height: 1.6; }
         a { text-decoration: none; color: #0366d6; }
         a:hover { text-decoration: underline; }
+        #load-failure { color: #b00020; }
     </style>
 </head>
 <body>
@@ -16,18 +17,52 @@
     <ul id="tool-list">
         <li>Loading Tools...</li>
     </ul>
+    <p id="load-failure" hidden></p>
 
     <script>
         // TRAGE HIER DEINE DATEN EIN:
         const GITHUB_USER = 'fabiandistler'; 
         const GITHUB_REPO = 'tools';
+        const REPO_URL = `https://github.com/${GITHUB_USER}/${GITHUB_REPO}`;
+
+        // Says why the list is missing and links to the repository, which
+        // lists every tool even when the API does not answer.
+        function showLoadFailure(reason) {
+            document.getElementById('tool-list').replaceChildren();
+            const repoLink = document.createElement('a');
+            repoLink.href = REPO_URL;
+            repoLink.textContent = 'Alle Tools im GitHub-Repository ansehen';
+            const failure = document.getElementById('load-failure');
+            failure.replaceChildren(`${reason} `, repoLink);
+            failure.hidden = false;
+        }
+
+        function describeHttpFailure(status) {
+            // GitHub answers 403 or 429 once the unauthenticated limit is used up.
+            if (status === 403 || status === 429) {
+                return 'Das Limit der GitHub-API ist erreicht (ohne Anmeldung 60 Anfragen pro Stunde). Versuch es später noch einmal.';
+            }
+            if (status === 404) return 'Das Repository wurde auf GitHub nicht gefunden (HTTP 404).';
+            if (status >= 500) return `GitHub meldet einen Serverfehler (HTTP ${status}). Versuch es später noch einmal.`;
+            return `GitHub hat die Anfrage abgelehnt (HTTP ${status}).`;
+        }
 
         async function loadTools() {
             const listElement = document.getElementById('tool-list');
+            let response;
             try {
-                const response = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/`);
-                if (!response.ok) throw new Error('API limit erreicht oder Repo nicht gefunden');
-                
+                response = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/`);
+            } catch {
+                // fetch rejects only when no HTTP answer arrives at all.
+                showLoadFailure('GitHub ist nicht erreichbar: keine Verbindung, oder die Anfrage wurde blockiert.');
+                return;
+            }
+            if (!response.ok) {
+                showLoadFailure(describeHttpFailure(response.status));
+                return;
+            }
+
+            try {
                 const files = await response.json();
                 listElement.innerHTML = ''; // "Lade Tools..." entfernen
 
@@ -49,7 +84,7 @@
                     listElement.appendChild(li);
                 });
             } catch (error) {
-                listElement.innerHTML = `<li style="color: red;">Fehler beim Laden: ${error.message}</li>`;
+                showLoadFailure(`Fehler beim Laden: ${error.message}`);
             }
         }
 
