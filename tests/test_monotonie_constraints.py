@@ -1,6 +1,7 @@
 """monotonie-constraints.html: regression tests for issue #16."""
 
 import ast
+import json
 
 import pytest
 from playwright.sync_api import Page, expect
@@ -81,4 +82,53 @@ def test_copied_code_defines_feature_cols_before_using_it(open_tool, site_url, t
     assert "feature_cols" in source
     line = first_use_before_definition(source, "feature_cols")
     assert line is None, f"{tab}: line {line} reads feature_cols before it is defined"
+    assert not tool.problems, "\n".join(tool.problems)
+
+
+# --- Section 5: validation checklist ----------------------------------------
+
+TICKED = [0, 2, 6]
+
+
+def checklist_items(page: Page) -> list[str]:
+    return page.locator(".checklist label").evaluate_all(
+        "labels => labels.map(label => label.textContent.trim())"
+    )
+
+
+def checklist_flags(page: Page) -> list[bool]:
+    return page.locator(".checklist input[type=checkbox]").evaluate_all(
+        "boxes => boxes.map(box => box.checked)"
+    )
+
+
+def test_checklist_is_kept_across_a_reload_and_exported(open_tool, site_url):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    add_features(page, "Joblevel")
+    boxes = page.locator(".checklist input[type=checkbox]")
+    for index in TICKED:
+        boxes.nth(index).check()
+    items = checklist_items(page)
+    expected = [index in TICKED for index in range(len(items))]
+
+    page.reload(wait_until="networkidle")
+    assert checklist_flags(page) == expected
+
+    page.context.grant_permissions(
+        ["clipboard-read", "clipboard-write"], origin=site_url
+    )
+    page.click("#copyMd")
+    expect(page.locator("#exportMsg")).to_have_text("Markdown kopiert.")
+    markdown = page.evaluate("() => navigator.clipboard.readText()")
+    for item, ticked in zip(items, expected, strict=True):
+        assert f"- [{'x' if ticked else ' '}] {item}" in markdown.splitlines()
+
+    with page.expect_download() as download_info:
+        page.click("#dlJson")
+    exported = json.loads(download_info.value.path().read_text(encoding="utf-8"))
+    assert exported["validierung"] == [
+        {"punkt": item, "erledigt": ticked}
+        for item, ticked in zip(items, expected, strict=True)
+    ]
     assert not tool.problems, "\n".join(tool.problems)
