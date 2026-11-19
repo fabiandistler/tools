@@ -141,6 +141,28 @@ def test_too_few_numeric_rows_names_the_rejected_lines(open_tool):
     assert not tool.problems, "\n".join(tool.problems)
 
 
+# --- Column names are text ---------------------------------------------------
+
+
+def test_column_names_render_as_text(open_tool):
+    tool = open_tool(TOOL, "desktop")
+    page = tool.page
+    read_data(page, "x<b>;<i>y</i>\n1;2\n2;4,5\n3;5\n4;8")
+
+    expect(page.locator("#d-y option")).to_have_text(["x<b>", "<i>y</i>"])
+    expect(page.locator("#d-x label")).to_have_text(["x<b>"])
+    page.click("#d-run")
+    out = page.locator("#d-out")
+    expect(out).to_contain_text("<i>y</i> ~ x<b>")
+    expect(out).to_contain_text("x<b>: Steigt x<b> um eine Einheit")
+    expect(out).to_contain_text("VIF x<b>")
+    expect(out.locator("table").first.locator("tbody tr").nth(1)).to_contain_text(
+        "x<b>"
+    )
+    expect(page.locator("#p-daten b, #p-daten i")).to_have_count(0)
+    assert not tool.problems, "\n".join(tool.problems)
+
+
 # --- Touch on the charts -----------------------------------------------------
 
 

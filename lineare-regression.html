@@ -2021,6 +2021,13 @@ function parseTable(txt) {
 
 let dataset = null;
 
+/* Column names come from the pasted data and reach the page only through
+   textContent: a template holds a placeholder, fillColumnNames fills it. */
+const columnName = i => `<span data-col="${i}"></span>`;
+function fillColumnNames(root) {
+  root.querySelectorAll('[data-col]').forEach(el => { el.textContent = dataset.head[+el.dataset.col]; });
+}
+
 function loadData(txt) {
   try {
     dataset = parseTable(txt);
@@ -2031,7 +2038,7 @@ function loadData(txt) {
         ? ` Übersprungen (Wert fehlt, ist keine Zahl oder Spaltenzahl passt nicht): ${lineList(dataset.rejectedLines)}.`
         : '');
     $('d-config').style.display = '';
-    $('d-y').innerHTML = dataset.head.map((h, i) => `<option value="${i}">${h}</option>`).join('');
+    $('d-y').replaceChildren(...dataset.head.map((h, i) => new Option(h, i)));
     $('d-y').value = dataset.head.length - 1;
     renderXChecks();
     $('d-out').innerHTML = '';
@@ -2046,9 +2053,10 @@ function loadData(txt) {
 
 function renderXChecks() {
   const yi = +$('d-y').value;
-  $('d-x').innerHTML = dataset.head.map((h, i) =>
-    i === yi ? '' : `<label class="check"><input type="checkbox" value="${i}" checked> ${h}</label>`
+  $('d-x').innerHTML = dataset.head.map((_, i) =>
+    i === yi ? '' : `<label class="check"><input type="checkbox" value="${i}" checked> ${columnName(i)}</label>`
   ).join('');
+  fillColumnNames($('d-x'));
 }
 
 $('d-y').addEventListener('change', renderXChecks);
@@ -2071,7 +2079,7 @@ $('d-run').addEventListener('click', () => {
     out.innerHTML = '<div class="card"><div class="warn">Das Modell ist nicht schätzbar — vermutlich perfekte Multikollinearität: eine Spalte ist konstant oder eine exakte Linearkombination anderer Spalten.</div></div>';
     return;
   }
-  const names = ['Achsenabschnitt', ...xi.map(i => dataset.head[i])];
+  const names = ['Achsenabschnitt', ...xi.map(columnName)];
 
   /* VIF */
   const vifs = cols.map((cj, j) => {
@@ -2090,7 +2098,7 @@ $('d-run').addEventListener('click', () => {
     <div class="card">
       <h2>Ergebnis</h2>
       <p style="font-size:0.9rem;color:var(--text-muted);">
-        <span class="mono">${dataset.head[yi]} ~ ${xi.map(i => dataset.head[i]).join(' + ')}</span> · n = ${m.n} · df = ${m.dfRes}
+        <span class="mono">${columnName(yi)} ~ ${xi.map(columnName).join(' + ')}</span> · n = ${m.n} · df = ${m.dfRes}
       </p>
       <div class="table-wrap" style="margin-top:0.8rem;"><table>
         ${coefTable(m, names)}
@@ -2113,14 +2121,14 @@ $('d-run').addEventListener('click', () => {
         ${xi.map((i, j) => {
           const b = m.beta[j + 1], p = m.p[j + 1];
           const lo = b - m.tc * m.se[j + 1], hi = b + m.tc * m.se[j + 1];
-          return `<li><strong>${dataset.head[i]}:</strong> Steigt <span class="mono">${dataset.head[i]}</span> um eine Einheit,
-            ändert sich <span class="mono">${dataset.head[yi]}</span> im Mittel um <strong>${fmt(b, 3)}</strong>
+          return `<li><strong>${columnName(i)}:</strong> Steigt <span class="mono">${columnName(i)}</span> um eine Einheit,
+            ändert sich <span class="mono">${columnName(yi)}</span> im Mittel um <strong>${fmt(b, 3)}</strong>
             (95 %-KI ${fmt(lo, 2)} bis ${fmt(hi, 2)}), bei Konstanthaltung der übrigen Variablen —
             ${p < 0.05 ? 'statistisch signifikant' : '<em>nicht</em> signifikant von null unterscheidbar'} (p = ${fmtP(p)}).</li>`;
         }).join('')}
       </ul>
       <p style="margin-top:0.8rem;">Das Modell erklärt <strong>${fmt(m.r2 * 100, 1)} %</strong> der Streuung von
-      <span class="mono">${dataset.head[yi]}</span>. Typische Abweichung einer Einzelvorhersage: rund ${fmt(m.s, 2)} Einheiten.</p>
+      <span class="mono">${columnName(yi)}</span>. Typische Abweichung einer Einzelvorhersage: rund ${fmt(m.s, 2)} Einheiten.</p>
     </div>
 
     <div class="card">
@@ -2131,7 +2139,7 @@ $('d-run').addEventListener('click', () => {
       </div>
       <h3 style="margin-top:1.2rem;">Multikollinearität</h3>
       <div class="stats">
-        ${vifs.map((v, j) => `<div class="stat"><div class="num" style="color:${v > 10 ? COL.bad : v > 5 ? '#b45309' : COL.primary}">${fmt(v, 2)}</div><div class="cap">VIF ${dataset.head[xi[j]]}</div></div>`).join('')}
+        ${vifs.map((v, j) => `<div class="stat"><div class="num" style="color:${v > 10 ? COL.bad : v > 5 ? '#b45309' : COL.primary}">${fmt(v, 2)}</div><div class="cap">VIF ${columnName(xi[j])}</div></div>`).join('')}
       </div>
       <h3 style="margin-top:1.2rem;">Auffällige Beobachtungen</h3>
       ${flagged.length === 0
@@ -2146,6 +2154,7 @@ $('d-run').addEventListener('click', () => {
             </tr>`).join('')}</tbody></table></div>
            <p style="font-size:0.82rem;color:var(--text-muted);margin-top:0.5rem;">Grenzwerte: Cook's D &gt; ${fmt(thrCook, 3)}, Hebelwert &gt; ${fmt(thrLev, 3)}. Auffällig heißt prüfenswert, nicht löschen.</p>`}
     </div>`;
+  fillColumnNames(out);
 
   /* Residuenplot */
   const RP = newPlot($('d-rp'), {
