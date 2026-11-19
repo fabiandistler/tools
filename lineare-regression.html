@@ -157,7 +157,7 @@
   button.solid:hover { filter: brightness(1.08); }
   .btnrow { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.9rem; }
 
-  canvas { width: 100%; height: 320px; display: block; touch-action: none; }
+  canvas { width: 100%; height: 320px; display: block; touch-action: pan-y; }
   canvas.short { height: 230px; }
   canvas.mini { height: 165px; }
 
@@ -1175,7 +1175,12 @@ function drawWorkshop() {
   const xs = ws.pts.map(p => p.x), ys = ws.pts.map(p => p.y);
   const f = wsFit();
   const yAll = ys.concat(xs.map(x => ws.b0 + ws.b1 * x));
-  const P = newPlot(cv, { x: niceRange(xs.concat([0]), 0.1), y: niceRange(yAll, 0.12) });
+  /* While a point is dragged the axes stay put; refitting them on every move
+     would shift the point away from the pointer. They refit on release. */
+  const range = ws.drag >= 0 && wsPlot
+    ? { x: [wsPlot.xmin, wsPlot.xmax], y: [wsPlot.ymin, wsPlot.ymax] }
+    : { x: niceRange(xs.concat([0]), 0.1), y: niceRange(yAll, 0.12) };
+  const P = newPlot(cv, range);
   wsPlot = P;
   P.axes('x', 'y');
 
@@ -1294,9 +1299,17 @@ $('ols-reset').addEventListener('click', () => {
     const r = cv.getBoundingClientRect();
     return [e.clientX - r.left, e.clientY - r.top];
   };
+  /* The canvas lets the page scroll (touch-action: pan-y); only a finger
+     that lands on a point keeps the page still, so the point can be dragged. */
+  cv.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    if (hit(...pos(e.touches[0])) >= 0) e.preventDefault();
+  }, { passive: false });
+  let pressedPoint = -1;
   cv.addEventListener('pointerdown', e => {
     const [px, py] = pos(e);
     const i = hit(px, py);
+    pressedPoint = i;
     if (i >= 0) {
       if (e.shiftKey) {
         if (ws.pts.length > 3) { ws.pts.splice(i, 1); updateWorkshop(); }
@@ -1304,7 +1317,13 @@ $('ols-reset').addEventListener('click', () => {
       }
       ws.drag = i;
       cv.setPointerCapture(e.pointerId);
-    } else if (wsPlot && px > wsPlot.pad.l && px < wsPlot.w - wsPlot.pad.r
+    }
+  });
+  /* A tap or click adds a point; a swipe that scrolls the page sends no click. */
+  cv.addEventListener('click', e => {
+    if (pressedPoint >= 0) return;
+    const [px, py] = pos(e);
+    if (wsPlot && px > wsPlot.pad.l && px < wsPlot.w - wsPlot.pad.r
       && py > wsPlot.pad.t && py < wsPlot.h - wsPlot.pad.b) {
       ws.pts.push({ x: +wsPlot.iX(px).toFixed(2), y: +wsPlot.iY(py).toFixed(2) });
       updateWorkshop();
@@ -1316,7 +1335,11 @@ $('ols-reset').addEventListener('click', () => {
     ws.pts[ws.drag] = { x: +wsPlot.iX(px).toFixed(2), y: +wsPlot.iY(py).toFixed(2) };
     updateWorkshop();
   });
-  const stop = () => { ws.drag = -1; };
+  const stop = () => {
+    if (ws.drag < 0) return;
+    ws.drag = -1;
+    drawWorkshop();
+  };
   cv.addEventListener('pointerup', stop);
   cv.addEventListener('pointercancel', stop);
 })();
@@ -1926,47 +1949,96 @@ function demoCSV() {
   return rows.join('\n');
 }
 
+/* One number rule for every pasted cell: "1.234,50" and "1234.50" both read
+   as numbers. The decimal separator comes from the values, never from the
+   field separator, and a cell counts only if all of it is a number. */
+const NUMBER_FORMATS = {
+  '.': /^[+-]?(?:(?:[1-9]\d{0,2}(?:,\d{3})+|\d+)(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?$/i,
+  ',': /^[+-]?(?:(?:[1-9]\d{0,2}(?:\.\d{3})+|\d+)(?:,\d+)?|,\d+)(?:e[+-]?\d+)?$/i
+};
+const DECIMAL_NAMES = { '.': 'Punkt', ',': 'Komma' };
+
+function parseNumber(cell, decimal) {
+  if (!NUMBER_FORMATS[decimal].test(cell)) return NaN;
+  const group = decimal === '.' ? ',' : '.';
+  const value = Number(cell.split(group).join('').replace(decimal, '.'));
+  return Number.isFinite(value) ? value : NaN;
+}
+
+/* A cell that reads as a number with only one of the two separators decides
+   for it; "1.234" or "12" reads either way and does not count. With no
+   decision, the point is the decimal separator. */
+function decimalSeparator(cells) {
+  let point = 0, comma = 0;
+  for (const cell of cells) {
+    const asPoint = Number.isFinite(parseNumber(cell, '.'));
+    const asComma = Number.isFinite(parseNumber(cell, ','));
+    if (asPoint && !asComma) point++;
+    if (asComma && !asPoint) comma++;
+  }
+  return comma > point ? ',' : '.';
+}
+
+/* Pasted line numbers as the reader sees them, the first ten in full. */
+function lineList(lineNumbers) {
+  const shown = lineNumbers.slice(0, 10).join(', ');
+  return 'Zeile ' + shown + (lineNumbers.length > 10 ? ` … (${lineNumbers.length} insgesamt)` : '');
+}
+
 function parseTable(txt) {
-  const lines = txt.trim().split(/\r?\n/).filter(l => l.trim() !== '');
+  const lines = txt.split(/\r?\n/)
+    .map((text, i) => ({ text, lineNumber: i + 1 }))
+    .filter(l => l.text.trim() !== '');
   if (lines.length < 3) throw new Error('Zu wenige Zeilen.');
-  const sep = ['\t', ';', ','].map(s => ({ s, c: (lines[0].match(new RegExp('\\' + s, 'g')) || []).length }))
+  const sep = ['\t', ';', ','].map(s => ({ s, c: (lines[0].text.match(new RegExp('\\' + s, 'g')) || []).length }))
     .sort((a, b) => b.c - a.c)[0];
   if (sep.c === 0) throw new Error('Kein Trennzeichen erkannt (Tabulator, Semikolon oder Komma).');
-  const split = l => l.split(sep.s).map(v => v.trim());
-  const num = v => {
-    const cleaned = sep.s === ',' ? v : v.replace(',', '.');
-    const f = parseFloat(cleaned);
-    return cleaned !== '' && isFinite(f) ? f : NaN;
-  };
+  const split = l => l.text.split(sep.s).map(v => v.trim());
+  const decimal = decimalSeparator(lines.flatMap(split));
   let head = split(lines[0]);
   let start = 1;
-  if (head.every(h => isFinite(num(h)))) {
+  if (head.every(h => Number.isFinite(parseNumber(h, decimal)))) {
     head = head.map((_, i) => 'V' + (i + 1));
     start = 0;
   }
   const cols = head.map(() => []);
-  let dropped = 0;
+  const rejectedLines = [];
   for (let i = start; i < lines.length; i++) {
     const parts = split(lines[i]);
-    if (parts.length !== head.length) { dropped++; continue; }
-    const vals = parts.map(num);
-    if (vals.some(v => !isFinite(v))) { dropped++; continue; }
+    const vals = parts.map(v => parseNumber(v, decimal));
+    if (parts.length !== head.length || vals.some(v => !Number.isFinite(v))) {
+      rejectedLines.push(lines[i].lineNumber);
+      continue;
+    }
     vals.forEach((v, j) => cols[j].push(v));
   }
-  if (cols[0].length < 3) throw new Error('Zu wenige vollständige numerische Zeilen.');
-  return { head, cols, n: cols[0].length, dropped };
+  if (cols[0].length < 3) {
+    throw new Error('Zu wenige vollständige numerische Zeilen.'
+      + (rejectedLines.length ? ` Übersprungen: ${lineList(rejectedLines)}.` : ''));
+  }
+  return { head, cols, n: cols[0].length, decimal, rejectedLines };
 }
 
 let dataset = null;
+
+/* Column names come from the pasted data and reach the page only through
+   textContent: a template holds a placeholder, fillColumnNames fills it. */
+const columnName = i => `<span data-col="${i}"></span>`;
+function fillColumnNames(root) {
+  root.querySelectorAll('[data-col]').forEach(el => { el.textContent = dataset.head[+el.dataset.col]; });
+}
 
 function loadData(txt) {
   try {
     dataset = parseTable(txt);
     $('d-msg').style.color = 'var(--good)';
-    $('d-msg').textContent = `${dataset.n} Zeilen, ${dataset.head.length} Spalten eingelesen.`
-      + (dataset.dropped ? ` ${dataset.dropped} Zeile(n) mit fehlenden oder nicht numerischen Werten übersprungen.` : '');
+    $('d-msg').textContent = `${dataset.n} Zeilen, ${dataset.head.length} Spalten eingelesen`
+      + ` (Dezimaltrennzeichen: ${DECIMAL_NAMES[dataset.decimal]}).`
+      + (dataset.rejectedLines.length
+        ? ` Übersprungen (Wert fehlt, ist keine Zahl oder Spaltenzahl passt nicht): ${lineList(dataset.rejectedLines)}.`
+        : '');
     $('d-config').style.display = '';
-    $('d-y').innerHTML = dataset.head.map((h, i) => `<option value="${i}">${h}</option>`).join('');
+    $('d-y').replaceChildren(...dataset.head.map((h, i) => new Option(h, i)));
     $('d-y').value = dataset.head.length - 1;
     renderXChecks();
     $('d-out').innerHTML = '';
@@ -1981,9 +2053,10 @@ function loadData(txt) {
 
 function renderXChecks() {
   const yi = +$('d-y').value;
-  $('d-x').innerHTML = dataset.head.map((h, i) =>
-    i === yi ? '' : `<label class="check"><input type="checkbox" value="${i}" checked> ${h}</label>`
+  $('d-x').innerHTML = dataset.head.map((_, i) =>
+    i === yi ? '' : `<label class="check"><input type="checkbox" value="${i}" checked> ${columnName(i)}</label>`
   ).join('');
+  fillColumnNames($('d-x'));
 }
 
 $('d-y').addEventListener('change', renderXChecks);
@@ -2006,7 +2079,7 @@ $('d-run').addEventListener('click', () => {
     out.innerHTML = '<div class="card"><div class="warn">Das Modell ist nicht schätzbar — vermutlich perfekte Multikollinearität: eine Spalte ist konstant oder eine exakte Linearkombination anderer Spalten.</div></div>';
     return;
   }
-  const names = ['Achsenabschnitt', ...xi.map(i => dataset.head[i])];
+  const names = ['Achsenabschnitt', ...xi.map(columnName)];
 
   /* VIF */
   const vifs = cols.map((cj, j) => {
@@ -2025,7 +2098,7 @@ $('d-run').addEventListener('click', () => {
     <div class="card">
       <h2>Ergebnis</h2>
       <p style="font-size:0.9rem;color:var(--text-muted);">
-        <span class="mono">${dataset.head[yi]} ~ ${xi.map(i => dataset.head[i]).join(' + ')}</span> · n = ${m.n} · df = ${m.dfRes}
+        <span class="mono">${columnName(yi)} ~ ${xi.map(columnName).join(' + ')}</span> · n = ${m.n} · df = ${m.dfRes}
       </p>
       <div class="table-wrap" style="margin-top:0.8rem;"><table>
         ${coefTable(m, names)}
@@ -2048,14 +2121,14 @@ $('d-run').addEventListener('click', () => {
         ${xi.map((i, j) => {
           const b = m.beta[j + 1], p = m.p[j + 1];
           const lo = b - m.tc * m.se[j + 1], hi = b + m.tc * m.se[j + 1];
-          return `<li><strong>${dataset.head[i]}:</strong> Steigt <span class="mono">${dataset.head[i]}</span> um eine Einheit,
-            ändert sich <span class="mono">${dataset.head[yi]}</span> im Mittel um <strong>${fmt(b, 3)}</strong>
+          return `<li><strong>${columnName(i)}:</strong> Steigt <span class="mono">${columnName(i)}</span> um eine Einheit,
+            ändert sich <span class="mono">${columnName(yi)}</span> im Mittel um <strong>${fmt(b, 3)}</strong>
             (95 %-KI ${fmt(lo, 2)} bis ${fmt(hi, 2)}), bei Konstanthaltung der übrigen Variablen —
             ${p < 0.05 ? 'statistisch signifikant' : '<em>nicht</em> signifikant von null unterscheidbar'} (p = ${fmtP(p)}).</li>`;
         }).join('')}
       </ul>
       <p style="margin-top:0.8rem;">Das Modell erklärt <strong>${fmt(m.r2 * 100, 1)} %</strong> der Streuung von
-      <span class="mono">${dataset.head[yi]}</span>. Typische Abweichung einer Einzelvorhersage: rund ${fmt(m.s, 2)} Einheiten.</p>
+      <span class="mono">${columnName(yi)}</span>. Typische Abweichung einer Einzelvorhersage: rund ${fmt(m.s, 2)} Einheiten.</p>
     </div>
 
     <div class="card">
@@ -2066,7 +2139,7 @@ $('d-run').addEventListener('click', () => {
       </div>
       <h3 style="margin-top:1.2rem;">Multikollinearität</h3>
       <div class="stats">
-        ${vifs.map((v, j) => `<div class="stat"><div class="num" style="color:${v > 10 ? COL.bad : v > 5 ? '#b45309' : COL.primary}">${fmt(v, 2)}</div><div class="cap">VIF ${dataset.head[xi[j]]}</div></div>`).join('')}
+        ${vifs.map((v, j) => `<div class="stat"><div class="num" style="color:${v > 10 ? COL.bad : v > 5 ? '#b45309' : COL.primary}">${fmt(v, 2)}</div><div class="cap">VIF ${columnName(xi[j])}</div></div>`).join('')}
       </div>
       <h3 style="margin-top:1.2rem;">Auffällige Beobachtungen</h3>
       ${flagged.length === 0
@@ -2081,6 +2154,7 @@ $('d-run').addEventListener('click', () => {
             </tr>`).join('')}</tbody></table></div>
            <p style="font-size:0.82rem;color:var(--text-muted);margin-top:0.5rem;">Grenzwerte: Cook's D &gt; ${fmt(thrCook, 3)}, Hebelwert &gt; ${fmt(thrLev, 3)}. Auffällig heißt prüfenswert, nicht löschen.</p>`}
     </div>`;
+  fillColumnNames(out);
 
   /* Residuenplot */
   const RP = newPlot($('d-rp'), {
