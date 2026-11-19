@@ -31,6 +31,9 @@ generic or synthetic data.
   Chrome with `uv run pytest --browser-channel chrome` and never
   `playwright install`. `README.md` has the one-time browser setup for a
   local machine.
+- While fixing one tool, run its tests and smoke rows with `-k <tool-name>`
+  (either spelling, e.g. `-k dfbetas-influence`) and leave the whole suite to
+  CI.
 
 ## Deploy gate
 

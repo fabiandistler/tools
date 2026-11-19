@@ -42,6 +42,28 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
         metafunc.parametrize("tool_file", TOOL_FILES)
 
 
+def _module_spelling(tool_file: str) -> str:
+    """``dfbetas-influence.html`` is tested in ``test_dfbetas_influence.py``."""
+    return Path(tool_file).stem.replace("-", "_")
+
+
+TOOL_BY_MODULE = {f"test_{_module_spelling(name)}.py": name for name in TOOL_FILES}
+
+
+def pytest_itemcollected(item: pytest.Item) -> None:
+    """Let ``-k`` select a tool's tests by either spelling of its name.
+
+    Smoke ids carry the file name and module names the underscored stem, so a
+    bare ``-k dfbetas-influence`` used to pick the smoke rows alone. A test that
+    takes the tool as ``tool_file`` or sits in its module gets both spellings.
+    """
+    callspec = getattr(item, "callspec", None)
+    tool_file = callspec.params.get("tool_file") if callspec else None
+    tool_file = tool_file or TOOL_BY_MODULE.get(item.path.name)
+    if tool_file:
+        item.extra_keyword_matches.update({tool_file, _module_spelling(tool_file)})
+
+
 @pytest.fixture(scope="session")
 def tool_files() -> list[str]:
     return TOOL_FILES
