@@ -7,7 +7,7 @@ geometry, never from the page itself.
 import statistics
 
 import pytest
-from playwright.sync_api import Page, expect
+from playwright.sync_api import FloatRect, Page, expect
 
 TOOL = "lineare-regression.html"
 
@@ -222,7 +222,7 @@ def touch_swipe(page: Page, x: float, y_from: float, y_to: float) -> None:
     )
 
 
-def place_near_viewport_top(page: Page, canvas_id: str) -> dict[str, float]:
+def place_near_viewport_top(page: Page, canvas_id: str) -> FloatRect:
     page.evaluate(
         "id => window.scrollTo(0, document.getElementById(id)"
         ".getBoundingClientRect().top + window.scrollY - 120)",

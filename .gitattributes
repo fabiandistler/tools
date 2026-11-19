@@ -1,0 +1,6 @@
+# Files no one here edits by hand. The check-file-tokens prek hook skips files
+# marked linguist-vendored or linguist-generated.
+
+# Copied from the repo-maintenance plugin's prek-hooks skill by setup-hooks.sh;
+# its tests live there (test/check-file-tokens.bats).
+scripts/hooks/check-file-tokens.sh linguist-vendored
