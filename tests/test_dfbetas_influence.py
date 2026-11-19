@@ -7,6 +7,7 @@ compute DFBETAS from its definition. Issue #12 lists the repros.
 import csv
 import io
 import re
+from collections.abc import Sequence
 
 import numpy as np
 import pytest
@@ -54,7 +55,7 @@ def fitted_coefficients(page: Page) -> dict[str, float]:
     return dict(zip(fit["names"], fit["b"], strict=True))
 
 
-def ols(x: list[float], y: list[float]) -> dict[str, float]:
+def ols(x: Sequence[float], y: Sequence[float]) -> dict[str, float]:
     X = np.column_stack([np.ones(len(x)), x])
     intercept, slope = np.linalg.lstsq(X, np.array(y), rcond=None)[0]
     return {"(Intercept)": intercept, "x": slope}
