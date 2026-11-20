@@ -1,4 +1,4 @@
-"""skill.html: regression tests for issue #15 (the Builder and the phone layout).
+"""skill.html: regression tests for issues #15 and #22 (the Builder and the phone layout).
 
 The generated frontmatter is read back with PyYAML, never with the page's own
 code.
@@ -202,6 +202,24 @@ def test_reset_clears_a_rejected_name(open_tool):
     page.locator("#builder button", has_text="Reset").click()
     expect_accepted(page)
     assert not tool.problems, "\n".join(tool.problems)
+
+
+# --- Builder on a phone -------------------------------------------------------
+
+
+def test_builder_with_a_one_sentence_description_fits_a_phone(open_tool):
+    tool = open_tool(TOOL, "phone")
+    page = tool.page
+    open_section(page, "Builder", "builder")
+    page.fill("#b-name", "pdf-summary")
+    page.fill(
+        "#b-what",
+        "Fasst lange PDF-Berichte in fünf Stichpunkten zusammen und nennt die Seiten.",
+    )
+
+    expect(page.locator("#template-output")).to_contain_text("nennt die Seiten.")
+    assert not tool.problems, "\n".join(tool.problems)
+    # The end-state check asserts that the page does not scroll sideways.
 
 
 # --- Komplexitätsstufen: annotated examples on a phone ----------------------

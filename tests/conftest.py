@@ -2,7 +2,8 @@
 
 Every root ``*.html`` file is a tool, so a new tool is tested without an edit
 here. Tests reach the tools through ``http://127.0.0.1``, not ``file://``, so
-origin, ``localStorage`` and relative URLs behave as on GitHub Pages.
+origin, ``localStorage`` and relative URLs behave as on GitHub Pages. Every
+test that opens a tool ends with the checks in ``end_state.py``.
 """
 
 import functools
@@ -13,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import end_state
 import pytest
 from playwright.sync_api import ConsoleMessage, Error, Page, Request, Response, Route
 
@@ -40,6 +42,28 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
         metafunc.parametrize("tool_file", TOOL_FILES)
 
 
+def _module_spelling(tool_file: str) -> str:
+    """``dfbetas-influence.html`` is tested in ``test_dfbetas_influence.py``."""
+    return Path(tool_file).stem.replace("-", "_")
+
+
+TOOL_BY_MODULE = {f"test_{_module_spelling(name)}.py": name for name in TOOL_FILES}
+
+
+def pytest_itemcollected(item: pytest.Item) -> None:
+    """Let ``-k`` select a tool's tests by either spelling of its name.
+
+    Smoke ids carry the file name and module names the underscored stem, so a
+    bare ``-k dfbetas-influence`` used to pick the smoke rows alone. A test that
+    takes the tool as ``tool_file`` or sits in its module gets both spellings.
+    """
+    callspec = getattr(item, "callspec", None)
+    tool_file = callspec.params.get("tool_file") if callspec else None
+    tool_file = tool_file or TOOL_BY_MODULE.get(item.path.name)
+    if tool_file:
+        item.extra_keyword_matches.update({tool_file, _module_spelling(tool_file)})
+
+
 @pytest.fixture(scope="session")
 def tool_files() -> list[str]:
     return TOOL_FILES
@@ -52,6 +76,11 @@ class _QuietHandler(http.server.SimpleHTTPRequestHandler):
 
 @pytest.fixture(scope="session")
 def site_url() -> Iterator[str]:
+    """Serve the repository root on a free port.
+
+    Under pytest-xdist every worker is its own session, so each starts its own
+    server and no port is shared.
+    """
     handler = functools.partial(_QuietHandler, directory=REPO_ROOT)
     with http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler) as server:
         threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -61,10 +90,34 @@ def site_url() -> Iterator[str]:
 
 @dataclass
 class OpenedTool:
+    tool_file: str
+    viewport: str
     page: Page
     # Console errors, page errors, failed same-origin requests and external
     # requests, in the order they happened. A clean tool leaves it empty.
     problems: list[str]
+
+
+OPENED_TOOLS = pytest.StashKey[list[OpenedTool]]()
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_runtest_call(item: pytest.Item) -> Iterator[None]:
+    """After a test passes its own asserts, check the pages it ends on.
+
+    The check runs in the call phase, not in a fixture teardown, so a strict
+    xfail sees its failure. ``tryfirst`` wraps pytest-playwright's own hook,
+    which keeps its frames out of the failure report.
+    """
+    __tracebackhide__ = True
+    outcome = yield
+    failures = [
+        failure
+        for tool in item.stash.get(OPENED_TOOLS, [])
+        for failure in end_state.find_failures(tool.page, tool.tool_file, tool.viewport)
+    ]
+    end_state.check(item, failures)
+    return outcome
 
 
 def _answer_external_request(route: Route, problems: list[str]) -> None:
@@ -79,12 +132,13 @@ def _answer_external_request(route: Route, problems: list[str]) -> None:
 
 @pytest.fixture
 def open_tool(
-    new_context: Callable[..., Any], site_url: str
+    new_context: Callable[..., Any], site_url: str, request: pytest.FixtureRequest
 ) -> Callable[[str, str], OpenedTool]:
     """Open a root tool at a named viewport and record everything that goes wrong."""
 
     def open_(tool_file: str, viewport: str) -> OpenedTool:
         context = new_context(**VIEWPORTS[viewport])
+        context.add_init_script(end_state.RECORD_CANVAS_TEXT)
         problems: list[str] = []
         context.route(
             lambda url: not url.startswith(f"{site_url}/"),
@@ -114,6 +168,8 @@ def open_tool(
         page.on("requestfailed", on_request_failed)
         page.on("response", on_response)
         page.goto(f"{site_url}/{tool_file}", wait_until="networkidle")
-        return OpenedTool(page=page, problems=problems)
+        tool = OpenedTool(tool_file, viewport, page, problems)
+        request.node.stash.setdefault(OPENED_TOOLS, []).append(tool)
+        return tool
 
     return open_

@@ -245,6 +245,10 @@ SINGLE_LEVEL_DATA = (
 SINGLE_LEVEL_TERMS = ["(Intercept)", "g=b", "g=c", "x"]
 
 
+@pytest.mark.end_state_exempt(
+    "nan-text",
+    reason="the message says in prose that DFBETAS are undefined there, not zero",
+)
 def test_row_with_leverage_one_shows_a_message_not_a_number(open_tool):
     X, y = design_from_csv(SINGLE_LEVEL_DATA, SINGLE_LEVEL_TERMS)
     others = np.arange(len(y)) != SINGLE_LEVEL_ROW - 1

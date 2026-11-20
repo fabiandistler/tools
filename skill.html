@@ -88,9 +88,11 @@
     h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--accent); }
     p { color: var(--muted); margin-bottom: 12px; }
 
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-    @media (max-width: 700px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+    /* minmax(0, 1fr): a long line in a pre scrolls inside the pre instead of
+       widening its column and the page (#22). */
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    @media (max-width: 700px) { .grid-2, .grid-3 { grid-template-columns: minmax(0, 1fr); } }
 
     .card {
       background: var(--surface);

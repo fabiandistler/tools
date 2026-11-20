@@ -1,4 +1,8 @@
-"""Every root tool loads cleanly at desktop and phone width and fits a phone screen."""
+"""Every root tool loads cleanly at desktop and phone width.
+
+The end-state check (``end_state.py``) runs after each load, so the phone row
+also proves that the tool fits a phone screen when it opens.
+"""
 
 import pytest
 from playwright.sync_api import expect
@@ -8,17 +12,6 @@ from playwright.sync_api import expect
 def test_loads_without_errors(open_tool, tool_file, viewport):
     tool = open_tool(tool_file, viewport)
     assert not tool.problems, "\n".join(tool.problems)
-
-
-def test_page_does_not_scroll_sideways_on_phone(open_tool, tool_file):
-    tool = open_tool(tool_file, "phone")
-    widths = tool.page.evaluate(
-        "() => ({scroll: document.documentElement.scrollWidth,"
-        " client: document.documentElement.clientWidth})"
-    )
-    assert widths["scroll"] <= widths["client"], (
-        f"page is {widths['scroll']} px wide on a {widths['client']} px screen"
-    )
 
 
 def test_index_lists_every_tool(open_tool, tool_files):
